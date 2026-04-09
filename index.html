@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Easymaking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F3EC;
+    --ink: #1C1A17;
+    --muted: #6B655C;
+    --accent: #D94F30;
+    --accent-hover: #B63E23;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+  main {
+    max-width: 560px;
+  }
+  h1 {
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.5rem, 8vw, 4.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.5rem 0;
+    color: var(--ink);
+  }
+  .tagline {
+    font-size: 1.15rem;
+    color: var(--muted);
+    margin: 0 0 2.5rem 0;
+    max-width: 44ch;
+  }
+  .courses {
+    border-top: 1px solid rgba(28, 26, 23, 0.15);
+    padding-top: 1.5rem;
+  }
+  .courses-label {
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    margin: 0 0 0.75rem 0;
+  }
+  .course-link {
+    display: inline-block;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1.25rem;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .course-link:hover {
+    color: var(--accent-hover);
+    border-bottom-color: var(--accent-hover);
+  }
+  .course-desc {
+    font-size: 1rem;
+    color: var(--muted);
+    margin: 0.35rem 0 0 0;
+    max-width: 44ch;
+  }
+  footer {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 2rem;
+    right: 2rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Easymaking</h1>
+    <p class="tagline">Facilitation at its etymological root &mdash; <em>making easy</em>. A practice that works across complexity frameworks without collapsing into any one of them.</p>
+
+    <section class="courses">
+      <p class="courses-label">Now available</p>
+      <a class="course-link" href="/honest-assistant/">The Honest Assistant &rarr;</a>
+      <p class="course-desc">An interactive course on building an AI assistant that is both productive and refuses to flatter you. Files, not magic.</p>
+    </section>
+  </main>
+  <footer>easymaking.io</footer>
+</body>
+</html>

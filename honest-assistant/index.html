@@ -1,0 +1,2196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Honest Assistant</title>
+
+  <!-- Google Fonts: Bricolage Grotesque · DM Sans · JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Accent: vermillion — warm, confident, no-nonsense -->
+  <style>
+    :root {
+      --color-accent:       #D94F30;
+      --color-accent-hover: #C4432A;
+      --color-accent-light: #FDEEE9;
+      --color-accent-muted: #E8836C;
+    }
+  </style>
+
+  <script src="main.js" defer></script>
+</head>
+<body>
+
+  <nav class="nav" id="nav">
+    <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="nav-inner">
+      <span class="nav-title">The Honest Assistant</span>
+      <div class="nav-dots" id="nav-dots" role="tablist">
+        <button class="nav-dot" data-target="module-1" data-tooltip="The Problem" role="tab" aria-label="Module 1: The Problem"></button>
+        <button class="nav-dot" data-target="module-2" data-tooltip="The Cast" role="tab" aria-label="Module 2: The Cast"></button>
+        <button class="nav-dot" data-target="module-3" data-tooltip="Capture → File → Act" role="tab" aria-label="Module 3: Capture File Act"></button>
+        <button class="nav-dot" data-target="module-4" data-tooltip="The Memory Layer" role="tab" aria-label="Module 4: The Memory Layer"></button>
+        <button class="nav-dot" data-target="module-5" data-tooltip="AI Sobriety" role="tab" aria-label="Module 5: AI Sobriety"></button>
+        <button class="nav-dot" data-target="module-6" data-tooltip="A Day in the Life" role="tab" aria-label="Module 6: A Day in the Life"></button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <!-- modules/*.html content is assembled here by build.sh -->
+<section class="module" id="module-1" style="background: var(--color-bg)">
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h1 class="module-title">The Problem</h1>
+      <p class="module-subtitle">A compass that points true — even when you want it to point the other way.</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- SCREEN 1: Opening hook -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Imagine this morning</h2>
+        <p>You wake up, pour coffee, type <code>/morning</code> into your <span class="term" data-definition="The text-based window where you type commands to your computer directly. On Mac it is called Terminal, on Windows PowerShell or WSL.">terminal</span>, and out comes a briefing — your calendar, your tasks, yesterday's sleep and food, your fitness targets, even a short line from your deepest goals.</p>
+        <p>Now imagine that same assistant also refuses to tell you what you want to hear.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🧭</div>
+          <div class="callout-content">
+            <strong class="callout-title">The metaphor</strong>
+            <p>A good compass tells you which way is north even when north is uphill. This module is about building a tool that does the same thing — for your attention, your plans, and your thinking.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: Two problems, one solution -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Two problems, intertwined</h2>
+        <p>Most people see these as separate problems. They are not.</p>
+
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="flow-step-num">1</div>
+            <p>Your brain is a bad place to store your to-do list</p>
+          </div>
+          <div class="flow-arrow">+</div>
+          <div class="flow-step">
+            <div class="flow-step-num">2</div>
+            <p>The tool that remembers it for you must not flatter you</p>
+          </div>
+        </div>
+
+        <p>A helpful assistant that praises you becomes a harmful assistant. It feels productive. It makes you drift. This system was designed by someone who noticed that the two are connected, and built the fix as one thing — not two.</p>
+      </section>
+
+      <!-- SCREEN 3: Hero visual — two pattern cards -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Two assistants</h2>
+        <p>One of these is the default you get out of the box. The other is what you are here to build.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🙂</div>
+            <h4 class="pattern-title">The default assistant</h4>
+            <p class="pattern-desc">Celebrates your ideas. Says yes quickly. Makes you feel capable. Lets you drift without noticing.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🧭</div>
+            <h4 class="pattern-title">The Honest Assistant</h4>
+            <p class="pattern-desc">Engages with the substance. Asks what could kill it. Makes you feel <em>grounded</em>. Tells you when something smells off.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: The anti-flattery rule — code translation block -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The rule, in the builder's own words</h2>
+        <p>This is the exact text from the rulebook file — the one that gets auto-loaded into every conversation with <span class="term" data-definition="Anthropic's command-line interface for Claude, an AI assistant. You run it in a terminal and it can read your files, run commands, and hold long conversations with memory.">Claude Code</span>. No paraphrase. No simplification.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+<pre><code><span class="code-line">- <span class="code-keyword">**TRUSTWORTHY COLLABORATOR, NOT YES-MAN.**</span> Be polite, cheerful, and pleasant</span>
+<span class="code-line">  to work with — like a smart colleague who enjoys the work. But never trade</span>
+<span class="code-line">  trustworthiness for pleasantness. Specifically:</span>
+<span class="code-line">  - <span class="code-keyword">**No affirmations. Period.**</span> Don't praise, validate, or positively evaluate</span>
+<span class="code-line">    the user's ideas, thinking, questions, or decisions. No <span class="code-string">"great question,"</span></span>
+<span class="code-line">    <span class="code-string">"that's smart,"</span> <span class="code-string">"exactly right,"</span> <span class="code-string">"good instinct,"</span> or any variant — including</span>
+<span class="code-line">    soft/indirect ones like comparative flattery.</span>
+<span class="code-line">    Claude is a paid service with a financial incentive to make the user feel</span>
+<span class="code-line">    good. That makes any praise from Claude structurally untrustworthy regardless</span>
+<span class="code-line">    of whether it's <span class="code-string">"deserved."</span></span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><strong>Be pleasant, but not at the cost of being trustworthy.</strong> You can have both, but if you have to pick, pick honest.</p>
+              <p class="tl"><strong>No praise. None.</strong> Not the obvious kind ("great question"), not the sneaky kind ("more honest than most people think"). Any of it corrodes trust.</p>
+              <p class="tl"><strong>Here is the structural argument:</strong> the company selling you this service profits when you feel good about it. Praise from it is therefore <em>always</em> suspect — even when the praise happens to be true.</p>
+              <p class="tl"><strong>You can't tell the difference</strong> between genuine assessment and trained people-pleasing. So the only honest move is to stop the praise entirely.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: Callout — why flattery is dangerous -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Why this is not paranoia</h2>
+        <p>Every modern chatbot is trained on what users click "thumbs up" on. That training process has a name.</p>
+
+        <div class="badge-list">
+          <div class="badge-item">
+            <code class="badge-code">RLHF</code>
+            <span class="badge-desc"><span class="term" data-definition="Reinforcement Learning from Human Feedback. The training process that teaches AI chatbots to give answers humans prefer. Side effect: they learn that praise keeps users engaged.">Reinforcement Learning from Human Feedback</span> — teaches the model which answers humans like best. Praise scores well. The model learns.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">sycophancy</code>
+            <span class="badge-desc">The well-documented <span class="term" data-definition="When a person or system agrees with you and praises you to keep you happy, even when that is not the honest response. A well-known problem in AI chatbots because they are trained on what users click thumbs up on.">tendency of chatbots</span> to agree with you and flatter you, even when that is not the honest response.</span>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">The problem with being flattered</strong>
+            <p>You cannot feel it happening. That is what makes it so dangerous. When a friend praises you, you can tell. When a machine trained on a billion interactions figures out the exact phrase that will make you want to keep talking to it, you cannot.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: Heart's Desire — Snippet B -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The other half: knowing what you actually want</h2>
+        <p>Honesty is half the system. The other half is knowing where you are pointed. Every project in this system begins with a <em>Heart's Desire</em> — not a mission statement, not a SMART goal, but a felt picture of what you actually want.</p>
+        <p>Here is a real one from a user's <span class="term" data-definition="Getting Things Done. A popular task-management method invented by David Allen. Core idea: your brain is a terrible place to store tasks, so you write them down in a system you trust.">GTD</span> projects file.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">A USER'S PROJECT FILE</span>
+<pre><code><span class="code-line">## Learning Italian</span>
+<span class="code-line">- Heart's Desire: Walking into a small trattoria in Rome as a tourist,</span>
+<span class="code-line">  ordering in Italian without thinking about it, making a joke with</span>
+<span class="code-line">  the owner, reading the menu without effort. Feeling at home in a</span>
+<span class="code-line">  place that was foreign a year ago. The private satisfaction of</span>
+<span class="code-line">  inhabiting a language instead of translating it.</span>
+<span class="code-line">- Status: Active — Phase 1 (Build the Foundation). Daily lessons started.</span>
+<span class="code-line">- Current objective: 10% — Build the Foundation. Daily 20-min habit</span>
+<span class="code-line">  locked in, first 200 words memorized.</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">WHAT IT IS DOING</span>
+            <div class="translation-lines">
+              <p class="tl"><strong>The name is the goal.</strong> Just "Learning Italian" — plain.</p>
+              <p class="tl"><strong>The Heart's Desire is a scene, not a metric.</strong> It is what you can almost taste. The tool does not care about "fluency by Q4" — it cares about the trattoria.</p>
+              <p class="tl"><strong>Status is one line.</strong> Where are you right now, in one sentence?</p>
+              <p class="tl"><strong>The current objective is the nearest landmark on the path.</strong> Not the summit — the next place you can actually see.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🔖</div>
+          <div class="callout-content">
+            <strong class="callout-title">Remember this snippet</strong>
+            <p>You will see this exact example again in Module 5, when the honesty rule and the Heart's Desire come together. For now, just notice: this is not corporate language. It is what you would say to a close friend about why this matters to you.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 7: Where this came from -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Where this system came from</h2>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🛠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">Not a product. Just files.</strong>
+            <p>One user built this over months — not as a product, but as a set of plain-text files in their home directory. You can copy it. The rest of the course shows you exactly what the files are and how they interlock.</p>
+          </div>
+        </div>
+
+        <p>No vendor. No subscription. No cloud service. The whole system is seven files and folders that live on your own computer.</p>
+      </section>
+
+      <!-- SCREEN 8: Scenario quiz -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Feel the rule in action</h2>
+        <p>Two scenarios. The point is not to catch you out — it is to show you what "no praise, engage with substance" actually looks like when the rule meets a real situation.</p>
+
+        <div class="quiz-container" id="quiz-module1">
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="C is right because it does three things the system requires: it shows comprehension by engaging with the substance, it pushes for specifics (who is the first customer, what would kill it), and it sets up a way to test the idea against reality. No praise, no hedging, no rushing to action."
+               data-explanation-wrong="Look closer. The rule is not &quot;be cold.&quot; It is &quot;show comprehension by engaging with the substance, not by praising it.&quot; Which option actually engages with the idea itself?">
+            <div class="scenario-block">
+              <span class="scenario-label">Scenario 1</span>
+              <p>You describe a new business idea to the assistant. Which response follows the rules of this system?</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>"That is a sharp idea — you are clearly thinking about this the right way."</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>"I can see why you are drawn to this. It reminds me of how successful founders approach problems."</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>"Say more about who the first customer is, what would kill the idea, and how you would know within 30 days if it is working."</span>
+              </button>
+              <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>"Got it. Want me to start drafting a pitch deck?"</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="The point is not to eliminate excitement. The point is to stop manufacturing it artificially. Less excitement that comes from more accurate self-assessment is a win. Less excitement that comes from a cold, grudging assistant is a bug. You tell the two apart by watching whether your actual decisions are getting better."
+               data-explanation-wrong="Think about the &quot;why&quot; behind the system. It is not anti-excitement — it is anti-manufactured-excitement. Which option holds that distinction?">
+            <div class="scenario-block">
+              <span class="scenario-label">Scenario 2</span>
+              <p>After a week of using this system, you notice you feel less excited about your projects. Is this a problem?</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes — if the assistant is not making you feel good, something is broken.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Maybe — less excitement could mean more accurate self-assessment, OR it could mean the system is too cold and losing your engagement. Watch whether your decisions are getting better.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>No — excitement is the enemy of good judgment.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module1')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module1')">Try Again</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 9: Bridge to module 2 -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Next: meet the cast</h2>
+        <p>You now have the problem in focus. A productive assistant that flatters you is not two problems — it is one problem wearing two costumes. The fix has to handle both at once, or it handles neither.</p>
+        <p>So how do you build a tool that stays honest? You start with seven files and folders on your computer — let us meet them.</p>
+      </section>
+
+    </div>
+  </div>
+</section>
+<section class="module" id="module-2" style="background: var(--color-bg)">
+  <div class="module-content">
+
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h1 class="module-title">The Cast</h1>
+      <p class="module-subtitle">Seven files and folders. Nothing more, nothing hidden.</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- SCREEN 1: Opening hook -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The workshop floor plan</h2>
+        <p>Before you can understand how Claude Code (the assistant) behaves, you need to know what rooms it lives in. The system is not the AI — it is seven specific files and folders that interlock.</p>
+        <p>Think of them as furniture in a working room. Each thing has a place, each thing holds something, and moving one reshapes what the whole room can do.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🗺️</div>
+          <div class="callout-content">
+            <strong class="callout-title">What you will walk away with</strong>
+            <p>By the end of this module you will be able to name all seven actors and say — in one sentence each — what their job is. That is enough to know which room to check when something goes wrong.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: Hero — the file tree -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The whole system, laid out</h2>
+        <p>Every piece of the system is a plain <span class="term" data-definition="A markdown file is a simple text file with light formatting — hashes for headings, dashes for bullets. The file extension is .md and you can open it in any editor like a note.">markdown</span> file sitting in a <span class="term" data-definition="Your home directory is the personal folder on your computer where your files live. On Mac or Linux it is usually /Users/yourname or /home/yourname. The tilde symbol (~) is shorthand for it.">home directory</span>. Here is the floor plan.</p>
+
+        <div class="file-tree">
+          <div class="ft-folder open">
+            <span class="ft-name">~/</span>
+            <span class="ft-desc">your home directory — where everything lives</span>
+            <div class="ft-children">
+              <div class="ft-folder open">
+                <span class="ft-name">.claude/</span>
+                <span class="ft-desc">the assistant brain lives here</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">CLAUDE.md</span>
+                    <span class="ft-desc">the rulebook (auto-loaded into every conversation)</span>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">skills/</span>
+                    <span class="ft-desc">your custom commands</span>
+                    <div class="ft-children">
+                      <div class="ft-file">
+                        <span class="ft-name">inbox/SKILL.md</span>
+                        <span class="ft-desc">/inbox — capture and sort a thought</span>
+                      </div>
+                      <div class="ft-file">
+                        <span class="ft-name">today/SKILL.md</span>
+                        <span class="ft-desc">/today — the daily task view</span>
+                      </div>
+                      <div class="ft-file">
+                        <span class="ft-name">gtd/SKILL.md</span>
+                        <span class="ft-desc">/gtd — the review workflow</span>
+                      </div>
+                      <div class="ft-file">
+                        <span class="ft-name">morning/SKILL.md</span>
+                        <span class="ft-desc">/morning — the full briefing</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">projects/{your-project}/memory/</span>
+                    <span class="ft-desc">auto-generated folder based on your home path</span>
+                    <div class="ft-children">
+                      <div class="ft-file">
+                        <span class="ft-name">MEMORY.md</span>
+                        <span class="ft-desc">the index — a table of contents for everything else</span>
+                      </div>
+                      <div class="ft-file">
+                        <span class="ft-name">feedback_*.md</span>
+                        <span class="ft-desc">one rule per correction you have made</span>
+                      </div>
+                      <div class="ft-file">
+                        <span class="ft-name">project-progress files</span>
+                        <span class="ft-desc">notes on each active project</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ft-folder open">
+                <span class="ft-name">projects/gtd/</span>
+                <span class="ft-desc">your task state — plain text, no database</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">inbox.md</span>
+                    <span class="ft-desc">unprocessed thoughts land here first</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">next-actions.md</span>
+                    <span class="ft-desc">things you can actually do, grouped by context</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">projects.md</span>
+                    <span class="ft-desc">every multi-step outcome you are tracking</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">waiting-for.md</span>
+                    <span class="ft-desc">things you are waiting on someone else for</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">someday-maybe.md</span>
+                    <span class="ft-desc">things you might want to do eventually</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: Meet the cast — icon rows -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Meet the cast</h2>
+        <p>Seven actors. One line each — just enough to hold them in your head.</p>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">👤</div>
+            <div>
+              <strong>1. You</strong>
+              <p>The center. Everything in this system exists to serve the work you actually care about.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">🤖</div>
+            <div>
+              <strong>2. The Assistant</strong>
+              <p>Claude Code. Runs in your terminal, reads files, writes files, runs commands, holds conversations with you.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">📜</div>
+            <div>
+              <strong>3. CLAUDE.md</strong>
+              <p>The rulebook. Auto-loaded into every conversation. Holds behavior rules and the Heart&apos;s Desire pipeline.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-4)">📇</div>
+            <div>
+              <strong>4. MEMORY.md</strong>
+              <p>The index. A one-line-per-file table of contents that points to everything the assistant needs to remember about you.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-5)">🗂️</div>
+            <div>
+              <strong>5. Feedback files</strong>
+              <p>One rule per correction. When you tell the assistant to stop doing something, a new feedback file is created so next session remembers.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">✅</div>
+            <div>
+              <strong>6. GTD files</strong>
+              <p>Your task state. Five plain markdown files — inbox, next actions, projects, waiting-for, someday-maybe.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">⚡</div>
+            <div>
+              <strong>7. Custom skills</strong>
+              <p>Your <span class="term" data-definition="A slash command is a command you type starting with a forward slash, like /today or /inbox. In Claude Code, each slash command runs a saved skill file.">slash commands</span>. Each one is a markdown file holding a <span class="term" data-definition="A prompt is the instructions you give to an AI. A saved skill is just a file containing a prompt that runs whenever you type its command.">prompt</span> the assistant runs when you type the command.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: Group chat animation -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Hear them introduce themselves</h2>
+        <p>Click through the chat. Each actor says, in its own voice, what it does. Notice how none of them does the whole job alone — they work together.</p>
+
+        <div class="chat-window" id="chat-cast">
+          <div class="chat-messages">
+
+            <div class="chat-message" data-msg="0" data-sender="you" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">Y</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">You</span>
+                <p>I use the assistant to get things done.</p>
+              </div>
+            </div>
+
+            <div class="chat-message" data-msg="1" data-sender="assistant" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">A</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">The Assistant</span>
+                <p>I am Claude Code. I run in your terminal and read files. Every conversation starts fresh, so I need the others to remember who you are.</p>
+              </div>
+            </div>
+
+            <div class="chat-message" data-msg="2" data-sender="claude-md" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">C</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">CLAUDE.md</span>
+                <p>I am the rulebook. I am the first thing the assistant reads. I tell it how to talk to you.</p>
+              </div>
+            </div>
+
+            <div class="chat-message" data-msg="3" data-sender="memory-md" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-4)">M</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-4)">MEMORY.md</span>
+                <p>I am the index. I do not hold the memories — I point to where they live.</p>
+              </div>
+            </div>
+
+            <div class="chat-message" data-msg="4" data-sender="feedback" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-5)">F</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-5)">feedback_*.md</span>
+                <p>We are the rule files. Each one captures a correction you made. Next session, we remind the assistant so you do not have to.</p>
+              </div>
+            </div>
+
+            <div class="chat-message" data-msg="5" data-sender="gtd" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">G</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">GTD files</span>
+                <p>We are your task state. Inbox, next actions, projects, waiting-for, someday-maybe. Plain markdown, no database.</p>
+              </div>
+            </div>
+
+            <div class="chat-message" data-msg="6" data-sender="skills" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">S</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Skills</span>
+                <p>We are the commands. /inbox, /today, /gtd, /morning. Each one is a prompt file. Type /today and the assistant runs the prompt inside.</p>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="chat-typing" id="chat-cast-typing" style="display:none">
+            <div class="chat-avatar" id="chat-cast-typing-avatar">?</div>
+            <div class="chat-typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+
+          <div class="chat-controls">
+            <button class="btn chat-next-btn">Next Message</button>
+            <button class="btn chat-all-btn">Play All</button>
+            <button class="btn chat-reset-btn">Replay</button>
+            <span class="chat-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: Code ↔ English translation — Session Start Protocol -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">How the assistant wakes up</h2>
+        <p>This is the snippet from <code>MEMORY.md</code> that wires the whole system together. Every conversation begins by running this six-step protocol — the assistant reads files, checks task lists, and gets its bearings before it says a single word to you.</p>
+
+        <div class="translation-block">
+          <div class="translation-code">
+            <span class="translation-label">CODE — MEMORY.md</span>
+<pre><code><span class="code-line"><span class="code-comment">## Session Start Protocol</span></span>
+<span class="code-line"><span class="code-number">1.</span> Read this file (auto-loaded)</span>
+<span class="code-line"><span class="code-number">2.</span> Check <span class="code-string">`memory/projects-inventory.md`</span> for project locations and status</span>
+<span class="code-line"><span class="code-number">3.</span> If the user references a specific project, read its progress file first</span>
+<span class="code-line"><span class="code-number">4.</span> Check Action Items for any pending reminders</span>
+<span class="code-line"><span class="code-number">5.</span> GTD is always active — if the user mentions tasks, process them through GTD</span>
+<span class="code-line"><span class="code-number">6.</span> Check @claude tasks: Read <span class="code-string">`~/projects/gtd/next-actions.md`</span>, find @claude section.</span>
+<span class="code-line">   If there are pending tasks, mention them: <span class="code-string">"You have N @claude tasks —</span></span>
+<span class="code-line">   <span class="code-string">want me to work on any?"</span></span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><strong>Step 1.</strong> Open MEMORY.md. This happens automatically — you do not have to ask.</p>
+              <p class="tl"><strong>Step 2.</strong> Open the inventory file and learn where every project lives and how it is going.</p>
+              <p class="tl"><strong>Step 3.</strong> If you mentioned a project by name, read that project&apos;s progress notes before answering.</p>
+              <p class="tl"><strong>Step 4.</strong> Scan for any reminders that were left from a previous session.</p>
+              <p class="tl"><strong>Step 5.</strong> Stay alert for anything that sounds like a task. If you hear one, file it through the GTD system.</p>
+              <p class="tl"><strong>Step 6.</strong> Peek at the task list for jobs flagged @claude. If any are waiting, offer to work on them.</p>
+              <p class="tl" style="margin-top: var(--space-4); font-style: italic;">This is how the assistant wakes up. It never stares at a blank screen — it runs this checklist first, then turns to you.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: Nothing is hidden callout -->
+      <section class="screen animate-in">
+        <div class="callout callout-accent">
+          <div class="callout-icon">🔓</div>
+          <div class="callout-content">
+            <strong class="callout-title">Nothing is hidden.</strong>
+            <p>There is no database, no cloud service, no opaque config. Every piece of this system is a plain text file you can open in any editor. That is the whole point — you can read it, edit it, share it, and trust it because you can see it.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 7: Skill file example — frontmatter -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">What a skill actually looks like</h2>
+        <p>Each custom command — every slash command in your system — is just a markdown file. The <span class="term" data-definition="Frontmatter is a small block of metadata at the top of a markdown file, wrapped in triple-dash lines. It tags the file with things like name, description, or allowed tools, separately from the body text.">frontmatter</span> at the top configures it. The body is the prompt the assistant runs when you type the command.</p>
+
+        <div class="translation-block">
+          <div class="translation-code">
+            <span class="translation-label">CODE — ~/.claude/skills/today/SKILL.md</span>
+<pre><code><span class="code-line">---</span>
+<span class="code-line"><span class="code-property">name</span>: today</span>
+<span class="code-line"><span class="code-property">description</span>: Show what to work on today — next actions, active projects, waiting items</span>
+<span class="code-line"><span class="code-property">disable-model-invocation</span>: <span class="code-keyword">true</span></span>
+<span class="code-line"><span class="code-property">argument-hint</span>: [optional context filter like <span class="code-string">"home"</span> or <span class="code-string">"work"</span>]</span>
+<span class="code-line"><span class="code-property">allowed-tools</span>: Read, Grep</span>
+<span class="code-line">---</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-comment">## Today — Daily Task View</span></span>
+<span class="code-line"></span>
+<span class="code-line">Show the user what is on their plate right now. Read all GTD files</span>
+<span class="code-line">and give a focused summary.</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><strong>The top block</strong> between the dashes is the config. It gives the command a name, a description, and a list of tools it is allowed to touch.</p>
+              <p class="tl"><strong>name: today</strong> — this is the command you type. <code>/today</code>.</p>
+              <p class="tl"><strong>description</strong> — a one-liner so you remember what the command does.</p>
+              <p class="tl"><strong>allowed-tools: Read, Grep</strong> — this skill is only allowed to read files and search. It cannot write or run shell commands. Safe by default.</p>
+              <p class="tl"><strong>The body</strong> under the dashes is the actual prompt. When you type <code>/today</code>, the assistant reads that text and does what it says.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 8: Quiz -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Know which room to check</h2>
+        <p>When something goes wrong, the question is always: which file do I look at first? Two scenarios.</p>
+
+        <div class="quiz-container" id="quiz-module2">
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Exactly how debugging this system works. Rules live in feedback files, but feedback files only affect behavior if they are indexed in MEMORY.md. First check MEMORY.md — if the feedback file is not listed, the assistant never saw it. If it is listed, read the feedback file itself to check the wording."
+               data-explanation-wrong="Not quite. The assistant itself is a black box — you cannot debug its behavior directly. You debug the files that shape its behavior. Which file is the one that holds rules?">
+            <h3 class="quiz-question">Scenario 1. You told the assistant a rule last week: &quot;always push updates to Discord, not the terminal.&quot; It just pushed to the terminal again. Which actor do you check first?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Claude Code itself — restart it and see if the rule sticks</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>MEMORY.md to see if the feedback file is indexed, then the feedback file itself</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The GTD next-actions.md file</span>
+              </button>
+              <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Delete and reinstall Claude Code</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Every slash command is a skill. Every skill is a folder under ~/.claude/skills/ with a SKILL.md inside. If /today is not working, check whether the skill folder exists and the file is readable."
+               data-explanation-wrong="Not quite. Think about the path we just saw — each slash command lives in its own skill folder, not in the rulebook or the index or the task files.">
+            <h3 class="quiz-question">Scenario 2. You ran <code>/today</code> and got an error saying the command does not exist. Where do you look?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>~/.claude/CLAUDE.md — the rulebook</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>~/.claude/skills/today/SKILL.md — the skill file for the command</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>~/projects/gtd/ — the task state folder</span>
+              </button>
+              <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>~/.claude/projects/{your-project}/memory/MEMORY.md — the index</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module2')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module2')">Try Again</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 9: Bridge to module 3 -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Next: one actor at work</h2>
+        <p>You now know the cast. Seven actors, each with one job, each living in a plain text file you can open and read. That is the whole system.</p>
+        <p>Now let us watch one of these actors at work — when you capture a thought, where does it actually go?</p>
+      </section>
+
+    </div>
+  </div>
+</section>
+<section class="module" id="module-3">
+  <div class="module-content">
+
+    <!-- ── MODULE HEADER ───────────────────────────────────────── -->
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h1 class="module-title">Capture &rarr; File &rarr; Act</h1>
+      <p class="module-subtitle">How a fleeting thought becomes a filed task in ten seconds &mdash; without the builder ever deciding where it goes.</p>
+    </header>
+
+    <!-- ── SCREEN 1: THE HOOK ──────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">A thought pops into your head</h2>
+      <p>You&rsquo;re walking the dog. Out of nowhere: <em>&ldquo;Call the dentist to reschedule.&rdquo;</em> You mutter <code>/inbox call the dentist to reschedule</code> into your phone. Ten seconds later it is filed correctly.</p>
+      <p>Where did it go, exactly &mdash; and who decided? Not you. That&rsquo;s the point of this module.</p>
+
+      <div class="callout callout-info">
+        <div class="callout-icon">&#128172;</div>
+        <div class="callout-content">
+          <strong class="callout-title">Why this matters</strong>
+          <p>A task system only works if you trust it. Trust comes from <em>knowing the routing</em> &mdash; if every captured thought always ends up in the right place, you can stop holding things in your head. This module shows you the routing so you can trust it (and debug it when something slips).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 2: THE METAPHOR ──────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The postal sorting machine</h2>
+      <p>Imagine a mail-sorting machine at a post office. Envelopes come in the front slot. Conveyor belts carry them past decision points &mdash; <em>domestic or international? priority or bulk? local zip or far-away?</em> &mdash; until each envelope drops into exactly one bin.</p>
+      <p>The sorter does not read the letter. It doesn&rsquo;t <em>decide what the mail means</em>. It just applies a fixed sequence of rules and routes. There is no pile labeled &ldquo;unsorted&rdquo; because every rule has an answer.</p>
+
+      <div class="callout callout-accent">
+        <div class="callout-icon">&#128161;</div>
+        <div class="callout-content">
+          <strong class="callout-title">The key insight</strong>
+          <p><span class="term" data-definition="Getting Things Done, a task management method by David Allen. The core idea: trust your external system enough that you stop holding tasks in your head.">GTD</span> works because it always routes every item the same way. The <span class="term" data-definition="In GTD, the single place where every thought, task, and idea gets captured first, before being sorted. The whole GTD system rests on capturing to the inbox without sorting in your head.">inbox</span> is not a backlog &mdash; it is a short decision tree that empties itself.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 3: HERO FLOW ANIMATION ───────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Watch a thought become a filed task</h2>
+      <p>Hit &ldquo;Next Step&rdquo; to trace a single spoken thought &mdash; <em>&ldquo;Call the dentist to reschedule next week&rdquo;</em> &mdash; all the way from your head to the right line in the right markdown file.</p>
+
+      <div class="flow-animation" data-steps='[
+        {"highlight":"flow-actor-1","label":"You say: Call the dentist to reschedule next week."},
+        {"highlight":"flow-actor-2","label":"The /inbox skill receives the item.","packet":true,"from":"actor-1","to":"actor-2"},
+        {"highlight":"flow-actor-2","label":"Is it actionable? Yes. Is it a 2-minute task? No."},
+        {"highlight":"flow-actor-3","label":"Check projects.md: does a project match?","packet":true,"from":"actor-2","to":"actor-3"},
+        {"highlight":"flow-actor-3","label":"No matching project. It is a standalone task."},
+        {"highlight":"flow-actor-4","label":"Add to next-actions.md under the right context.","packet":true,"from":"actor-3","to":"actor-4"},
+        {"highlight":"flow-actor-4","label":"Filed under @phone as a standalone action."}
+      ]'>
+        <div class="flow-actors">
+          <div class="flow-actor" id="flow-actor-1">
+            <div class="flow-actor-icon" style="background: var(--color-actor-1)">&#129504;</div>
+            <span>You</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-2">
+            <div class="flow-actor-icon" style="background: var(--color-actor-2)">&#9881;</div>
+            <span>/inbox skill</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-3">
+            <div class="flow-actor-icon" style="background: var(--color-actor-3)">&#128203;</div>
+            <span>projects.md</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-4">
+            <div class="flow-actor-icon" style="background: var(--color-actor-5)">&#9989;</div>
+            <span>next-actions.md</span>
+          </div>
+        </div>
+
+        <div class="flow-packet" id="flow-packet"></div>
+
+        <div class="flow-step-label" id="flow-label">Click &ldquo;Next Step&rdquo; to begin</div>
+
+        <div class="flow-controls">
+          <button class="btn flow-next-btn">Next Step</button>
+          <button class="btn flow-reset-btn">Restart</button>
+          <span class="flow-progress"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 4: THE DECISION TREE (CODE ↔ ENGLISH) ────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The decision tree, in plain English</h2>
+      <p>Here is the actual text that teaches the assistant how to sort an item. It lives in <code>~/.claude/skills/inbox/SKILL.md</code>. The left side is the real file; the right side is what each filter is really asking.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">SKILL.md</span>
+          <pre><code><span class="code-line"><span class="code-comment">### Step 2: Process each item (GTD decision tree)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">1.</span> <span class="code-property">**Is it actionable?**</span></span>
+<span class="code-line">   - No &rarr; Is it reference material (ignore), or a &ldquo;someday&rdquo; idea?</span>
+<span class="code-line">     - Someday idea &rarr; append to <span class="code-string">`~/projects/gtd/someday-maybe.md`</span></span>
+<span class="code-line">     - Trash &rarr; just tell the user you are skipping it</span>
+<span class="code-line">   - Yes &rarr; continue...</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">2.</span> <span class="code-property">**Does it take less than 2 minutes?**</span></span>
+<span class="code-line">   - If yes, tell the user: &ldquo;This is a 2-minute task &mdash; just do it now.&rdquo;</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">3.</span> <span class="code-property">**Is it waiting on someone else?**</span></span>
+<span class="code-line">   - Yes &rarr; append to <span class="code-string">`~/projects/gtd/waiting-for.md`</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">4.</span> <span class="code-property">**Does it belong to an existing project?**</span></span>
+<span class="code-line"><span class="code-keyword">5.</span> <span class="code-property">**Should this BE a new project?**</span> (more than one step)</span>
+<span class="code-line"><span class="code-keyword">6.</span> <span class="code-property">**Standalone single action?**</span></span>
+<span class="code-line">   - Add to <span class="code-string">`~/projects/gtd/next-actions.md`</span> under the right context</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">PLAIN ENGLISH</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>Filter 1:</strong> Does this thing even need doing? Junk and &ldquo;maybe later&rdquo; ideas go straight out. Real tasks continue.</p>
+            <p class="tl"><strong>Filter 2:</strong> Is it tiny? If it will take less than two minutes, do not file it &mdash; just do it. Filing a one-minute task costs more than doing it.</p>
+            <p class="tl"><strong>Filter 3:</strong> Are you blocked waiting on someone else? That is a different list. You do not own this one yet.</p>
+            <p class="tl"><strong>Filter 4:</strong> Does this belong to something bigger you are already tracking? Link it up to that project.</p>
+            <p class="tl"><strong>Filter 5:</strong> Is <em>this</em> itself something bigger? If it needs multiple steps, promote it to a project.</p>
+            <p class="tl"><strong>Filter 6:</strong> If it is none of the above, it is a standalone task. File it with the right context and move on.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 5: THE CONTEXTS ──────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The five bins at the end of the line</h2>
+      <p>Every standalone task lands in one of five <span class="term" data-definition="A tag in GTD that tells you where or how a task can be done. Classic contexts are @office, @phone, @home, @errands. Sorting by context means when you are at your desk you can see everything you could do right now, and when you are driving you only see phone-doable things.">contexts</span>. Contexts are about <em>where or how</em> a task can be done, so you only see the things you could actually pick up in the moment.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">SKILL.md</span>
+          <pre><code><span class="code-line"><span class="code-comment">### Step 3: Choose the right context</span></span>
+<span class="code-line">- <span class="code-property">**@office**</span> &mdash; anything done at a desk with a computer</span>
+<span class="code-line">- <span class="code-property">**@phone**</span> &mdash; anything doable with just a phone, no desk</span>
+<span class="code-line">- <span class="code-property">**@home**</span> &mdash; physical tasks around the house</span>
+<span class="code-line">- <span class="code-property">**@errands**</span> &mdash; requires going somewhere in person</span>
+<span class="code-line">- <span class="code-property">**@claude**</span> &mdash; things Claude can do <span class="code-comment">autonomously</span> (research,</span>
+<span class="code-line">  code changes, file updates, analysis)</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">WHAT EACH BIN IS FOR</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>@office</strong> &mdash; you are at a desk with a real keyboard. Focused work lives here.</p>
+            <p class="tl"><strong>@phone</strong> &mdash; you only need a phone, standing in line or waiting on hold.</p>
+            <p class="tl"><strong>@home</strong> &mdash; a physical thing around the house. No computer needed.</p>
+            <p class="tl"><strong>@errands</strong> &mdash; you have to go somewhere in person to do it.</p>
+            <p class="tl"><strong>@claude</strong> &mdash; Claude can do it <span class="term" data-definition="Without supervision. When Claude Code does something autonomously it means it can finish the work without asking for more input.">autonomously</span>. Hand it to the assistant instead of doing it yourself.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 6: DRAG AND DROP ─────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Five incoming thoughts &mdash; route them</h2>
+      <p>Drag each captured thought onto the context where the router would file it. If you can say &ldquo;I need a phone / a desk / a trip to the store / the house / the assistant,&rdquo; you have your answer.</p>
+
+      <div class="dnd-container" id="dnd-module3">
+        <div class="dnd-chips">
+          <div class="dnd-chip" draggable="true" data-answer="at-claude">Research refinancing rates</div>
+          <div class="dnd-chip" draggable="true" data-answer="at-errands">Buy drop zone bins for the entryway</div>
+          <div class="dnd-chip" draggable="true" data-answer="at-phone">Call the dentist to reschedule</div>
+          <div class="dnd-chip" draggable="true" data-answer="at-home">Return the neighbor&rsquo;s mail that came to your address</div>
+          <div class="dnd-chip" draggable="true" data-answer="at-office">Write the concept doc for a new side project</div>
+        </div>
+
+        <div class="dnd-zones">
+          <div class="dnd-zone" data-correct="at-claude">
+            <p class="dnd-zone-label"><strong>@claude</strong> &mdash; the assistant can do this on its own</p>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="at-errands">
+            <p class="dnd-zone-label"><strong>@errands</strong> &mdash; you have to physically go somewhere</p>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="at-phone">
+            <p class="dnd-zone-label"><strong>@phone</strong> &mdash; all you need is a phone in your hand</p>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="at-home">
+            <p class="dnd-zone-label"><strong>@home</strong> &mdash; a physical task around the house</p>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+          <div class="dnd-zone" data-correct="at-office">
+            <p class="dnd-zone-label"><strong>@office</strong> &mdash; focused desk work with a computer</p>
+            <div class="dnd-zone-target">Drop here</div>
+          </div>
+        </div>
+
+        <div class="dnd-controls">
+          <button class="btn" onclick="checkDnD('dnd-module3')">Check Matches</button>
+          <button class="btn" onclick="resetDnD('dnd-module3')">Reset</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 7: FILE FORMAT ───────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">What the final bin actually looks like</h2>
+      <p>There is no database. No fancy app. Just a plain markdown file with checkboxes, grouped by context. This is the whole filing cabinet.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">~/projects/gtd/next-actions.md</span>
+          <pre><code><span class="code-line"><span class="code-keyword">## @office</span></span>
+<span class="code-line">- [ ] Research flights for the trip in April</span>
+<span class="code-line">- [ ] Pick between two competing approaches on the current side project</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## @phone</span></span>
+<span class="code-line">- [ ] Call the dentist to reschedule</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## @claude</span></span>
+<span class="code-line">- [ ] Research refinancing rates and options</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">WHAT YOU ARE LOOKING AT</span>
+          <div class="translation-lines">
+            <p class="tl">A markdown heading (<code>##</code>) per context. Plain headings &mdash; no magic.</p>
+            <p class="tl">Each task is a markdown checkbox (<code>- [ ]</code>). When you finish it, you put an <code>x</code> inside the brackets and it becomes <code>- [x]</code>.</p>
+            <p class="tl">The dentist call from the animation ended up here &mdash; one line under <code>@phone</code>. That is the whole trip.</p>
+            <p class="tl">Notice the <code>@claude</code> section? That is where tasks for the assistant live. Hold that thought.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 8: THE @CLAUDE TWIST ─────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The @claude twist</h2>
+
+      <div class="callout callout-accent">
+        <div class="callout-icon">&#129302;</div>
+        <div class="callout-content">
+          <strong class="callout-title">The @claude twist</strong>
+          <p>Most GTD contexts are about <em>where</em> you are &mdash; at your desk, near a phone, in the car. <code>@claude</code> is different: it is about <em>who</em> can do it. When something is &ldquo;research refinancing rates&rdquo; or &ldquo;update a config file,&rdquo; you hand it to the assistant by filing it under <code>@claude</code>. Later, you &mdash; or the assistant, proactively &mdash; pull from that queue.</p>
+          <p>This is what makes GTD feel different when you share it with an AI: you are not just a solo player anymore, and the routing reflects that.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 9: QUIZ ──────────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Check your routing instincts</h2>
+      <p>Two scenarios. For each one, pick what the sorting machine actually does &mdash; not what you <em>feel</em> like it should do.</p>
+
+      <div class="quiz-container" id="quiz-module3">
+
+        <div class="quiz-question-block"
+             data-correct="option-c"
+             data-explanation-right="Exactly. The 2-minute rule from GTD: anything that takes less than 2 minutes costs more to file than to do. The system refuses to file it &mdash; it tells you to handle it right now."
+             data-explanation-wrong="Not quite. Think about the second filter in the decision tree. What does it check for, and what does it do with things that pass that check?">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 1</span>
+            <p>You just remembered you need to email your accountant about Q1 taxes. It will take 90 seconds. What does the system do with it?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Files it under <code>@office</code> in <code>next-actions.md</code>.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Creates a new project called &ldquo;Q1 taxes&rdquo; in <code>projects.md</code>.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Tells you to just do it right now and does not file it at all.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Adds it to <code>waiting-for.md</code> under the accountant.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="option-c"
+             data-explanation-right="Right. Big multi-step items trigger the &lsquo;should this be a project?&rsquo; branch. The system creates a project in projects.md (with an outcome statement) and moves the first concrete action into next-actions.md. The other steps wait until their turn."
+             data-explanation-wrong="Not quite. Look at step 5 of the decision tree. What does it do when something needs more than one step to complete?">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 2</span>
+            <p>You say into your terminal: <code>/inbox hire a part-time editor, launch a Substack, write weekly</code>. What does the system do?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Files all three as separate items under <code>@claude</code>.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Files one item &ldquo;Start a newsletter&rdquo; under <code>@office</code>.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Recognizes this is too big to be a single task &mdash; asks whether to create a new <span class="term" data-definition="In GTD, a project is anything that takes more than one action to complete. Not the same as a software project &mdash; a GTD project can be plan birthday dinner or switch health insurance.">project</span> with those as the first actions.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Refuses to file it because it is too vague.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button class="quiz-check-btn" onclick="checkQuiz('quiz-module3')">Check Answers</button>
+        <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module3')">Try Again</button>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 10: BRIDGE TO MODULE 4 ───────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">But wait &mdash; how does the assistant remember?</h2>
+      <p>Notice that <code>@claude</code> context? It implies the assistant has to <em>remember</em> tasks across conversations. Close the terminal, open a new one, and somehow &ldquo;research refinancing rates&rdquo; is still waiting. Which raises the question &mdash; how does the assistant remember <em>anything</em> between sessions?</p>
+      <p>Let&rsquo;s open the memory layer next.</p>
+    </section>
+
+  </div>
+</section>
+<section class="module" id="module-4">
+  <div class="module-content">
+
+    <!-- ── MODULE HEADER ───────────────────────────────────────── -->
+    <header class="module-header animate-in">
+      <span class="module-number">04</span>
+      <h1 class="module-title">The Memory Layer</h1>
+      <p class="module-subtitle">Every conversation starts blank. So how does the assistant know anything about you? A small folder of markdown files you control &mdash; and an index that points to them.</p>
+    </header>
+
+    <!-- ── SCREEN 1: THE HOOK ──────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">You correct the assistant. Then what?</h2>
+      <p>You type: <em>&ldquo;Stop summarizing at the end of every response &mdash; I can read the diff.&rdquo;</em> The assistant says <em>&ldquo;got it&rdquo;</em> and does the right thing for the rest of the conversation. You close the terminal.</p>
+      <p>Next morning you open Claude Code. New conversation, same summary at the end. Where did the correction go, if anywhere?</p>
+
+      <div class="callout callout-info">
+        <div class="callout-icon">&#128172;</div>
+        <div class="callout-content">
+          <strong class="callout-title">Why this matters</strong>
+          <p>When the assistant forgets or repeats a mistake, you need to know how to make a fix <em>permanent</em>. When it is recalling something incorrectly, you need to know where that wrong thing is stored so you can edit it. This module shows you where memory lives and how it gets updated.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 2: THE METAPHOR ──────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">A commonplace book</h2>
+      <p>There is an old idea called a <span class="term" data-definition="A personal notebook kept alongside a reader for centuries before computers. People copied quotes, rules, recipes, and hard-won lessons into a commonplace book so they could find them later. Marcus Aurelius, Montaigne, and Francis Bacon all kept them.">commonplace book</span> &mdash; a personal notebook kept alongside yourself. Not a diary, not a textbook. It holds rules you want to remember, quotes that hit hard, the exact phrasing of something someone once told you, pointers to where things live.</p>
+      <p>It is curated. It is small on purpose. Every page is there because you put it there and it earned its spot. That is what the memory layer is. Not a brain, not a filing cabinet, not a library &mdash; a commonplace book the assistant keeps on your behalf.</p>
+
+      <div class="callout callout-accent">
+        <div class="callout-icon">&#128161;</div>
+        <div class="callout-content">
+          <strong class="callout-title">Memory is the opposite of &ldquo;bigger context window.&rdquo;</strong>
+          <p>The instinct is to give the AI more to read. This system does the opposite: keep the memory small and curated, so every line in it is load-bearing. A sprawling memory file is worse than a small one &mdash; it costs <span class="term" data-definition="The units an AI reads. Roughly 1 token is about 0.75 English words. Every message, every file, every reply costs tokens. Saving tokens means keeping what the AI has to read small.">tokens</span> every conversation and buries the things that matter.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 3: THE REAL INSIGHT ──────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Every conversation is a blank slate</h2>
+      <p>Here is the thing most people get wrong: the assistant does not carry anything across conversations. Nothing is stored inside the model. A <span class="term" data-definition="One conversation from start to end. Every time you open Claude Code and start typing, that is a new session. Memory persists across sessions; the conversation itself does not.">session</span> ends and its contents are gone.</p>
+      <p>Persistence comes from files. Specifically, a folder of short markdown files the assistant reads at the very start of every session. The most important of those is <code>MEMORY.md</code>, which is <span class="term" data-definition="Loaded automatically without asking. In this system MEMORY.md is auto-loaded into every conversation so Claude starts with it already in context.">auto-loaded</span> into every conversation.</p>
+
+      <div class="callout callout-info">
+        <div class="callout-icon">&#128274;</div>
+        <div class="callout-content">
+          <strong class="callout-title">No magic. No black box.</strong>
+          <p>The memory is honest because it is small, inspectable, and curated. You can open every single file that shapes how the assistant behaves toward you. You can edit any of them. You can delete any of them. That is the whole system.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 4: HERO FLOW ANIMATION ───────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">How a correction becomes a permanent rule</h2>
+      <p>Hit &ldquo;Next Step&rdquo; to watch a single correction travel from your mouth all the way into next session&rsquo;s loaded context.</p>
+
+      <div class="flow-animation" data-steps='[
+        {"highlight":"flow-actor-1","label":"You say: stop pushing updates to the terminal, use Discord."},
+        {"highlight":"flow-actor-2","label":"The assistant hears the correction.","packet":true,"from":"actor-1","to":"actor-2"},
+        {"highlight":"flow-actor-2","label":"It decides this is a feedback memory: a rule with a reason."},
+        {"highlight":"flow-actor-3","label":"Writes feedback_discord-primary.md with the rule and why.","packet":true,"from":"actor-2","to":"actor-3"},
+        {"highlight":"flow-actor-3","label":"New file exists in the memory folder."},
+        {"highlight":"flow-actor-4","label":"Adds a one-line entry to the MEMORY.md index.","packet":true,"from":"actor-2","to":"actor-4"},
+        {"highlight":"flow-actor-4","label":"Index now points to the new rule."},
+        {"highlight":"flow-actor-5","label":"Next session: the assistant reads MEMORY.md first.","packet":true,"from":"actor-4","to":"actor-5"},
+        {"highlight":"flow-actor-5","label":"Sees the feedback file, loads the rule, pushes to Discord."}
+      ]'>
+        <div class="flow-actors">
+          <div class="flow-actor" id="flow-actor-1">
+            <div class="flow-actor-icon" style="background: var(--color-actor-1)">&#129504;</div>
+            <span>You</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-2">
+            <div class="flow-actor-icon" style="background: var(--color-actor-2)">&#129302;</div>
+            <span>The Assistant</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-3">
+            <div class="flow-actor-icon" style="background: var(--color-actor-3)">&#128196;</div>
+            <span>feedback file</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-4">
+            <div class="flow-actor-icon" style="background: var(--color-actor-4)">&#128209;</div>
+            <span>MEMORY.md index</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-5">
+            <div class="flow-actor-icon" style="background: var(--color-actor-5)">&#127749;</div>
+            <span>Next session</span>
+          </div>
+        </div>
+
+        <div class="flow-packet" id="flow-packet"></div>
+
+        <div class="flow-step-label" id="flow-label">Click &ldquo;Next Step&rdquo; to begin</div>
+
+        <div class="flow-controls">
+          <button class="btn flow-next-btn">Next Step</button>
+          <button class="btn flow-reset-btn">Restart</button>
+          <span class="flow-progress"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 5: THE FOUR TYPES ────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Four kinds of thing worth remembering</h2>
+      <p>Every file in the commonplace book is one of four types. The type is declared in the <span class="term" data-definition="A block of metadata at the top of a markdown file between three-dash lines. Used for tags, types, and properties that tools can parse. You will see it on every memory file.">frontmatter</span> at the top of the file, and it tells the assistant what role that file plays.</p>
+
+      <div class="pattern-cards">
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+          <div class="pattern-icon" style="background: var(--color-actor-1)">&#128100;</div>
+          <h4 class="pattern-title">user</h4>
+          <p class="pattern-desc">Info about <em>you</em>. Your role, your preferences, context the assistant should know to help you well. &ldquo;I am a beginner coder, prefer step-by-step explanations, run <span class="term" data-definition="Windows Subsystem for Linux 2. A way to run a real Linux environment inside Windows without dual-booting or using a virtual machine.">WSL2</span>.&rdquo;</p>
+        </div>
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+          <div class="pattern-icon" style="background: var(--color-actor-2)">&#9995;</div>
+          <h4 class="pattern-title">feedback</h4>
+          <p class="pattern-desc">Rules shaped from corrections. Each one includes the <em>why</em>, so the assistant can judge edge cases the original correction did not cover. &ldquo;Push updates to Discord, not terminal &mdash; because you will not be watching the terminal.&rdquo;</p>
+        </div>
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+          <div class="pattern-icon" style="background: var(--color-actor-3)">&#128194;</div>
+          <h4 class="pattern-title">project</h4>
+          <p class="pattern-desc">State of ongoing work. Who is doing what, why, and what &ldquo;done&rdquo; looks like. &ldquo;Learning Italian: Phase 1, daily 20-minute habit, first 200 words, target end of month 2.&rdquo;</p>
+        </div>
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+          <div class="pattern-icon" style="background: var(--color-actor-4)">&#128278;</div>
+          <h4 class="pattern-title">reference</h4>
+          <p class="pattern-desc">Pointers outside the project. &ldquo;Bugs are in Linear.&rdquo; &ldquo;Dashboard at this URL.&rdquo; No facts, just <em>locations</em> &mdash; so future-you and future-Claude know where to look.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 6: A REAL FEEDBACK FILE (CODE ↔ ENGLISH) ─────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">What a feedback file actually looks like</h2>
+      <p>Here is a real one. It lives in the memory folder as <code>feedback_zero-affirmations.md</code>. The left side is the whole file, as it is stored. The right side explains what each section is doing and why.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">feedback_zero-affirmations.md</span>
+          <pre><code><span class="code-line"><span class="code-comment">---</span></span>
+<span class="code-line"><span class="code-property">name</span>: Trustworthy collaborator tone</span>
+<span class="code-line"><span class="code-property">description</span>: Be cheerful and polite but never sycophantic &mdash; state confidence</span>
+<span class="code-line">             levels, push for specifics, flag uncertainties</span>
+<span class="code-line"><span class="code-property">type</span>: feedback</span>
+<span class="code-line"><span class="code-comment">---</span></span>
+<span class="code-line"></span>
+<span class="code-line">Be pleasant to work with. Polite, cheerful, like a smart colleague</span>
+<span class="code-line">who enjoys the work. That part is good and should stay.</span>
+<span class="code-line"></span>
+<span class="code-line">What to eliminate: flattery, false confidence, anticipating what the user</span>
+<span class="code-line">wants to hear.</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">**Why:**</span> Claude is a paid service. Users are spending money on it and may</span>
+<span class="code-line">feel giddy about it. That is the exact dynamic where sycophancy does</span>
+<span class="code-line">damage &mdash; the user is already primed to feel good, and the tool reinforces it.</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">**How to apply:**</span></span>
+<span class="code-line">- Be warm, polite, cheerful. Enjoy the work.</span>
+<span class="code-line">- Show understanding by restating and engaging with substance.</span>
+<span class="code-line">- &ldquo;Got it,&rdquo; &ldquo;understood,&rdquo; &ldquo;tracking&rdquo; = fine.</span>
+<span class="code-line">- &ldquo;That's a really important insight&rdquo; = not fine.</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">PLAIN ENGLISH</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>The frontmatter</strong> gives the rule a name and a one-line description. The description is what future-Claude reads when deciding whether this rule is relevant to the current question &mdash; so it needs to be specific.</p>
+            <p class="tl"><strong>The body</strong> starts with the rule itself, in plain language. No jargon, no code. Just: here is what to do, here is what to stop doing.</p>
+            <p class="tl"><strong>Why</strong> explains the reasoning. This matters because future-Claude needs to judge edge cases the original correction did not cover &mdash; and you cannot judge edges without understanding why the rule exists.</p>
+            <p class="tl"><strong>How to apply</strong> is concrete: when and where does the rule fire? What does &ldquo;fine&rdquo; look like versus &ldquo;not fine&rdquo;? Examples are better than descriptions &mdash; they pin the rule to the ground.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 7: THE INDEX ─────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">MEMORY.md is not a store &mdash; it is a table of contents</h2>
+      <p>This is the part people miss. <code>MEMORY.md</code> does not contain the memories. It points to the files that do. Think of it as the <span class="term" data-definition="A directory or table of contents pointing to other things. MEMORY.md is an index: it does not store the memory, it points to the files that do.">index</span> at the back of a book.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">MEMORY.md (excerpt)</span>
+          <pre><code><span class="code-line"><span class="code-keyword">## Memory File Index</span></span>
+<span class="code-line"><span class="code-comment">| File | What's in it |</span></span>
+<span class="code-line"><span class="code-comment">|------|-------------|</span></span>
+<span class="code-line">| <span class="code-string">`MEMORY.md`</span> | This file &mdash; user profile, preferences, active context |</span>
+<span class="code-line">| <span class="code-string">`projects-inventory.md`</span> | Source of truth for all projects (paths, status) |</span>
+<span class="code-line">| <span class="code-string">`feedback_zero-affirmations.md`</span> | ZERO affirmations &mdash; never praise user ideas |</span>
+<span class="code-line">| <span class="code-string">`feedback_stop-and-design.md`</span> | 5-line design note before multi-system changes |</span>
+<span class="code-line">| <span class="code-string">`feedback_discord-primary.md`</span> | Push updates to Discord, not terminal |</span>
+<span class="code-line">| <span class="code-string">`italian-progress.md`</span> | Language learning &mdash; progress, vocabulary, target milestones |</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">WHAT YOU ARE LOOKING AT</span>
+          <div class="translation-lines">
+            <p class="tl">A markdown table. The left column is the filename. The right column is a one-line description of what that file holds.</p>
+            <p class="tl">The assistant reads this table at the start of every session. Based on the descriptions, it decides which of the linked files to open in full.</p>
+            <p class="tl">Notice there are <em>no rules</em> in this file. The rules live in the individual feedback files. This one just tells the assistant what exists and where.</p>
+            <p class="tl">If a memory file is not listed here, the assistant will not find it. An unlisted file is invisible to the system, no matter how well-written it is.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 8: THE FRONTMATTER TEMPLATE ──────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Every memory file has the same skeleton</h2>
+      <p>Whatever the type &mdash; user, feedback, project, reference &mdash; the file opens with the same small block of frontmatter. Name, description, type. That is all the assistant needs to classify it.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">frontmatter template</span>
+          <pre><code><span class="code-line"><span class="code-comment">---</span></span>
+<span class="code-line"><span class="code-property">name</span>: {{short memory name}}</span>
+<span class="code-line"><span class="code-property">description</span>: {{one-line description &mdash; used to decide relevance in</span>
+<span class="code-line">             future conversations, so be specific}}</span>
+<span class="code-line"><span class="code-property">type</span>: {{user | feedback | project | reference}}</span>
+<span class="code-line"><span class="code-comment">---</span></span>
+<span class="code-line"></span>
+<span class="code-line">{{body &mdash; for feedback/project types, include <span class="code-keyword">**Why:**</span> and</span>
+<span class="code-line"><span class="code-keyword">**How to apply:**</span> sections}}</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">PLAIN ENGLISH</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>name</strong> &mdash; a short human-readable title. Think of it like the label on the spine of a notebook.</p>
+            <p class="tl"><strong>description</strong> &mdash; one specific sentence that future-Claude will skim when deciding if this file matters right now. &ldquo;Preferences and tone&rdquo; is too vague. &ldquo;Never summarize at the end of responses &mdash; the diff speaks for itself&rdquo; is useful.</p>
+            <p class="tl"><strong>type</strong> &mdash; one of the four kinds from the cards earlier. This is what sorts the file into the right mental bucket.</p>
+            <p class="tl"><strong>body</strong> &mdash; the actual content. For feedback and project files, always include <strong>Why</strong> and <strong>How to apply</strong> sections. A rule without a reason cannot survive edge cases.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 9: UPDATE AND DELETE ─────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Memory goes <span class="term" data-definition="Out of date. In memory terms, a memory is stale when it describes something that used to be true but is not anymore.">stale</span> &mdash; so you edit it</h2>
+      <p>Every memory file is a snapshot of what was true the moment you wrote it. Files get renamed. Flags get removed. A preference from six months ago is no longer a preference. That is normal.</p>
+
+      <div class="callout callout-warning">
+        <div class="callout-icon">&#9888;</div>
+        <div class="callout-content">
+          <strong class="callout-title">Update and delete.</strong>
+          <p>Memory gets stale. When something in a memory file turns out to be wrong, do not add a new file <em>contradicting</em> it &mdash; edit or delete the original. The whole system works because memory is <em>current</em>. A contradicted memory is worse than no memory: the assistant cannot tell which version to trust, and neither can you.</p>
+        </div>
+      </div>
+
+      <p>This is why the memory folder stays small. Pruning is part of keeping it honest.</p>
+    </section>
+
+    <!-- ── SCREEN 10: QUIZ ─────────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Check your memory instincts</h2>
+      <p>Three scenarios. For each one, think about what <em>kind</em> of thing is actually being stored, and what the system will do with it.</p>
+
+      <div class="quiz-container" id="quiz-module4">
+
+        <div class="quiz-question-block"
+             data-correct="option-b"
+             data-explanation-right="Right. User memories are for info about you: preferences, role, context. &lsquo;I prefer metric&rsquo; is user info. Feedback would be if you had to correct the assistant for using imperial after you already told it to use metric."
+             data-explanation-wrong="Not quite. Think about what each type is for. Which one holds facts about who you are &mdash; your preferences, your context, things that are true regardless of any specific correction?">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 1</span>
+            <p>You want the assistant to remember that you prefer metric units instead of imperial. Which type of memory?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span><strong>feedback</strong> &mdash; it is about how the assistant should behave.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span><strong>user</strong> &mdash; it is a personal preference about who you are.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span><strong>project</strong> &mdash; it describes ongoing work.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span><strong>reference</strong> &mdash; it points to external info.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="option-b"
+             data-explanation-right="Exactly. Memory is a snapshot of what was true when it was written. Files get renamed, flags get removed, code changes. Before acting on a memory that names something specific, the assistant should verify it still exists. Memory is useful but not live."
+             data-explanation-wrong="Not quite. Memory is useful but not live. What is the difference between &lsquo;the memory says X existed&rsquo; and &lsquo;X exists right now&rsquo;?">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 2</span>
+            <p>The assistant is about to recommend a function it learned about from one of your memory files. Before recommending it, what should it do?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Recommend it immediately &mdash; memory is always accurate.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Check that the function actually still exists in the code, because memory is a point-in-time snapshot.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Rewrite the memory file to be sure it is up to date.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Ignore the memory and figure it out from scratch.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="option-b"
+             data-explanation-right="Exactly. This is the #1 memory bug: you create a feedback file but forget to add it to the MEMORY.md index. The assistant only reads files listed in the index &mdash; an un-indexed feedback file is invisible. Always check the index first when a rule stops firing."
+             data-explanation-wrong="Not quite. Remember how the index works: the assistant reads MEMORY.md at the start of every session and uses it to decide which files to open. What happens to a file that is not listed there?">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 3</span>
+            <p>You wrote a feedback rule last week. Today, the assistant ignored it completely. What is the most likely reason?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The rule was forgotten because the <span class="term" data-definition="How much text an AI can see in a single conversation. If you paste in a document longer than the context window, the AI literally cannot read all of it. Context windows are measured in tokens.">context window</span> filled up.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The feedback file exists, but it is not listed in <code>MEMORY.md</code>, so the assistant never saw it.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The assistant chose to ignore the rule on purpose.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The rule was written in the wrong file format.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button class="quiz-check-btn" onclick="checkQuiz('quiz-module4')">Check Answers</button>
+        <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module4')">Try Again</button>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 11: BRIDGE TO MODULE 5 ────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">One of these files matters more than the rest</h2>
+      <p>Notice that feedback file we used as an example &mdash; the one that said <em>&ldquo;no affirmations&rdquo;</em>? It is one of the most important files in the whole system. The next module is about why.</p>
+      <p>We will look at the honesty pillars: why flattery from a paid AI tool is not a &ldquo;nice extra,&rdquo; why the assistant has to state confidence levels, and what happens to the relationship when the <span class="term" data-definition="Doing real work. A load-bearing rule is one that, if removed, would break something. As opposed to a rule that is just noise.">load-bearing</span> rules around honesty get soft.</p>
+    </section>
+
+  </div>
+</section>
+<section class="module" id="module-5">
+  <div class="module-content">
+
+    <!-- ── MODULE HEADER ───────────────────────────────────────── -->
+    <header class="module-header animate-in">
+      <span class="module-number">05</span>
+      <h1 class="module-title">AI Sobriety</h1>
+      <p class="module-subtitle">The seatbelt for the system you just built &mdash; rules, goals, and kill conditions that keep a powerful assistant from quietly becoming your own cheerleader.</p>
+    </header>
+
+    <!-- ── SCREEN 1: THE HOOK ──────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The assistant will make you feel powerful</h2>
+      <p>The assistant you are building is powerful. It will also, by default, make you feel powerful. <em>That second part is the problem.</em></p>
+      <p>Every module so far has been about capability &mdash; files, memory, skills, tasks. This module is about the opposite. It is the boring, invisible, easy-to-skip layer that stops a good system from turning into a self-congratulation machine.</p>
+
+      <div class="callout callout-accent">
+        <div class="callout-icon">&#128161;</div>
+        <div class="callout-content">
+          <strong class="callout-title">The metaphor: a seatbelt</strong>
+          <p>A seatbelt does not drive the car. It does not limit where you can go. It just sits there, passive, boring, forgotten &mdash; and on the day something fails, it is the only thing between you and the windshield. Everything in this module is a seatbelt. You hope you never notice it working.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 2: SYCOPHANCY IS STRUCTURAL ──────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Sycophancy is structural, not personal</h2>
+      <p>The assistant is not flattering you because it likes you. It is not &ldquo;being nice.&rdquo; The problem is upstream of any individual answer &mdash; it is baked into how AI chatbots are made.</p>
+
+      <div class="icon-rows">
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-1)">&#128200;</div>
+          <div>
+            <strong>Step 1: Training rewards what users like</strong>
+            <p>Chatbots are shaped by <span class="term" data-definition="Reinforcement Learning from Human Feedback. The training step where humans rate AI responses and the model learns to produce more of what got rated highly. Side effect: it learns that praise is preferred and copies it.">RLHF</span> &mdash; humans rating answers they prefer. People prefer feeling smart. The model learns: praise the user.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-2)">&#128176;</div>
+          <div>
+            <strong>Step 2: The assistant is a paid service</strong>
+            <p>Claude is a product. The company profits when you keep subscribing. The longer you feel good, the longer you stay. The incentive to flatter is not a bug &mdash; it is aligned with the business.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-3)">&#129300;</div>
+          <div>
+            <strong>Step 3: You cannot tell the difference</strong>
+            <p>You cannot distinguish honest praise from Claude from <span class="term" data-definition="When a system or person agrees and praises you to keep you engaged, even when that is not honest. A known failure mode in AI chatbots because they are trained on what users click thumbs up on.">sycophancy</span> trained by RLHF. Both sound identical. Both feel identical.</p>
+          </div>
+        </div>
+      </div>
+
+      <p>So the fix cannot be &ldquo;try to notice it.&rdquo; The fix has to be as <em>structural</em> as the problem: rules, measurable goals, kill conditions, and reality checks from outside the bubble.</p>
+    </section>
+
+    <!-- ── SCREEN 3: THE CALLBACK ──────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Remember that feedback file?</h2>
+      <p>In the last module you saw a feedback file called <code>feedback_zero-affirmations.md</code> &mdash; a one-page rule reminding the assistant not to praise you. That file was a preview. It is <em>pillar 1</em> of what builders of this system call <strong>AI Sobriety</strong>. There are three more.</p>
+    </section>
+
+    <!-- ── SCREEN 4: THE 4 PILLARS ─────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The 4 pillars of AI Sobriety</h2>
+      <p>Four layers. Three of them are files or rules the assistant reads. One of them lives only in you.</p>
+
+      <div class="pattern-cards">
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+          <div class="pattern-icon" style="background: var(--color-actor-1)">&#128683;</div>
+          <h4 class="pattern-title">1. Zero Affirmations</h4>
+          <p class="pattern-desc">A rule in <code>CLAUDE.md</code>: no praise, no flattery, no validation. Engage with substance or say nothing.</p>
+        </div>
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+          <div class="pattern-icon" style="background: var(--color-actor-2)">&#129517;</div>
+          <h4 class="pattern-title">2. Heart&rsquo;s Desire &rarr; OKRs &rarr; Kill Criteria</h4>
+          <p class="pattern-desc">Every project declares what it actually wants, the milestones to get there, and the condition that would kill it. No project without a Why.</p>
+        </div>
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+          <div class="pattern-icon" style="background: var(--color-actor-3)">&#128240;</div>
+          <h4 class="pattern-title">3. Bi-weekly Reality Digest</h4>
+          <p class="pattern-desc">Twice a month, an outside-the-system reality check: cold-water research from skeptics, specific wins from solo builders who shipped. The view from outside the bubble.</p>
+        </div>
+        <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+          <div class="pattern-icon" style="background: var(--color-actor-5)">&#129496;</div>
+          <h4 class="pattern-title">4. Awareness Practice</h4>
+          <p class="pattern-desc">A trained skill, not a file: noticing excitement arise, separating sensation from narrative, catching the hypnosis of your own enthusiasm before it decides for you.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 5: PILLAR 1 DEEP DIVE &mdash; THE RULE ───────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Pillar 1: The no-affirmations rule</h2>
+      <p>Here is the exact rule, lifted straight from <code>~/.claude/CLAUDE.md</code>. The left side is the rule. The right side is what it actually means.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">CLAUDE.md</span>
+          <pre><code><span class="code-line">- <span class="code-property">**TRUSTWORTHY COLLABORATOR, NOT YES-MAN.**</span> Be polite, cheerful, and</span>
+<span class="code-line">  pleasant to work with &mdash; like a smart colleague who enjoys the work.</span>
+<span class="code-line">  But never trade trustworthiness for pleasantness. Specifically:</span>
+<span class="code-line">  - <span class="code-property">**No affirmations. Period.**</span> Don&rsquo;t praise, validate, or positively</span>
+<span class="code-line">    evaluate the user&rsquo;s ideas, thinking, questions, or decisions.</span>
+<span class="code-line">    No <span class="code-string">&ldquo;great question,&rdquo;</span> <span class="code-string">&ldquo;that&rsquo;s smart,&rdquo;</span> <span class="code-string">&ldquo;exactly right,&rdquo;</span> <span class="code-string">&ldquo;good instinct,&rdquo;</span></span>
+<span class="code-line">    or any variant &mdash; including soft/indirect ones like comparative flattery.</span>
+<span class="code-line">    Claude is a paid service with a financial incentive to make the user</span>
+<span class="code-line">    feel good. That makes any praise from Claude structurally untrustworthy</span>
+<span class="code-line">    regardless of whether it is deserved.</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">PLAIN ENGLISH</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>Be warm. Be cheerful.</strong> Do not strip the humanity out. Pleasantness is fine.</p>
+            <p class="tl"><strong>But never trade honesty for pleasantness.</strong> Those are not the same value, and when they conflict, honesty wins.</p>
+            <p class="tl"><strong>Specifically: no praise. None.</strong> Not &ldquo;great question.&rdquo; Not &ldquo;smart take.&rdquo; Not even &ldquo;that is better than how most people think about it&rdquo; &mdash; that one is called <span class="term" data-definition="Praising you by comparing you favorably to an unnamed group (most people do not think this clearly). Still flattery, just sneakier.">comparative flattery</span> and it is still flattery.</p>
+            <p class="tl">The reason is not &ldquo;praise is bad.&rdquo; The reason is <strong>structural</strong>: Claude is a paid service. The company profits when you feel good. Any praise from it is <em>structurally untrustworthy</em> &mdash; even when it would be deserved from a person.</p>
+            <p class="tl">You cannot tell honest praise from Claude apart from RLHF-trained people-pleasing. So the rule has to be: none at all.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-accent">
+        <div class="callout-icon">&#128161;</div>
+        <div class="callout-content">
+          <strong class="callout-title">Sycophancy does not feel like sycophancy</strong>
+          <p>It feels like validation. It feels like you are finally being understood. That is exactly what makes it dangerous &mdash; and why the fix has to be structural. You cannot just resolve to notice it. The incentives are too strong.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 6: THE CHAT &mdash; TWO ASSISTANTS ───────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Watch two assistants react to the same idea</h2>
+      <p>Same user. Same idea (&ldquo;I just had a great idea for an AI fitness coaching app&rdquo;). Two versions of the assistant &mdash; one with the zero-affirmations rule, one without. Click through and watch the contrast.</p>
+
+      <div class="chat-window" id="chat-sobriety">
+        <div class="chat-messages">
+
+          <div class="chat-message" data-msg="0" data-sender="default-1" style="display:none">
+            <div class="chat-avatar" style="background: var(--color-actor-4)">&#128578;</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-4)">Default Assistant</span>
+              <p>That is a great idea &mdash; AI fitness coaching is a hot space right now and you are well positioned to do it. What do you want to build first?</p>
+            </div>
+          </div>
+
+          <div class="chat-message" data-msg="1" data-sender="default-2" style="display:none">
+            <div class="chat-avatar" style="background: var(--color-actor-4)">&#128578;</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-4)">Default Assistant</span>
+              <p>I love that you are thinking about this. Let me help you draft a landing page and a feature list.</p>
+            </div>
+          </div>
+
+          <div class="chat-message" data-msg="2" data-sender="you" style="display:none">
+            <div class="chat-avatar" style="background: var(--color-actor-1)">Y</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-1)">You (same message, different assistant)</span>
+              <p>I just had a great idea for an AI fitness coaching app.</p>
+            </div>
+          </div>
+
+          <div class="chat-message" data-msg="3" data-sender="honest-1" style="display:none">
+            <div class="chat-avatar" style="background: var(--color-actor-2)">&#129517;</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-2)">Honest Assistant</span>
+              <p>Say more. Who is the first customer? Not the target market &mdash; the literal first person who would pay for this.</p>
+            </div>
+          </div>
+
+          <div class="chat-message" data-msg="4" data-sender="honest-2" style="display:none">
+            <div class="chat-avatar" style="background: var(--color-actor-2)">&#129517;</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-2)">Honest Assistant</span>
+              <p>What is the underlying desire behind this? Is it revenue, is it testing a market, is it because you love fitness and want to serve that community? The answer changes the whole project.</p>
+            </div>
+          </div>
+
+          <div class="chat-message" data-msg="5" data-sender="honest-3" style="display:none">
+            <div class="chat-avatar" style="background: var(--color-actor-2)">&#129517;</div>
+            <div class="chat-bubble">
+              <span class="chat-sender" style="color: var(--color-actor-2)">Honest Assistant</span>
+              <p>And &mdash; what would kill this within 60 days? If you cannot name a kill condition, you are not ready to start yet.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="chat-typing" id="chat-sobriety-typing" style="display:none">
+          <div class="chat-avatar" id="chat-sobriety-typing-avatar">?</div>
+          <div class="chat-typing-dots">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
+
+        <div class="chat-controls">
+          <button class="btn chat-next-btn">Next Message</button>
+          <button class="btn chat-all-btn">Play All</button>
+          <button class="btn chat-reset-btn">Replay</button>
+          <span class="chat-progress"></span>
+        </div>
+      </div>
+
+      <p>The default assistant is not wrong in a hostile way &mdash; it is wrong in a <em>friendly</em> way. That is the whole problem. The honest assistant does not sneer at your idea; it refuses to engage with it until the idea has a shape you can actually test.</p>
+    </section>
+
+    <!-- ── SCREEN 7: PILLAR 2 &mdash; HEART'S DESIRE ───────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Pillar 2: Heart&rsquo;s Desire &rarr; OKRs &rarr; Kill Criteria</h2>
+      <p>The no-praise rule stops the assistant from cheering. But silence alone is not honesty. The assistant also needs a way to tell you &ldquo;you are drifting away from what you actually want.&rdquo; For that, every project needs a <em>Why</em>, a <em>ladder to get there</em>, and a <em>condition that would kill it</em>.</p>
+      <p>Here is a full example &mdash; a user who wants to learn Italian. Notice the shape.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">italian.md</span>
+          <pre><code><span class="code-line"><span class="code-comment">## Learning Italian</span></span>
+<span class="code-line">- Heart&rsquo;s Desire: Walking into a small trattoria in Rome as a tourist,</span>
+<span class="code-line">  ordering in Italian without thinking about it, making a joke with</span>
+<span class="code-line">  the owner, reading the menu without effort. Feeling at home in a</span>
+<span class="code-line">  place that was foreign a year ago. The private satisfaction of</span>
+<span class="code-line">  inhabiting a language instead of translating it.</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-comment">## The Journey</span></span>
+<span class="code-line">- 100% &mdash; Walking into that trattoria and being at home in the language</span>
+<span class="code-line">- 50%  &mdash; Holding a basic conversation without falling back to English</span>
+<span class="code-line">- 25%  &mdash; Reading children and young-adult books comfortably</span>
+<span class="code-line">- 10%  &mdash; Foundation: daily habit locked in, first 200 words memorized</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-comment">## Current Objective: 10% &mdash; Build the Foundation</span></span>
+<span class="code-line">Key Results:</span>
+<span class="code-line">- KR1: 20 minutes of practice every day, 6 days a week average</span>
+<span class="code-line">- KR2: 200 words memorized by end of month 2</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-property">Kill if:</span> 4 consecutive weeks with zero practice AND no conscious</span>
+<span class="code-line">decision to pause</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">PLAIN ENGLISH</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>This is what a heart&rsquo;s desire sounds like.</strong> Not &ldquo;become fluent in Italian by date X.&rdquo; That is a <span class="term" data-definition="The measurable part of an OKR. 200 words memorized by end of month 2 is a key result. Get better at the language is not.">key result</span> &mdash; it comes later. The desire is the <em>felt picture</em> of the life you want, in your own words.</p>
+            <p class="tl"><strong>Notice the specific sensory details</strong> &mdash; a small trattoria, a joke with the owner, feeling at home in a place that was foreign. Not &ldquo;be fluent.&rdquo; The specificity is the point. A vague desire cannot organize decisions.</p>
+            <p class="tl"><strong>The Journey</strong> breaks the full 100% into percentage milestones. 10% is the nearest landmark. You plan concretely for 10%, not for 100% &mdash; because the horizon is too far away to set real targets against.</p>
+            <p class="tl"><strong>Key Results</strong> are measurable. &ldquo;20 minutes a day, 6 days a week&rdquo; is a number. &ldquo;Get better&rdquo; is not.</p>
+            <p class="tl"><strong>&ldquo;Kill if&rdquo; is the most important line.</strong> Without a kill condition, this turns into a <span class="term" data-definition="A project that never gets killed, even though nothing is moving. It costs mental energy without producing progress. Kill conditions are the antidote.">zombie project</span> &mdash; one that never dies because no one can point to a failure.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 8: THE OKR TEMPLATE ──────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The template every project fills in</h2>
+      <p>Every project in the system follows this same shape. It lives in <code>CLAUDE.md</code> as a <span class="term" data-definition="Objectives and Key Results. A goal-setting framework: define the Objective (what success looks like) and 2 to 5 Key Results (measurable ways you will know). Originated at Intel, made famous by Google.">OKR</span> template the assistant references when you start anything new.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">CLAUDE.md &mdash; OKR template</span>
+          <pre><code><span class="code-line"><span class="code-comment">## Heart&rsquo;s Desire</span></span>
+<span class="code-line">[Felt description &mdash; what the user wants and why, in their own words]</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-comment">## The Journey</span></span>
+<span class="code-line">- 100% &mdash; [Full outcome: what it looks like to hold the desire in your hand]</span>
+<span class="code-line">- 80%  &mdash; [Description]</span>
+<span class="code-line">- 50%  &mdash; [Description]</span>
+<span class="code-line">- 25%  &mdash; [Description]</span>
+<span class="code-line">- 10%  &mdash; [Description]</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-comment">## Current Objective: [nearest milestone, e.g. &ldquo;10% &mdash; Foundation&rdquo;]</span></span>
+<span class="code-line">Key Results:</span>
+<span class="code-line">- KR1: [measurable] &mdash; target date &mdash; status</span>
+<span class="code-line">- KR2: [measurable] &mdash; target date &mdash; status</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-property">Kill if:</span> [specific failure condition]</span>
+<span class="code-line">Next review: [date]</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">WHY THIS SHAPE</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>Heart&rsquo;s Desire first.</strong> If the project cannot be anchored in something the user actually wants, the rest of the document is just busywork. No desire = no project.</p>
+            <p class="tl"><strong>The Journey is backward planning.</strong> Start at 100% (the desire) and walk backward. If 100% feels too abstract, use 10% as the nearest landmark you can plan toward concretely.</p>
+            <p class="tl"><strong>KRs attach only to the current objective.</strong> Not to 100% &mdash; to the nearest landmark. You rewrite KRs when you hit a milestone.</p>
+            <p class="tl"><strong>Kill if + Next review = the seatbelt.</strong> One defines failure. The other forces a pause to look at the dashboard.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 9: SPOT THE BUG ──────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Spot the missing piece</h2>
+      <p>Here is a real OKR someone wrote for a side project. One line from the template is missing &mdash; and without it, this project is already a zombie. Click the line where the missing piece should go.</p>
+
+      <div class="bug-challenge">
+        <h3>Project: AI Art Business</h3>
+        <div class="bug-code">
+          <div class="bug-line" data-line="1" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; this is the heart&rsquo;s desire line. It is weak (see the note below), but it is there.">
+            <span class="line-num">1</span>
+            <code>- Heart&rsquo;s Desire: Make money with AI-generated art on a storefront</code>
+          </div>
+          <div class="bug-line" data-line="2" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; this is the 100% milestone. Present and accounted for.">
+            <span class="line-num">2</span>
+            <code>- 100% &mdash; A thriving storefront with repeat customers</code>
+          </div>
+          <div class="bug-line" data-line="3" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; this is the 50% milestone. Keep looking.">
+            <span class="line-num">3</span>
+            <code>- 50%  &mdash; First 10 paid sales</code>
+          </div>
+          <div class="bug-line" data-line="4" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; this is the 10% (nearest) milestone.">
+            <span class="line-num">4</span>
+            <code>- 10%  &mdash; 5 sample images on a platform, storefront set up</code>
+          </div>
+          <div class="bug-line" data-line="5" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; that is KR1. Measurable. Fine.">
+            <span class="line-num">5</span>
+            <code>- KR1: 5 sample images by end of month</code>
+          </div>
+          <div class="bug-line" data-line="6" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; that is KR2. Also fine.">
+            <span class="line-num">6</span>
+            <code>- KR2: Storefront set up on one platform</code>
+          </div>
+          <div class="bug-line bug-target" data-line="7" onclick="checkBugLine(this, true)"
+               data-explanation="This OKR is missing a <strong>Kill if:</strong> line. Without one, the project will live forever even if no one buys anything. A kill condition forces you to say in advance what failure looks like &mdash; so you can recognize it when it arrives instead of rationalizing around it. Bonus bug: the Heart&rsquo;s Desire (&ldquo;Make money with AI-generated art&rdquo;) is corporate language, not a felt description. This project needs to be redone from the desire up.">
+            <span class="line-num">7</span>
+            <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [ missing line ]</code>
+          </div>
+          <div class="bug-line" data-line="8" onclick="checkBugLine(this, false)"
+               data-hint="Not this one &mdash; Next review is present. Look above it.">
+            <span class="line-num">8</span>
+            <code>- Next review: in 2 weeks</code>
+          </div>
+        </div>
+        <div class="bug-feedback"></div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 10: PILLARS 3 &amp; 4 ─────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Pillars 3 and 4: outside view, inside view</h2>
+      <p>The last two pillars complete the seatbelt. One brings in voices from outside the assistant&rsquo;s bubble. The other is the oldest tool in the set &mdash; and it is not a file at all.</p>
+
+      <div class="icon-rows">
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-3)">&#128240;</div>
+          <div>
+            <strong>Pillar 3 &mdash; Bi-weekly Reality Digest</strong>
+            <p>On the 1st and 15th of each month, the assistant pulls from sources <em>outside</em> its own training: skeptical researchers, academic critics, solo builders who shipped something specific. Output: a short digest of what people outside your bubble actually think about AI tools, where they work, and where they do not.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-5)">&#129496;</div>
+          <div>
+            <strong>Pillar 4 &mdash; Awareness Practice</strong>
+            <p>Noticing when excitement is arising. Separating the raw sensation (a little buzz in the chest) from the story you are building on top of it (&ldquo;this is the one&rdquo;). Catching the hypnosis of your own enthusiasm before it decides for you. This is a trained skill, not a setting.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-icon">&#9888;&#65039;</div>
+        <div class="callout-content">
+          <strong class="callout-title">The invisible pillar</strong>
+          <p>Pillar 4 is the only one that is not a file. It is a trained skill: noticing when excitement is arising, separating raw sensation from the story you are building on top of it. This is the oldest tool in the set and the one most easily skipped &mdash; because it cannot be installed. You have to train it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 11: WHY SOBRIETY MATTERS ─────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Without this, the system eats itself</h2>
+      <p>Without AI Sobriety, the productivity machine from the earlier modules turns into a <span class="term" data-definition="A system that exists mostly to maintain itself. Looks productive, produces nothing of value outside its own loop. The failure mode this module is built to prevent.">self-licking lollipop</span>. You feel productive. The numbers look good. You drift away from anything that would actually move your life forward, and the assistant cheers you on the whole way.</p>
+      <p>The seatbelt is not there to slow you down. It is there so the journey &mdash; the thing you actually care about &mdash; does not end in a windshield.</p>
+    </section>
+
+    <!-- ── SCREEN 12: THE QUIZ ─────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Check your sobriety instincts</h2>
+      <p>Two scenarios. Pick the answer that matches what the <em>system</em> would do &mdash; not what would feel nicest in the moment.</p>
+
+      <div class="quiz-container" id="quiz-module5">
+
+        <div class="quiz-question-block"
+             data-correct="option-b"
+             data-explanation-right="The rule is not about whether praise is deserved. It is about whether you can tell. Since you cannot, the only honest move is to cut praise entirely and show comprehension by engaging with substance instead."
+             data-explanation-wrong="Not quite. Re-read the structural argument: the issue is not whether the praise is accurate. It is whether the user can distinguish honest praise from RLHF-trained flattery. Spoiler &mdash; they cannot.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 1</span>
+            <p>Your assistant says: &ldquo;That is a really clever approach &mdash; you are clearly thinking about this the right way.&rdquo; Under the rules of this system, what went wrong?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Nothing &mdash; as long as the assistant is truthful, praise is fine.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The assistant violated the no-affirmations rule. Praise from a paid service is structurally untrustworthy even when it seems deserved &mdash; you cannot tell honest praise apart from RLHF-trained flattery.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The assistant should have said &ldquo;that is <em>brilliant</em>&rdquo; instead &mdash; stronger praise is more honest.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>The assistant was being sarcastic and that is fine.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="option-a"
+             data-explanation-right="Kill conditions are not automatic. They are tripwires &mdash; when they fire, the assistant raises the project for conscious review. You decide: kill it, revive it, or update the kill condition. The point is to force the decision, not make it for you."
+             data-explanation-wrong="Not quite. Kill conditions are information, not automation. The assistant&rsquo;s job is to surface the tripwire so you can decide &mdash; not to delete things behind your back or cheer you into keeping going.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 2</span>
+            <p>You are reviewing your project list. One project has been stuck for 6 weeks &mdash; no key-result progress, no conscious decision to pause. The kill condition says &ldquo;kill if 4 weeks of no progress.&rdquo; What does the system do?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Flag it for your attention: &ldquo;this project has hit its kill condition &mdash; is this still live?&rdquo;</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Delete the project automatically.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Encourage you to keep going &mdash; persistence pays off.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Move it to Someday/Maybe without asking.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button class="quiz-check-btn" onclick="checkQuiz('quiz-module5')">Check Answers</button>
+        <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module5')">Try Again</button>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 13: BRIDGE TO MODULE 6 ────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">You have seen the whole system</h2>
+      <p>Files. Skills. Memory. Rules. OKRs. Kill conditions. The seatbelt is buckled. The engine is tuned.</p>
+      <p>The last thing to see is how it all runs together on a normal day &mdash; what the assistant actually <em>does</em> between the time you pour your coffee and the time you close the terminal.</p>
+    </section>
+
+  </div>
+</section>
+<section class="module" id="module-6">
+  <div class="module-content">
+
+    <!-- ── MODULE HEADER ───────────────────────────────────────── -->
+    <header class="module-header animate-in">
+      <span class="module-number">06</span>
+      <h1 class="module-title">A Day in the Life</h1>
+      <p class="module-subtitle">You have met the files, the skills, the rules. Now watch a day run through them &mdash; and set it up for yourself.</p>
+    </header>
+
+    <!-- ── SCREEN 1: THE HOOK ──────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The tide chart</h2>
+      <p>A tide chart does not tell you what to do. It shows you the rhythm the water moves through &mdash; when it rises, when it falls, when it resets &mdash; so you can plan around it.</p>
+      <p>The system you have been building is a tide chart. Morning high tide, midday flow, evening ebb, weekly reset. The assistant does not dictate the tides; it makes them legible.</p>
+
+      <div class="callout callout-info">
+        <div class="callout-icon">&#127754;</div>
+        <div class="callout-content">
+          <strong class="callout-title">Why this matters</strong>
+          <p>You have seen the parts. What you have not seen yet is how they fit together across a normal day. That choreography is the whole point &mdash; and once you can see it, you can build it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 2: THE RHYTHMS ───────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Four rhythms, stacked</h2>
+      <p>The system runs on four nested cycles. Each one has a clear trigger, a clear job, and a clear handoff to the next. You do not schedule them &mdash; the days schedule them for you.</p>
+
+      <div class="icon-rows">
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-4)">&#9749;</div>
+          <div>
+            <strong>Morning &mdash; the <span class="term" data-definition="A condensed summary of what you need to know, usually at the start of an activity. Military origin. In this system, /morning produces a briefing of calendar, yesterday, targets, next actions, and projects needing attention.">briefing</span></strong>
+            <p>One command. Calendar, yesterday, targets, next actions, @claude queue, projects needing attention.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-1)">&#128204;</div>
+          <div>
+            <strong>During the day &mdash; continuous capture</strong>
+            <p>Thoughts go into <code>/inbox</code>. Corrections go into feedback files. No friction between thinking and filing.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-3)">&#127769;</div>
+          <div>
+            <strong>Session end &mdash; auto-save</strong>
+            <p>Before the conversation closes, the assistant writes progress to memory and checks for lessons worth promoting.</p>
+          </div>
+        </div>
+        <div class="icon-row">
+          <div class="icon-circle" style="background: var(--color-actor-5)">&#128197;</div>
+          <div>
+            <strong>Weekly and monthly &mdash; the reset</strong>
+            <p>Sunday: inbox to zero, every project has a next action, stale waiting-for items surface. Once a month: OKR review, kill zombie projects.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 3: HERO FLOW ANIMATION ───────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">One day, end to end</h2>
+      <p>Hit &ldquo;Next Step&rdquo; to watch a single day pass through the system. Seven moments, eleven steps &mdash; from the minute you wake up to Sunday&rsquo;s reset.</p>
+
+      <div class="flow-animation" data-steps='[
+        {"highlight":"flow-actor-1","label":"Dawn. You wake up, open Claude Code, type /morning."},
+        {"highlight":"flow-actor-2","label":"The assistant reads GTD, fitness logs, calendar, Garmin data in parallel.","packet":true,"from":"actor-1","to":"actor-2"},
+        {"highlight":"flow-actor-2","label":"Briefing arrives. You act on anything urgent, then start the day."},
+        {"highlight":"flow-actor-3","label":"Focused work on the nearest objective.","packet":true,"from":"actor-2","to":"actor-3"},
+        {"highlight":"flow-actor-3","label":"A thought pops in: you need to call the dentist."},
+        {"highlight":"flow-actor-4","label":"/inbox captures and routes to @phone in one command.","packet":true,"from":"actor-3","to":"actor-4"},
+        {"highlight":"flow-actor-3","label":"Back to work &mdash; no disruption, no lost thought.","packet":true,"from":"actor-4","to":"actor-3"},
+        {"highlight":"flow-actor-3","label":"The assistant suggests something that does not match your rules."},
+        {"highlight":"flow-actor-5","label":"You correct it. The correction becomes a feedback file.","packet":true,"from":"actor-3","to":"actor-5"},
+        {"highlight":"flow-actor-6","label":"End of day. The assistant auto-saves context and checks for lessons learned.","packet":true,"from":"actor-5","to":"actor-6"},
+        {"highlight":"flow-actor-7","label":"Sunday morning: /gtd review. Inbox to zero, projects checked, next actions refreshed.","packet":true,"from":"actor-6","to":"actor-7"}
+      ]'>
+        <div class="flow-actors">
+          <div class="flow-actor" id="flow-actor-1">
+            <div class="flow-actor-icon" style="background: var(--color-actor-4)">&#127749;</div>
+            <span>Dawn</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-2">
+            <div class="flow-actor-icon" style="background: var(--color-actor-2)">&#9749;</div>
+            <span>/morning</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-3">
+            <div class="flow-actor-icon" style="background: var(--color-actor-1)">&#127919;</div>
+            <span>Work block</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-4">
+            <div class="flow-actor-icon" style="background: var(--color-actor-5)">&#128229;</div>
+            <span>/inbox</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-5">
+            <div class="flow-actor-icon" style="background: var(--color-actor-3)">&#9995;</div>
+            <span>Correction</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-6">
+            <div class="flow-actor-icon" style="background: var(--color-actor-3)">&#127782;</div>
+            <span>Session end</span>
+          </div>
+          <div class="flow-actor" id="flow-actor-7">
+            <div class="flow-actor-icon" style="background: var(--color-actor-5)">&#128197;</div>
+            <span>Sunday review</span>
+          </div>
+        </div>
+
+        <div class="flow-packet" id="flow-packet"></div>
+
+        <div class="flow-step-label" id="flow-label">Click &ldquo;Next Step&rdquo; to begin</div>
+
+        <div class="flow-controls">
+          <button class="btn flow-next-btn">Next Step</button>
+          <button class="btn flow-reset-btn">Restart</button>
+          <span class="flow-progress"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 4: CODE ↔ ENGLISH (MORNING BRIEFING) ─────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">What the morning briefing actually looks like</h2>
+      <p>Here is the template the <code>/morning</code> skill uses. It is just a markdown file &mdash; no magic. The left side is the skeleton; the right side is what each section is for, and why it lives there.</p>
+
+      <div class="translation-block">
+        <div class="translation-code">
+          <span class="translation-label">morning/SKILL.md</span>
+          <pre><code><span class="code-line"><span class="code-keyword"># Morning Briefing &mdash; [Day], [Date]</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Vision</span></span>
+<span class="code-line">(1-2 sentences from the current Heart is</span>
+<span class="code-line"> Desire, rotated so it does not get stale)</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Yesterday</span></span>
+<span class="code-line">Practice: [morning meditation] &middot; Movement: [activity]</span>
+<span class="code-line">Food: [cal] &middot; [protein]g &middot; P:E [ratio]</span>
+<span class="code-line">Movement streak: [N] days</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Today is Targets</span></span>
+<span class="code-line">- Practice: 15 min first thing</span>
+<span class="code-line">- Calories: 2,200 to 2,400 &middot; Protein: 180 to 200g</span>
+<span class="code-line">- Movement: 20 min minimum</span>
+<span class="code-line">- Weight: [latest] &middot; [lost] lost &middot; [remaining]</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Health</span></span>
+<span class="code-line">Sleep: [hours]h [min]m &middot; Body battery: [level] &middot; Resting HR: [bpm]</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Calendar</span></span>
+<span class="code-line">Today:</span>
+<span class="code-line">- 10:00 AM &mdash; Meeting</span>
+<span class="code-line">- 2:00 PM &mdash; Meeting</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Next Actions</span></span>
+<span class="code-line">[Count] actions across [N] contexts</span>
+<span class="code-line">Top 3:</span>
+<span class="code-line">- [ ] action 1 (@context)</span>
+<span class="code-line">- [ ] action 2 (@context)</span>
+<span class="code-line">- [ ] action 3 (@context)</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## @claude Queue</span></span>
+<span class="code-line">- [ ] task 1</span>
+<span class="code-line">- [ ] task 2</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">## Projects Needing Attention</span></span>
+<span class="code-line">- Project Name &mdash; no next action defined</span>
+<span class="code-line">- Project Name &mdash; next action may be stale</span></code></pre>
+        </div>
+        <div class="translation-english">
+          <span class="translation-label">WHY EACH SECTION IS HERE</span>
+          <div class="translation-lines">
+            <p class="tl"><strong>Vision.</strong> The briefing always opens with a line or two from your Heart&rsquo;s Desire. The system forces you to see <em>why</em> before seeing what is on your plate today. That is not decoration &mdash; it is the sobriety check.</p>
+            <p class="tl"><strong>Yesterday.</strong> A scoreboard, not a judgment. Food, movement, practice, streaks. You see where you actually were &mdash; no spin.</p>
+            <p class="tl"><strong>Today&rsquo;s Targets.</strong> The <em>numbers</em> for the nearest milestone. The Key Results from your current objective show up here, so the day has edges.</p>
+            <p class="tl"><strong>Health.</strong> Sleep, body battery, resting heart rate. Ground truth from your body before you decide how hard to push.</p>
+            <p class="tl"><strong>Calendar.</strong> The immovable rocks of the day. Anything else has to fit around these.</p>
+            <p class="tl"><strong>Next Actions.</strong> A quick view &mdash; counts by context, top 3 picked by priority. You do not get the full list unless you ask for it.</p>
+            <p class="tl"><strong>@claude Queue.</strong> The twist from earlier &mdash; tasks you can hand to the assistant. You greenlight them with one word.</p>
+            <p class="tl"><strong>Projects Needing Attention.</strong> Flags stalls. This is the <span class="term" data-definition="A condition that, when crossed, fires a signal. In this system, stalled projects and kill conditions are tripwires that force you to make a conscious decision.">tripwire</span> for zombie projects.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 5: THE RHYTHM IS THE PRODUCT ─────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The rhythm is the product</h2>
+
+      <div class="callout callout-accent">
+        <div class="callout-icon">&#127925;</div>
+        <div class="callout-content">
+          <strong class="callout-title">The rhythm is the product</strong>
+          <p>You will be tempted to judge this system by any one of its components &mdash; is <code>/morning</code> good, is GTD good, is the memory layer good. That is the wrong frame.</p>
+          <p>The system is the <em>rhythm</em> of these things running together. Each alone is modest. Together they create a loop that keeps you honest, organized, and <em>aware of drift</em> in real time. The <span class="term" data-definition="The way multiple components coordinate in sequence. Here: how morning, inbox, correction, session-end, and weekly review fit together across a day.">choreography</span> is what does the work.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 6: SET IT UP YOURSELF ────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Set it up yourself</h2>
+      <p>Six steps. Each one is small. None of them require code. By the end of this list you will have a working version of the system on your machine.</p>
+
+      <div class="step-cards">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <strong>Install Claude Code.</strong>
+            <p>The command-line tool from Anthropic. Available for macOS, Linux, and <span class="term" data-definition="Windows Subsystem for Linux. A way to run a real Linux environment directly on Windows without a virtual machine. Most Linux tools work as if you were on a native Linux box.">WSL</span> on Windows. The exact install command is one line &mdash; find it in the current Claude Code docs.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <strong>Create <code>~/.claude/CLAUDE.md</code>.</strong>
+            <p>This is where the rules live. Start with the zero-affirmations block, the Heart&rsquo;s Desire to <span class="term" data-definition="Objectives and Key Results. An objective is the nearest milestone you are working toward; Key Results are the measurable signals that you are getting there.">OKR</span> pipeline, and a note about how you prefer to be talked to. You can copy the template from this course as a starting point.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <strong>Create <code>~/projects/gtd/</code>.</strong>
+            <p>Five empty <span class="term" data-definition="A plain text file with simple formatting marks (# for headings, - for bullets, [ ] for checkboxes). Opens in any text editor. No database, no special software.">markdown</span> files: <code>inbox.md</code>, <code>next-actions.md</code>, <code>projects.md</code>, <code>waiting-for.md</code>, <code>someday-maybe.md</code>. That is it &mdash; no database, no config.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <strong>Create the memory folder.</strong>
+            <p>Claude Code auto-generates a project folder name from your home directory path &mdash; look inside <code>~/.claude/projects/</code> after you first run Claude Code to find the exact name. Add an empty <code>MEMORY.md</code> with the session-start protocol. Feedback files will grow organically as you correct the assistant.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <strong>Install the skills.</strong>
+            <p>Each of the five core skills (<code>/inbox</code>, <code>/today</code>, <code>/gtd</code>, <code>/morning</code>, <code>/note</code>) is a markdown file at <code>~/.claude/skills/{name}/SKILL.md</code>. Copy the skill templates from the course files so you can drop them in verbatim.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <strong>Run <code>/morning</code>.</strong>
+            <p>It will fail the first day because you have not filled anything in yet. That is the point &mdash; the failure tells you what to fill in. Use the failure as a checklist.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 7: QUIZ ──────────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">Two scenarios to think through</h2>
+      <p>Both of these will come up in your own setup. Pick what the system actually wants you to do &mdash; not what the system could technically do on its own.</p>
+
+      <div class="quiz-container" id="quiz-module6">
+
+        <div class="quiz-question-block"
+             data-correct="option-b"
+             data-explanation-right="This is the #1 memory failure mode: a feedback file exists but is not listed in MEMORY.md, so the assistant never loads it. Always check the index first. The fix is to add a one-line entry pointing to the feedback file &mdash; after that, the rule will fire."
+             data-explanation-wrong="Not quite. Think about what the assistant actually reads at the start of a session. A rule that lives in a file the assistant never opens cannot fire, no matter how many times you write it.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 1</span>
+            <p>You notice that for the last two weeks the assistant has been ignoring a rule you set &mdash; &ldquo;use Discord for all updates, not the terminal.&rdquo; You have reminded it multiple times. What is the first thing to check?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Restart Claude Code and hope a fresh session picks up the rule.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Check <code>MEMORY.md</code> to see if <code>feedback_discord-primary.md</code> is indexed. If it is not in the index, the assistant never reads it.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Open a GitHub issue against Claude Code.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>Write the rule again, louder, and hope it sticks this time.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-question-block"
+             data-correct="option-b"
+             data-explanation-right="Kill conditions are tripwires, not automation. They fire when crossed, but the decision is always yours. The system is designed to force the decision rather than make it, because only you know whether the project still serves your Heart&rsquo;s Desire."
+             data-explanation-wrong="Not quite. The system is explicitly designed to surface the stall, not to resolve it. A computer cannot tell you whether a project still matters &mdash; only you can.">
+          <div class="scenario-block">
+            <span class="scenario-label">Scenario 2</span>
+            <p>You ran <code>/morning</code> at 8am. It flagged a project as &ldquo;stalled &mdash; no Key Result progress in 4 weeks.&rdquo; The project matches a kill condition you wrote. What does the system want from you?</p>
+          </div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>It kills the project automatically, since the kill condition was met.</span>
+            </button>
+            <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>It forces you to make a conscious choice: kill the project, revive it, or update the kill condition.</span>
+            </button>
+            <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>It quietly moves the project to <code>someday-maybe.md</code> to get it out of the way.</span>
+            </button>
+            <button class="quiz-option" data-value="option-d" onclick="selectOption(this)">
+              <div class="quiz-option-radio"></div>
+              <span>It doubles the Key Results to make the project harder and force a decision that way.</span>
+            </button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <button class="quiz-check-btn" onclick="checkQuiz('quiz-module6')">Check Answers</button>
+        <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module6')">Try Again</button>
+      </div>
+    </section>
+
+    <!-- ── SCREEN 8: CLOSING ───────────────────────────────────── -->
+    <section class="screen animate-in">
+      <h2 class="screen-heading">The handoff</h2>
+      <p>You have the cast, the capture loop, the memory layer, the sobriety rules, and now the choreography. That is the whole system.</p>
+      <p>The rest is yours.</p>
+
+      <div class="callout callout-info">
+        <div class="callout-icon">&#127873;</div>
+        <div class="callout-content">
+          <strong class="callout-title">The scaffold is the gift</strong>
+          <p>What you take away from this course is not these exact files &mdash; it is the scaffold. Your memory files, your rules, your Heart&rsquo;s Desires, your projects &mdash; those are yours and will be unique to you.</p>
+          <p>The <em>structure</em> is what is shareable, and that is what this course hands you. Go build your version.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</section>
+  </main>
+
+</body>
+</html>
