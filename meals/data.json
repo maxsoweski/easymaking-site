@@ -1,0 +1,223 @@
+{
+  "lastUpdated": "2026-04-13T14:00:00Z",
+  "targets": {
+    "calories": { "min": 2200, "max": 2400 },
+    "protein": { "min": 180, "max": 200 }
+  },
+  "inventory": [
+    {
+      "name": "TJ's Grilled Chicken Breast Strips",
+      "quantity": "2 packs",
+      "store": "Trader Joe's",
+      "purchased": "2026-04-13",
+      "category": "protein",
+      "cal_per_serving": 100,
+      "protein_per_serving": 21,
+      "serving_size": "3oz"
+    },
+    {
+      "name": "Whey Protein Isolate",
+      "quantity": "1 tub (28 servings left)",
+      "store": "Amazon",
+      "purchased": "2026-04-05",
+      "category": "protein",
+      "cal_per_serving": 120,
+      "protein_per_serving": 30,
+      "serving_size": "1 scoop (33g)"
+    },
+    {
+      "name": "Skim Milk",
+      "quantity": "3/4 gallon",
+      "store": "Publix",
+      "purchased": "2026-04-11",
+      "category": "dairy",
+      "cal_per_serving": 80,
+      "protein_per_serving": 8,
+      "serving_size": "8oz"
+    },
+    {
+      "name": "Nonfat Plain Greek Yogurt",
+      "quantity": "1 tub (32oz)",
+      "store": "Trader Joe's",
+      "purchased": "2026-04-12",
+      "category": "dairy",
+      "cal_per_serving": 120,
+      "protein_per_serving": 24,
+      "serving_size": "1 cup"
+    },
+    {
+      "name": "TJ's Turkey Jerky",
+      "quantity": "3 bags",
+      "store": "Trader Joe's",
+      "purchased": "2026-04-13",
+      "category": "snack",
+      "cal_per_serving": 60,
+      "protein_per_serving": 11,
+      "serving_size": "1oz"
+    },
+    {
+      "name": "Chicken Thighs (bone-in)",
+      "quantity": "3 lbs",
+      "store": "Publix",
+      "purchased": "2026-04-11",
+      "category": "protein",
+      "cal_per_serving": 220,
+      "protein_per_serving": 28,
+      "serving_size": "4oz"
+    },
+    {
+      "name": "Russet Potatoes",
+      "quantity": "5 lb bag",
+      "store": "Publix",
+      "purchased": "2026-04-08",
+      "category": "produce",
+      "cal_per_serving": 160,
+      "protein_per_serving": 4,
+      "serving_size": "1 medium"
+    },
+    {
+      "name": "Broccoli Crowns",
+      "quantity": "2 heads",
+      "store": "Publix",
+      "purchased": "2026-04-11",
+      "category": "produce",
+      "cal_per_serving": 55,
+      "protein_per_serving": 4,
+      "serving_size": "1 cup chopped"
+    },
+    {
+      "name": "Mixed Bell Peppers",
+      "quantity": "4 peppers",
+      "store": "Earth Fare",
+      "purchased": "2026-04-10",
+      "category": "produce",
+      "cal_per_serving": 30,
+      "protein_per_serving": 1,
+      "serving_size": "1 medium"
+    },
+    {
+      "name": "Zucchini",
+      "quantity": "3 medium",
+      "store": "Earth Fare",
+      "purchased": "2026-04-10",
+      "category": "produce",
+      "cal_per_serving": 20,
+      "protein_per_serving": 1,
+      "serving_size": "1 medium"
+    },
+    {
+      "name": "Eggs (cage-free)",
+      "quantity": "1 dozen",
+      "store": "Publix",
+      "purchased": "2026-04-09",
+      "category": "protein",
+      "cal_per_serving": 70,
+      "protein_per_serving": 6,
+      "serving_size": "1 large"
+    },
+    {
+      "name": "TJ's Salmon Burgers (frozen)",
+      "quantity": "1 box (4 patties)",
+      "store": "Trader Joe's",
+      "purchased": "2026-03-30",
+      "category": "protein",
+      "cal_per_serving": 100,
+      "protein_per_serving": 15,
+      "serving_size": "1 patty"
+    },
+    {
+      "name": "Brown Rice",
+      "quantity": "2 lb bag",
+      "store": "Trader Joe's",
+      "purchased": "2026-03-25",
+      "category": "staple",
+      "cal_per_serving": 200,
+      "protein_per_serving": 5,
+      "serving_size": "1/4 cup dry"
+    },
+    {
+      "name": "Olive Oil (Extra Virgin)",
+      "quantity": "1 bottle (3/4 full)",
+      "store": "Trader Joe's",
+      "purchased": "2026-03-20",
+      "category": "staple",
+      "cal_per_serving": 120,
+      "protein_per_serving": 0,
+      "serving_size": "1 tbsp"
+    },
+    {
+      "name": "Side Salad Mix",
+      "quantity": "1 bag",
+      "store": "Publix",
+      "purchased": "2026-04-12",
+      "category": "produce",
+      "cal_per_serving": 15,
+      "protein_per_serving": 1,
+      "serving_size": "2 cups"
+    }
+  ],
+  "todayMeals": {
+    "lunch": {
+      "name": "Protein Shake + Chicken Strips",
+      "items": [
+        "Whey Protein Isolate (2 scoops)",
+        "Skim Milk (20oz)",
+        "TJ's Grilled Chicken Strips (6oz)",
+        "Side Salad"
+      ],
+      "calories": 740,
+      "protein": 122
+    },
+    "snack": {
+      "name": "Greek Yogurt + Turkey Jerky",
+      "items": [
+        "Nonfat Greek Yogurt (1 cup)",
+        "TJ's Turkey Jerky (2oz)"
+      ],
+      "calories": 240,
+      "protein": 46
+    },
+    "dinner": {
+      "name": "Roasted Chicken Thighs + Veg",
+      "items": [
+        "Chicken Thighs (8oz)",
+        "Roasted Potatoes (1 cup)",
+        "Roasted Broccoli & Peppers (2 cups)"
+      ],
+      "calories": 680,
+      "protein": 48
+    }
+  },
+  "shoppingList": {
+    "Trader Joe's": [
+      { "name": "Grilled Chicken Breast Strips", "cal": 100, "protein": 21, "pe_ratio": "84%", "checked": false },
+      { "name": "Sous Vide Turkey Tenderloins", "cal": 100, "protein": 20, "pe_ratio": "80%", "checked": false },
+      { "name": "Nonfat Plain Greek Yogurt", "cal": 120, "protein": 24, "pe_ratio": "80%", "checked": false },
+      { "name": "Turkey Jerky", "cal": 60, "protein": 11, "pe_ratio": "73%", "checked": false },
+      { "name": "Salmon Burgers (frozen)", "cal": 100, "protein": 15, "pe_ratio": "60%", "checked": false },
+      { "name": "Pulled Chicken Salsa Verde", "cal": 100, "protein": 18, "pe_ratio": "72%", "checked": false }
+    ],
+    "Publix": [
+      { "name": "Deli Baked Chicken Tenders", "cal": 310, "protein": 55, "pe_ratio": "71%", "checked": false },
+      { "name": "Rotisserie Chicken (Original)", "cal": 310, "protein": 38, "pe_ratio": "49%", "checked": false },
+      { "name": "GreenWise Chicken Breast (raw, per lb)", "cal": 440, "protein": 96, "pe_ratio": "87%", "checked": false },
+      { "name": "Skim Milk (gallon)", "cal": 80, "protein": 8, "pe_ratio": "40%", "checked": false }
+    ],
+    "Earth Fare": [
+      { "name": "Air-chilled Chicken Breasts (per lb)", "cal": 440, "protein": 96, "pe_ratio": "87%", "checked": false },
+      { "name": "Grass-fed Ground Beef (per lb)", "cal": 800, "protein": 80, "pe_ratio": "40%", "checked": false },
+      { "name": "Free-range Chicken Wings (frozen)", "cal": 200, "protein": 18, "pe_ratio": "36%", "checked": false }
+    ]
+  },
+  "mealPrep": {
+    "nextSession": "Sunday",
+    "tasks": [
+      { "task": "Season and roast 3 lbs chicken thighs (425\u00b0F, 25-30 min)", "done": false },
+      { "task": "Roast potatoes \u2014 halve, toss in olive oil + salt (425\u00b0F, 25-30 min)", "done": false },
+      { "task": "Roast vegetables \u2014 broccoli, peppers, zucchini (425\u00b0F, 15-20 min)", "done": false },
+      { "task": "Portion into 5 containers: chicken + potatoes + veg", "done": false },
+      { "task": "Hard-boil 6 eggs for grab-and-go snacks", "done": false },
+      { "task": "Pre-portion Greek yogurt into 5 containers", "done": false }
+    ]
+  }
+}

@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitchen — Max & Anna</title>
+<style>
+/* ======================================
+   Kitchen App — Max & Anna
+   Warm, personal, mobile-first
+   ====================================== */
+
+:root {
+  /* Warm kitchen palette */
+  --bg: #FAF6F0;
+  --bg-card: #FFFFFF;
+  --bg-section: #F3EDE4;
+  --ink: #2C2520;
+  --ink-secondary: #78706A;
+  --ink-faint: #A89E96;
+
+  /* Accents */
+  --terracotta: #C8553D;
+  --terracotta-light: #F4DDD8;
+  --sage: #6B8F71;
+  --sage-light: #D9E8DA;
+  --sage-bg: #EFF5EF;
+  --amber: #D4952B;
+  --amber-light: #F5E6C8;
+  --amber-bg: #FDF6EA;
+  --cream: #F7F0E3;
+
+  /* Freshness indicators */
+  --fresh: #5FA364;
+  --aging: #D4952B;
+  --old: #C8553D;
+
+  /* P:E ratio colors */
+  --pe-good: #5FA364;
+  --pe-ok: #D4952B;
+  --pe-low: #C8553D;
+
+  /* Spacing */
+  --space-xs: 0.375rem;
+  --space-sm: 0.625rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+
+  /* Radius */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 5px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(44,37,32,0.06), 0 4px 12px rgba(44,37,32,0.04);
+  --shadow-hover: 0 2px 8px rgba(44,37,32,0.1), 0 8px 24px rgba(44,37,32,0.06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.55;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Header ── */
+.header {
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.header h1 span {
+  color: var(--terracotta);
+}
+
+.header-subtitle {
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+  margin-top: 2px;
+}
+
+/* ── Section structure ── */
+.section {
+  max-width: 640px;
+  margin: 0 auto var(--space-md);
+  padding: 0 var(--space-lg);
+}
+
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--space-sm);
+  padding-left: 2px;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Today's Meals ── */
+.meals-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--sage-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.macro-block {
+  text-align: center;
+}
+
+.macro-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-secondary);
+}
+
+.macro-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.macro-target {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+.macro-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(107, 143, 113, 0.2);
+}
+
+.meal-slot {
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--bg-section);
+}
+
+.meal-slot:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.meal-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-xs);
+}
+
+.meal-slot-type {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--terracotta);
+}
+
+.meal-slot-macros {
+  font-size: 0.75rem;
+  color: var(--ink-secondary);
+  font-weight: 500;
+}
+
+.meal-slot-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+
+.meal-slot-items {
+  list-style: none;
+  padding: 0;
+}
+
+.meal-slot-items li {
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+  padding: 1px 0;
+  padding-left: var(--space-md);
+  position: relative;
+}
+
+.meal-slot-items li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+
+/* ── Inventory ── */
+.inventory-category {
+  margin-bottom: var(--space-lg);
+}
+
+.inventory-category:last-child {
+  margin-bottom: 0;
+}
+
+.category-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.category-icon {
+  font-size: 0.85rem;
+}
+
+.inv-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--bg-section);
+}
+
+.inv-item:last-child {
+  border-bottom: none;
+}
+
+.freshness-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.freshness-dot.fresh { background: var(--fresh); }
+.freshness-dot.aging { background: var(--aging); }
+.freshness-dot.old { background: var(--old); animation: pulse-old 2s ease-in-out infinite; }
+
+@keyframes pulse-old {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.inv-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.inv-item-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.inv-item-meta {
+  font-size: 0.75rem;
+  color: var(--ink-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-sm);
+}
+
+.inv-item-qty {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* ── Shopping List ── */
+.store-group {
+  margin-bottom: var(--space-lg);
+}
+
+.store-group:last-child {
+  margin-bottom: 0;
+}
+
+.store-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 2px solid var(--terracotta-light);
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border-bottom: 1px solid var(--bg-section);
+  transition: opacity 0.2s ease;
+}
+
+.shop-item:last-child {
+  border-bottom: none;
+}
+
+.shop-item.checked {
+  opacity: 0.4;
+}
+
+.shop-item.checked .shop-item-name {
+  text-decoration: line-through;
+}
+
+.shop-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--ink-faint);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.shop-item.checked .shop-checkbox {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+
+.shop-checkbox-tick {
+  opacity: 0;
+  width: 12px;
+  height: 12px;
+  transition: opacity 0.15s ease;
+}
+
+.shop-item.checked .shop-checkbox-tick {
+  opacity: 1;
+}
+
+.shop-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.shop-item-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: text-decoration 0.2s ease;
+}
+
+.shop-item-macros {
+  font-size: 0.72rem;
+  color: var(--ink-secondary);
+}
+
+.pe-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+}
+
+.pe-good {
+  background: var(--sage-light);
+  color: var(--pe-good);
+}
+
+.pe-ok {
+  background: var(--amber-light);
+  color: var(--pe-ok);
+}
+
+.pe-low {
+  color: var(--pe-low);
+  background: var(--terracotta-light);
+}
+
+/* ── Meal Prep ── */
+.prep-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-md);
+}
+
+.prep-day {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.prep-day-label {
+  font-size: 0.8rem;
+  color: var(--terracotta);
+  font-weight: 600;
+}
+
+.prep-task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--bg-section);
+}
+
+.prep-task:last-child {
+  border-bottom: none;
+}
+
+.prep-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--amber-bg);
+  color: var(--amber);
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.prep-task.done .prep-number {
+  background: var(--sage-light);
+  color: var(--sage);
+}
+
+.prep-task-text {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.prep-task.done .prep-task-text {
+  text-decoration: line-through;
+  color: var(--ink-faint);
+}
+
+/* ── Footer ── */
+.footer {
+  max-width: 640px;
+  margin: var(--space-xl) auto;
+  padding: 0 var(--space-lg);
+  text-align: center;
+}
+
+.footer-text {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  line-height: 1.6;
+}
+
+/* ── Loading state ── */
+.loading {
+  text-align: center;
+  padding: 4rem var(--space-lg);
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--bg-section);
+  border-top-color: var(--terracotta);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto var(--space-md);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error state ── */
+.error {
+  text-align: center;
+  padding: 3rem var(--space-lg);
+  color: var(--terracotta);
+  font-size: 0.9rem;
+}
+
+/* ── Pull-to-refresh hint ── */
+.refresh-hint {
+  text-align: center;
+  padding: var(--space-xs) 0;
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+  margin-top: calc(-1 * var(--space-sm));
+  margin-bottom: var(--space-sm);
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Responsive tweaks ── */
+@media (min-width: 480px) {
+  .card { padding: var(--space-xl); }
+  .header h1 { font-size: 1.8rem; }
+}
+
+@media (min-width: 700px) {
+  body { padding: var(--space-lg) 0; }
+}
+
+/* Smooth transitions for interactive elements */
+.shop-item, .prep-task {
+  transition: opacity 0.2s ease;
+}
+
+/* ── Status bar indicator (in-range vs out-of-range) ── */
+.macro-value.in-range { color: var(--sage); }
+.macro-value.under { color: var(--amber); }
+.macro-value.over { color: var(--terracotta); }
+
+/* ── Inventory nutrition info (compact) ── */
+.inv-nutrition {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading">
+    <div class="loading-spinner"></div>
+    Loading kitchen data...
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const app = document.getElementById('app');
+
+  // ── Fetch and render ──
+  fetch('data.json?t=' + Date.now())
+    .then(r => {
+      if (!r.ok) throw new Error('Could not load data');
+      return r.json();
+    })
+    .then(render)
+    .catch(err => {
+      app.innerHTML = '<div class="error">Could not load kitchen data.<br><small>' + err.message + '</small></div>';
+    });
+
+  function render(data) {
+    const html = [
+      renderHeader(data),
+      renderMeals(data),
+      renderInventory(data),
+      renderShopping(data),
+      renderPrep(data),
+      renderFooter(data)
+    ].join('');
+
+    app.innerHTML = html;
+    bindInteractions();
+  }
+
+  // ── Header ──
+  function renderHeader(data) {
+    return '<header class="header">' +
+      '<h1>The <span>Kitchen</span></h1>' +
+      '<div class="header-subtitle">Max & Anna\'s meal planner</div>' +
+    '</header>';
+  }
+
+  // ── Today's Meals ──
+  function renderMeals(data) {
+    const meals = data.todayMeals;
+    const targets = data.targets;
+
+    // Calculate totals
+    let totalCal = 0, totalPro = 0;
+    ['lunch', 'snack', 'dinner'].forEach(slot => {
+      if (meals[slot]) {
+        totalCal += meals[slot].calories || 0;
+        totalPro += meals[slot].protein || 0;
+      }
+    });
+
+    const calClass = totalCal >= targets.calories.min && totalCal <= targets.calories.max ? 'in-range' :
+                     totalCal < targets.calories.min ? 'under' : 'over';
+    const proClass = totalPro >= targets.protein.min && totalPro <= targets.protein.max ? 'in-range' :
+                     totalPro < targets.protein.min ? 'under' : 'over';
+
+    let mealSlots = '';
+    const slotOrder = [
+      { key: 'lunch', label: 'Lunch' },
+      { key: 'snack', label: 'Snack' },
+      { key: 'dinner', label: 'Dinner' }
+    ];
+
+    slotOrder.forEach(slot => {
+      const meal = meals[slot.key];
+      if (!meal) return;
+
+      let itemsHtml = '';
+      (meal.items || []).forEach(item => {
+        itemsHtml += '<li>' + esc(item) + '</li>';
+      });
+
+      mealSlots += '<div class="meal-slot">' +
+        '<div class="meal-slot-header">' +
+          '<span class="meal-slot-type">' + slot.label + '</span>' +
+          '<span class="meal-slot-macros">' + meal.calories + ' cal / ' + meal.protein + 'g protein</span>' +
+        '</div>' +
+        '<div class="meal-slot-name">' + esc(meal.name) + '</div>' +
+        '<ul class="meal-slot-items">' + itemsHtml + '</ul>' +
+      '</div>';
+    });
+
+    return '<section class="section">' +
+      '<div class="section-label">Today\'s Meals</div>' +
+      '<div class="card">' +
+        '<div class="meals-summary">' +
+          '<div class="macro-block">' +
+            '<div class="macro-label">Calories</div>' +
+            '<div class="macro-value ' + calClass + '">' + totalCal.toLocaleString() + '</div>' +
+            '<div class="macro-target">' + targets.calories.min.toLocaleString() + '&ndash;' + targets.calories.max.toLocaleString() + '</div>' +
+          '</div>' +
+          '<div class="macro-divider"></div>' +
+          '<div class="macro-block">' +
+            '<div class="macro-label">Protein</div>' +
+            '<div class="macro-value ' + proClass + '">' + totalPro + 'g</div>' +
+            '<div class="macro-target">' + targets.protein.min + '&ndash;' + targets.protein.max + 'g</div>' +
+          '</div>' +
+        '</div>' +
+        mealSlots +
+      '</div>' +
+    '</section>';
+  }
+
+  // ── Inventory ──
+  function renderInventory(data) {
+    const items = data.inventory || [];
+    const now = new Date();
+
+    // Group by category
+    const categoryOrder = ['protein', 'dairy', 'produce', 'staple', 'snack'];
+    const categoryLabels = {
+      protein: 'Protein',
+      dairy: 'Dairy',
+      produce: 'Produce',
+      staple: 'Pantry Staples',
+      snack: 'Snacks'
+    };
+    const categoryIcons = {
+      protein: '\u{1F357}',
+      dairy: '\u{1F95B}',
+      produce: '\u{1F966}',
+      staple: '\u{1F33E}',
+      snack: '\u{1F95C}'
+    };
+
+    const grouped = {};
+    items.forEach(item => {
+      const cat = item.category || 'staple';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(item);
+    });
+
+    let categoriesHtml = '';
+    categoryOrder.forEach(cat => {
+      if (!grouped[cat] || grouped[cat].length === 0) return;
+
+      let itemsHtml = '';
+      grouped[cat].forEach(item => {
+        const purchased = new Date(item.purchased + 'T00:00:00');
+        const daysOld = Math.floor((now - purchased) / (1000 * 60 * 60 * 24));
+        const freshness = daysOld >= 14 ? 'old' : daysOld >= 7 ? 'aging' : 'fresh';
+
+        const nutritionStr = item.protein_per_serving > 0 ?
+          item.cal_per_serving + ' cal / ' + item.protein_per_serving + 'g pro per ' + item.serving_size :
+          item.cal_per_serving + ' cal per ' + item.serving_size;
+
+        itemsHtml += '<div class="inv-item">' +
+          '<div class="freshness-dot ' + freshness + '" title="Purchased ' + daysOld + ' day' + (daysOld !== 1 ? 's' : '') + ' ago"></div>' +
+          '<div class="inv-item-info">' +
+            '<div class="inv-item-name">' + esc(item.name) + '</div>' +
+            '<div class="inv-item-meta">' +
+              '<span>' + esc(item.store) + '</span>' +
+              '<span class="inv-nutrition">' + nutritionStr + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="inv-item-qty">' + esc(item.quantity) + '</div>' +
+        '</div>';
+      });
+
+      categoriesHtml += '<div class="inventory-category">' +
+        '<div class="category-label"><span class="category-icon">' + categoryIcons[cat] + '</span> ' + categoryLabels[cat] + '</div>' +
+        itemsHtml +
+      '</div>';
+    });
+
+    return '<section class="section">' +
+      '<div class="section-label">Pantry & Fridge</div>' +
+      '<div class="card">' + categoriesHtml + '</div>' +
+    '</section>';
+  }
+
+  // ── Shopping List ──
+  function renderShopping(data) {
+    const list = data.shoppingList || {};
+    const stores = Object.keys(list);
+
+    if (stores.length === 0) {
+      return '<section class="section">' +
+        '<div class="section-label">Shopping List</div>' +
+        '<div class="card"><p style="color:var(--ink-faint);font-size:0.9rem;">Nothing to buy right now.</p></div>' +
+      '</section>';
+    }
+
+    let storesHtml = '';
+    stores.forEach(store => {
+      let itemsHtml = '';
+      list[store].forEach((item, idx) => {
+        // Parse P:E ratio for color
+        const peNum = parseInt(item.pe_ratio) || 0;
+        const peClass = peNum >= 60 ? 'pe-good' : peNum >= 40 ? 'pe-ok' : 'pe-low';
+
+        itemsHtml += '<div class="shop-item" data-store="' + esc(store) + '" data-idx="' + idx + '">' +
+          '<div class="shop-checkbox">' +
+            '<svg class="shop-checkbox-tick" viewBox="0 0 12 12" fill="none">' +
+              '<path d="M2 6.5L4.5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div class="shop-item-info">' +
+            '<div class="shop-item-name">' + esc(item.name) + '</div>' +
+            '<div class="shop-item-macros">' + item.cal + ' cal, ' + item.protein + 'g protein per serving</div>' +
+          '</div>' +
+          '<span class="pe-badge ' + peClass + '">' + esc(item.pe_ratio) + '</span>' +
+        '</div>';
+      });
+
+      storesHtml += '<div class="store-group">' +
+        '<div class="store-name">' + esc(store) + '</div>' +
+        itemsHtml +
+      '</div>';
+    });
+
+    return '<section class="section">' +
+      '<div class="section-label">Shopping List</div>' +
+      '<div class="card">' + storesHtml + '</div>' +
+    '</section>';
+  }
+
+  // ── Meal Prep ──
+  function renderPrep(data) {
+    const prep = data.mealPrep || {};
+    const tasks = prep.tasks || [];
+
+    if (tasks.length === 0) {
+      return '<section class="section">' +
+        '<div class="section-label">Meal Prep</div>' +
+        '<div class="card"><p style="color:var(--ink-faint);font-size:0.9rem;">No prep scheduled.</p></div>' +
+      '</section>';
+    }
+
+    let tasksHtml = '';
+    tasks.forEach((task, idx) => {
+      const doneClass = task.done ? ' done' : '';
+      tasksHtml += '<div class="prep-task' + doneClass + '">' +
+        '<div class="prep-number">' + (idx + 1) + '</div>' +
+        '<div class="prep-task-text">' + esc(task.task) + '</div>' +
+      '</div>';
+    });
+
+    return '<section class="section">' +
+      '<div class="section-label">Meal Prep</div>' +
+      '<div class="card">' +
+        '<div class="prep-header">' +
+          '<div class="prep-day">Next session</div>' +
+          '<div class="prep-day-label">' + esc(prep.nextSession || 'TBD') + '</div>' +
+        '</div>' +
+        tasksHtml +
+      '</div>' +
+    '</section>';
+  }
+
+  // ── Footer ──
+  function renderFooter(data) {
+    const updated = data.lastUpdated ? formatDate(data.lastUpdated) : 'Unknown';
+    return '<footer class="footer">' +
+      '<div class="footer-text">' +
+        'Last updated by Claude &middot; ' + updated +
+        '<br>Freshness: ' +
+        '<span style="color:var(--fresh);">&#9679;</span> fresh &nbsp; ' +
+        '<span style="color:var(--aging);">&#9679;</span> 7+ days &nbsp; ' +
+        '<span style="color:var(--old);">&#9679;</span> 14+ days' +
+      '</div>' +
+    '</footer>';
+  }
+
+  // ── Interactions ──
+  function bindInteractions() {
+    // Shopping list checkboxes
+    document.querySelectorAll('.shop-item').forEach(el => {
+      el.addEventListener('click', function() {
+        this.classList.toggle('checked');
+      });
+    });
+  }
+
+  // ── Helpers ──
+  function esc(str) {
+    if (typeof str !== 'string') return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function formatDate(isoStr) {
+    try {
+      const d = new Date(isoStr);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const month = months[d.getMonth()];
+      const day = d.getDate();
+      const hours = d.getHours();
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const h = hours % 12 || 12;
+      return month + ' ' + day + ' at ' + h + ':' + mins + ' ' + ampm;
+    } catch(e) {
+      return isoStr;
+    }
+  }
+
+})();
+</script>
+
+</body>
+</html>
