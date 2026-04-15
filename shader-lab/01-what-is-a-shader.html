@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L1: What a Shader Is · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">01.</span>What a shader is</span>
+  </div>
+  <nav class="prev-next">
+    <span>← prev</span>
+    <a href="02-three-layers.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">What a shader is</h1>
+  <div class="lesson-subtitle">Arc 1 · Mental Model · Lesson 1 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="pixel-size">pixel-size</label>
+      <input type="range" id="pixel-size" min="1" max="64" step="1" value="1">
+      <div class="value" id="pixel-size-value">1</div>
+    </div>
+    <button class="toggle" id="pause-btn" data-active="false">pause time</button>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A shader is one function that runs once per pixel, in parallel across the whole screen, with no knowledge of neighboring pixels or past frames.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>A painter paints the whole canvas in sequence, remembering what came before. The GPU doesn't work like that. It calls the <em>same function</em> for every pixel simultaneously. Each pixel knows only its own coordinate and the shared uniforms (like <code>time</code>). A pixel cannot see the pixel next to it.</p>
+    <p>When effects <em>need</em> neighbor information (blur, bloom, edge detection), that requires a second pass that samples the first pass's output as a texture. This is called <strong>multi-pass</strong> rendering — and it's how shaders get around their in-pixel blindness.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p>Drag <code>pixel-size</code> up to <strong>64</strong>, then click <strong>pause time</strong>. Every "pixel" on screen becomes a single solid color, frozen. That one solid value is literally the output of one function call. Now click resume — every block changes together because they all share the <code>time</code> uniform.</p>
+    <p><em>Teaches:</em> pixels are isolated in space but synchronized through uniforms. "Per-pixel parallel" is what a shader <strong>is</strong>.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <p>This lesson is conceptual — the language of art direction arrives in Lesson 2. Two useful phrases you'll pick up here:</p>
+    <div class="verb-map">
+      <span class="phrase">"per-pixel"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">the shader is independent per pixel; no neighbor reads</span>
+      <span class="phrase">"multi-pass"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">second pass reads the first pass's output as a texture; how blur/bloom work</span>
+    </div>
+    <div class="meta">Briefing tip: when an effect needs to "look at neighbors" (blur, ripple, dilation), that's a multi-pass request, not a single shader.</div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> Lesson 2 (where the three layers live inside that one per-pixel function).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_pixelSize;
+
+void main() {
+  // Where on screen is this pixel?
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  // Snap UV to a coarse grid (if pixel-size &gt; 1).
+  // Every pixel in the same block reads the same snapped position.
+  float p = max(1.0, u_pixelSize);
+  vec2 snapped = floor(uv * u_resolution / p) * p / u_resolution;
+
+  // Compute a color from the snapped coordinate + time.
+  // Every pixel runs this same math independently.
+  vec3 col = 0.5 + 0.5 * cos(u_time + snapped.xyx * vec3(12.0, 9.0, 6.5) + vec3(0.0, 2.0, 4.0));
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js';
+
+const fragmentSrc = `
+uniform float u_pixelSize;
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float p = max(1.0, u_pixelSize);
+  vec2 snapped = floor(uv * u_resolution / p) * p / u_resolution;
+  vec3 col = 0.5 + 0.5 * cos(u_time + snapped.xyx * vec3(12.0, 9.0, 6.5) + vec3(0.0, 2.0, 4.0));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_pixelSize: { type: '1f', value: 1 },
+});
+if (app) {
+  bindSlider(
+    document.getElementById('pixel-size'),
+    document.getElementById('pixel-size-value'),
+    app,
+    'u_pixelSize'
+  );
+
+  const pauseBtn = document.getElementById('pause-btn');
+  pauseBtn.addEventListener('click', () => {
+    if (app.isPaused()) {
+      app.resume();
+      pauseBtn.textContent = 'pause time';
+      pauseBtn.dataset.active = 'false';
+    } else {
+      app.pause();
+      pauseBtn.textContent = 'resume time';
+      pauseBtn.dataset.active = 'true';
+    }
+  });
+
+  app.start();
+}
+
+// Syntax-highlight the code block, wire up toggle, arrow-key nav
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav(null, '02-three-layers.html');
+</script>
+</body>
+</html>

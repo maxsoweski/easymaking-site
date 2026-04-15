@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L2: The Three Layers · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">02.</span>The three layers</span>
+  </div>
+  <nav class="prev-next">
+    <a href="01-what-is-a-shader.html">← prev</a>
+    <a href="03-primitives.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">The three layers</h1>
+  <div class="lesson-subtitle">Arc 1 · Mental Model · Lesson 2 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="zoom">zoom</label>
+      <input type="range" id="zoom" min="0.5" max="10" step="0.1" value="3">
+      <div class="value" id="zoom-value">3.00</div>
+    </div>
+    <div class="control">
+      <label for="softness">softness</label>
+      <input type="range" id="softness" min="0.001" max="0.5" step="0.001" value="0.08">
+      <div class="value" id="softness-value">0.08</div>
+    </div>
+    <div class="control">
+      <label for="warmth">warmth</label>
+      <input type="range" id="warmth" min="0" max="1" step="0.01" value="0.5">
+      <div class="value" id="warmth-value">0.50</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Every shader does three things in order — transform the coordinate, compute a signal from it, map the signal to color — and every effect you'll ever direct lives in one or more of those layers.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Think of the input coordinate (usually a pixel's 2D position from <code>(0,0)</code> to <code>(1,1)</code>) as the raw address. The <strong style="color:var(--layer-coord)">coordinate layer</strong> warps or zooms that address. The <strong style="color:var(--layer-signal)">signal layer</strong> computes a number from the address — a distance, a wave, a noise value. The <strong style="color:var(--layer-color)">color layer</strong> turns that number into a hue.</p>
+    <p>Effects stack by modifying any of these three stages. "Zoom the pattern" is coordinate work. "Sharpen the edges" is signal work. "Shift the palette warmer" is color work.</p>
+    <p>Each slider above controls exactly one layer. Move them one at a time to see what each layer does.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Crank <code>zoom</code> to max (10).</strong> The pattern becomes so tight it reads as grey noise — the rings are fine but the screen can't resolve them. <em>Teaches:</em> coordinate scale directly controls the spatial frequency you perceive.</p>
+    <p><strong>2. Pull <code>softness</code> to minimum.</strong> Hard posterized bands appear. <em>Teaches:</em> smooth transitions aren't a color choice — they're a signal choice. Step vs. smoothstep is where softness lives.</p>
+    <p><strong>3. Pull <code>warmth</code> to either extreme.</strong> The same shapes remain — only the palette shifts. <em>Teaches:</em> upstream signal is unchanged by color choices; they're separable.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"tighter pattern"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">zoom up</span>
+
+      <span class="phrase">"looser / wider pattern"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">zoom down</span>
+
+      <span class="phrase">"sharper edges"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">softness down</span>
+
+      <span class="phrase">"dreamier / foggier"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">softness up</span>
+
+      <span class="phrase">"warmer look"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">warmth right</span>
+
+      <span class="phrase">"cooler look"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">warmth left</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"work in the coordinate layer to..."</em> / <em>"in the signal layer to..."</em> / <em>"in the color layer to..."</em> This framing alone prevents 90% of miscommunication with a shader developer.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> every subsequent lesson — each is an instance of modifying one or more of these layers.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_zoom;      // coordinate layer
+uniform float u_softness;  // signal layer
+uniform float u_warmth;    // color layer
+
+void main() {
+  // Center uv at (0,0), aspect-corrected
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+
+  // COORDINATE LAYER — scale the address before anything else
+  vec2 p = uv * u_zoom;
+
+  // SIGNAL LAYER — compute a number from the transformed coordinate
+  float d = length(p);
+  float rings = fract(d * 1.5 - u_time * 0.25);
+  float signal = smoothstep(0.5 - u_softness, 0.5 + u_softness, rings);
+
+  // COLOR LAYER — map the signal to a hue, tinted by warmth
+  vec3 cool_dark  = vec3(0.12, 0.16, 0.26);
+  vec3 cool_light = vec3(0.45, 0.65, 0.90);
+  vec3 warm_dark  = vec3(0.22, 0.10, 0.12);
+  vec3 warm_light = vec3(0.96, 0.56, 0.34);
+  vec3 dark  = mix(cool_dark,  warm_dark,  u_warmth);
+  vec3 light = mix(cool_light, warm_light, u_warmth);
+  vec3 col = mix(dark, light, signal);
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js';
+
+const fragmentSrc = `
+uniform float u_zoom;
+uniform float u_softness;
+uniform float u_warmth;
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  vec2 p = uv * u_zoom;
+  float d = length(p);
+  float rings = fract(d * 1.5 - u_time * 0.25);
+  float signal = smoothstep(0.5 - u_softness, 0.5 + u_softness, rings);
+
+  vec3 cool_dark  = vec3(0.12, 0.16, 0.26);
+  vec3 cool_light = vec3(0.45, 0.65, 0.90);
+  vec3 warm_dark  = vec3(0.22, 0.10, 0.12);
+  vec3 warm_light = vec3(0.96, 0.56, 0.34);
+  vec3 dark  = mix(cool_dark,  warm_dark,  u_warmth);
+  vec3 light = mix(cool_light, warm_light, u_warmth);
+  vec3 col = mix(dark, light, signal);
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_zoom: { type: '1f', value: 3 },
+  u_softness: { type: '1f', value: 0.08 },
+  u_warmth: { type: '1f', value: 0.5 },
+});
+if (app) {
+  bindSlider(document.getElementById('zoom'), document.getElementById('zoom-value'), app, 'u_zoom');
+  bindSlider(document.getElementById('softness'), document.getElementById('softness-value'), app, 'u_softness');
+  bindSlider(document.getElementById('warmth'), document.getElementById('warmth-value'), app, 'u_warmth');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('01-what-is-a-shader.html', '03-primitives.html');
+</script>
+</body>
+</html>

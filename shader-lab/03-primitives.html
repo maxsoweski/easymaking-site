@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L3: The Primitives Tour · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<style>
+.primitives-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 36px;
+}
+.mini-demo {
+  background: var(--paper-warm);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mini-demo canvas {
+  width: 100%;
+  aspect-ratio: 3/2;
+  background: #000;
+  border-radius: 4px;
+  display: block;
+}
+.mini-demo .name {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.mini-demo .desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  min-height: 32px;
+}
+.mini-demo .ctl {
+  display: grid;
+  grid-template-columns: 40px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+.mini-demo .ctl .label {
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.mini-demo .ctl input {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 3px;
+  background: var(--paper-deep);
+  border-radius: 2px;
+}
+.mini-demo .ctl input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--paper);
+  cursor: pointer;
+}
+.mini-demo .ctl input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--paper);
+  cursor: pointer;
+}
+.mini-demo .ctl .val {
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+</style>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">03.</span>The primitives tour</span>
+  </div>
+  <nav class="prev-next">
+    <a href="02-three-layers.html">← prev</a>
+    <span>next →</span>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">The primitives tour</h1>
+  <div class="lesson-subtitle">Arc 1 · Mental Model · Lesson 3 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>See the handful of mathematical building blocks that compose virtually every shader — eight tiny demos, one per primitive, so you recognize them on sight.</p>
+  </div>
+
+  <div class="primitives-grid">
+    <!-- 1. step -->
+    <div class="mini-demo" data-demo="step">
+      <div class="name">step(edge, x)</div>
+      <div class="desc">Hard threshold. Below <code>edge</code>, 0. Above, 1.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">edge</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.5">
+        <span class="val">0.50</span>
+      </div>
+    </div>
+
+    <!-- 2. smoothstep -->
+    <div class="mini-demo" data-demo="smoothstep">
+      <div class="name">smoothstep(a, b, x)</div>
+      <div class="desc">Soft threshold. Same as step but the edge is a gradient.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">softness</span>
+        <input type="range" min="0.001" max="0.5" step="0.001" value="0.1">
+        <span class="val">0.10</span>
+      </div>
+    </div>
+
+    <!-- 3. mix -->
+    <div class="mini-demo" data-demo="mix">
+      <div class="name">mix(a, b, t)</div>
+      <div class="desc">Linear blend from a (left) to b (right). Line marks the current <code>t</code>.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">t</span>
+        <input type="range" min="0" max="1" step="0.01" value="0.5">
+        <span class="val">0.50</span>
+      </div>
+    </div>
+
+    <!-- 4. dot -->
+    <div class="mini-demo" data-demo="dot">
+      <div class="name">dot(a, b)</div>
+      <div class="desc">Vector alignment. A lit sphere: shade is <code>dot(normal, light)</code>.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">angle</span>
+        <input type="range" min="-3.14" max="3.14" step="0.01" value="0.8">
+        <span class="val">0.80</span>
+      </div>
+    </div>
+
+    <!-- 5. length -->
+    <div class="mini-demo" data-demo="length">
+      <div class="name">length(v)</div>
+      <div class="desc">Radial distance from a point. Concentric rings around the center.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">center</span>
+        <input type="range" min="-0.6" max="0.6" step="0.01" value="0">
+        <span class="val">0.00</span>
+      </div>
+    </div>
+
+    <!-- 6. fract -->
+    <div class="mini-demo" data-demo="fract">
+      <div class="name">fract(x)</div>
+      <div class="desc">Drops the integer part. Tiling and repetition come from this.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">repeat</span>
+        <input type="range" min="1" max="20" step="0.1" value="4">
+        <span class="val">4.0</span>
+      </div>
+    </div>
+
+    <!-- 7. sin -->
+    <div class="mini-demo" data-demo="sin">
+      <div class="name">sin(x)</div>
+      <div class="desc">The universal wave. Everything oscillating is some flavor of this.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">freq</span>
+        <input type="range" min="1" max="60" step="0.5" value="12">
+        <span class="val">12</span>
+      </div>
+    </div>
+
+    <!-- 8. noise -->
+    <div class="mini-demo" data-demo="noise">
+      <div class="name">noise(p)</div>
+      <div class="desc">Controlled randomness. Smooth, deterministic, tunable by scale.</div>
+      <canvas></canvas>
+      <div class="ctl">
+        <span class="label">scale</span>
+        <input type="range" min="0.5" max="30" step="0.1" value="6">
+        <span class="val">6.0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>About a dozen operations cover 90% of what real shaders do. Every effect later in the lab is some combination of these. They're not algebra — they're <em>verbs</em>.</p>
+    <p><code>step</code> is "is x past this line?" <code>smoothstep</code> is the same question with a soft answer. <code>mix</code> is "blend two things." <code>dot</code> is "how aligned are two directions?" <code>length</code> is "how far from origin?" <code>fract</code> is "tile everything." <code>sin</code> is "make it wave." <code>noise</code> is "controlled randomness."</p>
+    <p>Once each of these has a face, reading shaders stops being decoding and becomes recognition.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Put the <code>step</code> and <code>smoothstep</code> demos side-by-side. Pull smoothstep's softness to 0.</strong> They look identical. <em>Teaches:</em> smoothstep <strong>is</strong> step when softness is zero — they're the same tool in different modes.</p>
+    <p><strong>2. In the <code>dot</code> demo, rotate the angle past 90° (slider past ±1.5).</strong> The sphere goes dark on the back. Internally, <code>dot</code> is going <em>negative</em> — we clamp it to zero, which is why surfaces facing away from a light are black in Lambert shading (Lesson 17).</p>
+    <p><strong>3. In the <code>fract</code> demo, set repeat to a non-integer like 3.7.</strong> The last tile looks crooked — a partial repeat. <em>Teaches:</em> tiling cleanly requires integer multiples.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <p>Each primitive now has a name you can use directly in a brief. Some common requests:</p>
+    <div class="verb-map">
+      <span class="phrase">"hard edge at this value"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">step(edge, signal)</span>
+
+      <span class="phrase">"soften the transition"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">swap step for smoothstep, widen softness</span>
+
+      <span class="phrase">"blend these two looks"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">mix(a, b, t) with t from a slider or signal</span>
+
+      <span class="phrase">"light the surface"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">dot(normal, light) — foundation of lighting</span>
+
+      <span class="phrase">"rings around a point"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">length(uv - center)</span>
+
+      <span class="phrase">"tile this N times"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">fract(uv * N)</span>
+
+      <span class="phrase">"make it oscillate"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">sin(x * freq + time)</span>
+
+      <span class="phrase">"add natural variation"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">noise(p) — not white noise, smooth/gradient noise</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> the primitive names themselves. <em>"Use a smoothstep between 0.3 and 0.7 on the signal"</em> is a specific, executable brief. <em>"Make it smoother"</em> is not.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> every subsequent lesson — they're all recipes made from these primitives.
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider } from './shared/shader-helper.js';
+
+const shaders = {
+  step: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution;
+      float v = step(u_a, uv.x);
+      gl_FragColor = vec4(vec3(v), 1.0);
+    }
+  `,
+  smoothstep: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution;
+      float w = u_a;
+      float v = smoothstep(0.5 - w, 0.5 + w, uv.x);
+      gl_FragColor = vec4(vec3(v), 1.0);
+    }
+  `,
+  mix: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution;
+      vec3 cA = vec3(0.93, 0.36, 0.30);
+      vec3 cB = vec3(0.30, 0.55, 0.90);
+      vec3 col = mix(cA, cB, uv.x);
+      float line = smoothstep(0.015, 0.004, abs(uv.x - u_a));
+      col = mix(col, vec3(0.05, 0.04, 0.07), line);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+  dot: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+      float r = length(uv);
+      vec3 bg = vec3(0.05, 0.04, 0.07);
+      if (r > 0.42) { gl_FragColor = vec4(bg, 1.0); return; }
+      float rn = r / 0.42;
+      vec3 n = vec3(uv / 0.42, sqrt(max(0.0, 1.0 - rn * rn)));
+      vec3 light = normalize(vec3(cos(u_a), 0.25, sin(u_a)));
+      float shade = max(0.0, dot(n, light));
+      vec3 col = vec3(shade) * vec3(1.0, 0.96, 0.9);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+  length: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+      vec2 center = vec2(u_a, 0.0);
+      float d = length(uv - center);
+      float v = 0.5 + 0.5 * cos(d * 18.0);
+      vec3 col = vec3(v * 0.95, v * 0.55, v * 0.32);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+  fract: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution;
+      float v = fract(uv.x * u_a);
+      gl_FragColor = vec4(vec3(v), 1.0);
+    }
+  `,
+  sin: `
+    uniform float u_a;
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution;
+      float v = 0.5 + 0.5 * sin(uv.x * u_a);
+      gl_FragColor = vec4(vec3(v), 1.0);
+    }
+  `,
+  noise: `
+    uniform float u_a;
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+    }
+    float vnoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f*f*(3.0-2.0*f);
+      return mix(
+        mix(hash(i+vec2(0.0,0.0)), hash(i+vec2(1.0,0.0)), f.x),
+        mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x),
+        f.y);
+    }
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution;
+      float v = vnoise(uv * u_a);
+      gl_FragColor = vec4(vec3(v), 1.0);
+    }
+  `,
+};
+
+document.querySelectorAll('.mini-demo').forEach(demo => {
+  const key = demo.dataset.demo;
+  const canvas = demo.querySelector('canvas');
+  const slider = demo.querySelector('input');
+  const valueEl = demo.querySelector('.val');
+
+  const app = createShaderApp(canvas, shaders[key], {
+    u_a: { type: '1f', value: parseFloat(slider.value) },
+  });
+  if (!app) return;
+
+  bindSlider(slider, valueEl, app, 'u_a');
+  app.start();
+});
+
+// Arrow-key nav
+import { setupArrowNav } from './shared/shader-helper.js';
+setupArrowNav('02-three-layers.html', null);
+</script>
+</body>
+</html>

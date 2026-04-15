@@ -1,0 +1,466 @@
+/* Shader Lab — shared styles */
+
+:root {
+  --paper: #fbf4ea;
+  --paper-warm: #f1e9dc;
+  --paper-deep: #e9ded0;
+  --ink: #2e2a3a;
+  --muted: #6b6578;
+  --muted-soft: #a09aab;
+  --accent: #c46c54;
+  --accent-dim: rgba(196,108,84,0.14);
+  --accent-faint: rgba(196,108,84,0.06);
+  --line: rgba(46,42,58,0.12);
+  --line-strong: rgba(46,42,58,0.24);
+  --code-bg: rgba(196,108,84,0.08);
+  --code-fg: #8b3b2a;
+
+  --layer-coord: #4a7aa3;
+  --layer-signal: #7a9a4c;
+  --layer-color: #b66a8e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 16.5px;
+  line-height: 1.65;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* HEADER (on each lesson) */
+header.lab-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 22px 32px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  background-color: rgba(251, 244, 234, 0.92);
+}
+.lab-header .brand {
+  font-family: "Bricolage Grotesque", Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.lab-header .brand a { color: inherit; }
+.lab-header .brand a:hover { text-decoration: none; color: var(--accent); }
+.lab-header .crumbs {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.lab-header .crumb-lesson {
+  color: var(--ink);
+  font-weight: 500;
+}
+.lab-header .crumb-lesson .num {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+.lab-header nav.prev-next {
+  display: flex;
+  gap: 6px;
+}
+.lab-header nav.prev-next a, .lab-header nav.prev-next span {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: all 100ms ease;
+  background: var(--paper-warm);
+}
+.lab-header nav.prev-next a:hover { background: var(--accent-dim); border-color: var(--accent); text-decoration: none; }
+.lab-header nav.prev-next span { color: var(--muted-soft); background: transparent; cursor: default; }
+
+/* MAIN LAYOUT */
+main.lesson {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 32px 120px;
+}
+
+h1.lesson-title {
+  font-family: "Bricolage Grotesque", Georgia, serif;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.lesson-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  font-weight: 500;
+}
+
+/* CANVAS AREA */
+.canvas-wrap {
+  position: relative;
+  background: #0b0a12;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px -18px rgba(46,42,58,0.4);
+  aspect-ratio: 16 / 9;
+}
+.canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* SLIDER PANEL */
+.controls {
+  display: grid;
+  gap: 12px;
+  padding: 18px 22px;
+  background: var(--paper-warm);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 36px;
+}
+.controls .control {
+  display: grid;
+  grid-template-columns: 110px 1fr 56px;
+  align-items: center;
+  gap: 14px;
+}
+.controls label {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.controls .value {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+.controls input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--paper-deep);
+  border-radius: 2px;
+  outline: none;
+}
+.controls input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--paper);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(46,42,58,0.2);
+  transition: transform 100ms ease;
+}
+.controls input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.controls input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--paper);
+  cursor: pointer;
+}
+.controls button.toggle {
+  grid-column: 1 / -1;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 100ms ease;
+  justify-self: start;
+}
+.controls button.toggle:hover { background: var(--accent-dim); border-color: var(--accent); }
+.controls button.toggle[data-active="true"] { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* SECTION BLOCKS */
+.block {
+  margin-bottom: 28px;
+}
+.block > h3 {
+  font-family: "Bricolage Grotesque", Georgia, serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.block p { margin-bottom: 10px; }
+.block p:last-child { margin-bottom: 0; }
+
+.block--insight {
+  padding: 20px 24px;
+  background: var(--accent-faint);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+.block--insight > h3 { color: var(--accent); }
+
+.block--break {
+  padding: 20px 24px;
+  background: var(--paper-warm);
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+}
+.block--break > h3 { color: var(--ink); }
+.block--break p { color: var(--ink); }
+.block--break em { font-style: italic; color: var(--muted); }
+
+.block--direct {
+  padding: 20px 24px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.block--direct > h3 { color: var(--ink); }
+.block--direct .verb-map {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 18px;
+  margin-top: 4px;
+  font-size: 14.5px;
+}
+.block--direct .verb-map .phrase {
+  font-style: italic;
+  color: var(--ink);
+}
+.block--direct .verb-map .arrow { color: var(--muted-soft); }
+.block--direct .verb-map .mapping {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--code-fg);
+}
+.block--direct .meta {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* LAYER STAMP */
+.layer-stamp {
+  display: inline-flex;
+  gap: 6px;
+  margin: 6px 0 18px;
+  flex-wrap: wrap;
+}
+.layer-stamp .pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: white;
+}
+.layer-stamp .pill--coord { background: var(--layer-coord); }
+.layer-stamp .pill--signal { background: var(--layer-signal); }
+.layer-stamp .pill--color { background: var(--layer-color); }
+.layer-stamp .pill.muted { opacity: 0.25; }
+
+/* TEXT CONTENT */
+p { margin: 0.7em 0; }
+strong { font-weight: 600; }
+em { font-style: italic; color: var(--muted); }
+code {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: 1.5px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+/* CODE TOGGLE BLOCK */
+.code-block {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.code-block .toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.code-block button.code-toggle {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper-warm);
+  color: var(--ink);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.code-block button.code-toggle:hover { background: var(--accent-dim); border-color: var(--accent); }
+.code-block .code-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-style: italic;
+}
+.code-block pre {
+  background: #1a1823;
+  color: #e8e3d3;
+  border-radius: 6px;
+  padding: 18px 22px;
+  overflow-x: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  display: none;
+}
+.code-block pre.visible { display: block; }
+.code-block pre .glsl-kw { color: #c46c54; }
+.code-block pre .glsl-type { color: #9ab48a; }
+.code-block pre .glsl-num { color: #e0b86e; }
+.code-block pre .glsl-comment { color: #6b6578; font-style: italic; }
+
+/* COMBINES-WITH FOOTER */
+.combines {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.combines strong { color: var(--ink); font-weight: 600; }
+
+/* RESPONSIVE */
+@media (max-width: 680px) {
+  header.lab-header { padding: 16px 20px; flex-wrap: wrap; gap: 8px; }
+  main.lesson { padding: 28px 20px 80px; }
+  h1.lesson-title { font-size: 26px; }
+  .controls .control { grid-template-columns: 90px 1fr 50px; gap: 10px; }
+  .lab-header .brand { font-size: 16px; }
+}
+
+/* INDEX / TOC PAGE */
+.toc-page main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 64px 32px 120px;
+}
+.toc-page h1 {
+  font-family: "Bricolage Grotesque", Georgia, serif;
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.toc-page .tagline {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 40px;
+  max-width: 600px;
+  line-height: 1.55;
+}
+.toc-page .arc-section {
+  margin-bottom: 36px;
+  padding: 20px 24px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.toc-page .arc-section.disabled { opacity: 0.6; }
+.toc-page .arc-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.toc-page .arc-title {
+  font-family: "Bricolage Grotesque", Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  margin-bottom: 14px;
+}
+.toc-page .lesson-list {
+  list-style: none;
+  padding: 0;
+}
+.toc-page .lesson-list li {
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--line);
+}
+.toc-page .lesson-list li:last-child { border-bottom: none; }
+.toc-page .lesson-list a {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--ink);
+  padding: 4px 0;
+  text-decoration: none;
+  transition: color 100ms ease;
+}
+.toc-page .lesson-list a:hover { color: var(--accent); text-decoration: none; }
+.toc-page .lesson-list .num {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--muted);
+}
+.toc-page .lesson-list .title { font-weight: 500; }
+.toc-page .lesson-list .tags {
+  font-size: 11.5px;
+  color: var(--muted-soft);
+  font-family: ui-monospace, monospace;
+}
+.toc-page .lesson-list li.coming-soon a {
+  cursor: default;
+  color: var(--muted-soft);
+}
+.toc-page .lesson-list li.coming-soon a:hover { color: var(--muted-soft); }
+.toc-page .note {
+  margin-top: 40px;
+  padding: 16px 20px;
+  background: var(--accent-faint);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  font-size: 14px;
+  color: var(--ink);
+}
