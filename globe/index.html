@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f1d3b4" />
+  <title>globe · easymaking</title>
+
+  <!-- Preload Three.js so first paint is seamless -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+  <style>
+    :root {
+      /* Dawn palette — warm peach horizon meeting muted teal sky */
+      --sky-top: #c8dde8;
+      --sky-mid: #e8d4c0;
+      --sky-low: #f1d3b4;
+      --ink: #2e2a3a;
+      --ink-soft: #4d4660;
+      --paper: #fbf4ea;
+      --accent: #c46c54;
+    }
+
+    @font-face {
+      font-family: "Fraunces";
+      font-style: italic;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url("https://fonts.gstatic.com/s/fraunces/v31/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk.woff2") format("woff2");
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+      color: var(--ink);
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      -webkit-font-smoothing: antialiased;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    /* Grain overlay — gives the scene a printed-paper quality */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0.08;
+      mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+
+    /* -- HUD: top-left title, bottom-left hint -- */
+    .hud {
+      position: fixed;
+      z-index: 10;
+      color: var(--ink-soft);
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .hud--title {
+      top: clamp(16px, 3vh, 28px);
+      left: clamp(18px, 4vw, 36px);
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .hud--title .mark {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(196, 108, 84, 0.18);
+      display: inline-block;
+      transform: translateY(1px);
+    }
+
+    .hud--title .name {
+      font-family: "Fraunces", Georgia, serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: clamp(18px, 2.2vw, 22px);
+      letter-spacing: 0.01em;
+      color: var(--ink);
+    }
+
+    .hud--title .slash {
+      font-family: "Fraunces", Georgia, serif;
+      font-style: italic;
+      opacity: 0.45;
+      font-size: 18px;
+    }
+
+    .hud--title .place {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      opacity: 0.8;
+    }
+
+    .hud--hint {
+      left: clamp(18px, 4vw, 36px);
+      bottom: clamp(18px, 4vh, 32px);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px 14px;
+      align-items: center;
+      padding: 14px 18px 14px 14px;
+      background: rgba(251, 244, 234, 0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 14px;
+      border: 1px solid rgba(46, 42, 58, 0.08);
+      box-shadow: 0 8px 24px -16px rgba(46, 42, 58, 0.35);
+      font-size: 12px;
+      line-height: 1.3;
+      max-width: 260px;
+    }
+
+    .hud--hint .keys {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 3px;
+      width: 78px;
+    }
+
+    .hud--hint .key {
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 600;
+      height: 22px;
+      background: var(--paper);
+      border-radius: 4px;
+      border: 1px solid rgba(46, 42, 58, 0.12);
+      box-shadow: 0 1px 0 rgba(46, 42, 58, 0.12);
+      color: var(--ink);
+      transition: transform 120ms ease, background 120ms ease, color 120ms ease;
+    }
+
+    .hud--hint .key.is-active {
+      background: var(--accent);
+      color: var(--paper);
+      transform: translateY(1px);
+      box-shadow: 0 0 0 3px rgba(196, 108, 84, 0.15);
+    }
+
+    .hud--hint .key--blank {
+      visibility: hidden;
+    }
+
+    .hud--hint .copy .lead {
+      font-family: "Fraunces", Georgia, serif;
+      font-style: italic;
+      font-size: 15px;
+      color: var(--ink);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .hud--hint .copy .sub {
+      opacity: 0.75;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Subtle vignette at horizon for atmospheric depth */
+    .vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 4;
+      background:
+        radial-gradient(120% 60% at 50% 100%, rgba(241, 211, 180, 0.55) 0%, rgba(241, 211, 180, 0) 55%),
+        radial-gradient(80% 100% at 50% 0%, rgba(200, 221, 232, 0.15) 0%, rgba(200, 221, 232, 0) 55%);
+    }
+
+    /* Hide hint on very short screens */
+    @media (max-height: 420px) {
+      .hud--hint { display: none; }
+    }
+
+    /* Fade-in the HUD after scene initialises */
+    .hud { opacity: 0; animation: fade 700ms ease 150ms forwards; }
+    @keyframes fade { to { opacity: 1; } }
+  </style>
+
+  <!-- Three.js via importmap. Pinned to a recent stable. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.163.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div class="hud hud--title" aria-hidden="true">
+    <span class="mark"></span>
+    <span class="name">globe</span>
+    <span class="slash">/</span>
+    <span class="place">a small world</span>
+  </div>
+
+  <div class="hud hud--hint" role="note" aria-label="Controls">
+    <div class="keys" aria-hidden="true">
+      <span class="key key--blank"></span>
+      <span class="key" data-key="W">W</span>
+      <span class="key key--blank"></span>
+      <span class="key" data-key="A">A</span>
+      <span class="key" data-key="S">S</span>
+      <span class="key" data-key="D">D</span>
+    </div>
+    <div class="copy">
+      <div class="lead">walk anywhere</div>
+      <div class="sub">WASD or arrow keys</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CONSTANTS
+    // ──────────────────────────────────────────────────────────────────────────
+    const GLOBE_RADIUS = 5;
+    const CHARACTER_HEIGHT = 1.0;         // approx total height in units
+    const WALK_SPEED = 0.85;               // radians/sec of globe rotation when a key is held
+    const ACCEL = 8.0;                     // how quickly we ramp to target angular velocity
+    const COLORS = {
+      skyTop:    new THREE.Color('#c8dde8'),
+      skyMid:    new THREE.Color('#e8d4c0'),
+      skyLow:    new THREE.Color('#f1d3b4'),
+      grassHi:   new THREE.Color('#b5d3a3'),
+      grassLo:   new THREE.Color('#8bb494'),
+      coast:     new THREE.Color('#d9c08a'),
+      ocean:     new THREE.Color('#8bb3b8'),
+      trunk:     new THREE.Color('#7a5a3f'),
+      leaves:    new THREE.Color('#9dc38a'),
+      leavesDk:  new THREE.Color('#7ea774'),
+      rock:      new THREE.Color('#a89b8a'),
+      skin:      new THREE.Color('#e6b894'),
+      hair:      new THREE.Color('#3d2c2a'),
+      shirt:     new THREE.Color('#6e8ba6'),
+      pants:     new THREE.Color('#4d4660'),
+      shoes:     new THREE.Color('#2e2a3a'),
+      accent:    new THREE.Color('#c46c54'),
+    };
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // RENDERER + SCENE + CAMERA
+    // ──────────────────────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,                         // let CSS gradient show through if needed
+      powerPreference: 'high-performance',
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = null;               // CSS gradient handles the sky
+    // Fog toward the horizon of the globe — matches the warm lower sky colour
+    scene.fog = new THREE.Fog(COLORS.skyLow.getHex(), 10, 22);
+
+    const camera = new THREE.PerspectiveCamera(
+      38,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100
+    );
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // LIGHTING — warm sun + cool sky fill, and a soft rim light
+    // ──────────────────────────────────────────────────────────────────────────
+    const hemi = new THREE.HemisphereLight(0xfde3c8, 0x6f8aa0, 0.75);
+    scene.add(hemi);
+
+    const sun = new THREE.DirectionalLight(0xfff1d6, 1.25);
+    sun.position.set(4, 8, 5);
+    scene.add(sun);
+
+    // Cool rim light from the opposite side picks out silhouettes
+    const rim = new THREE.DirectionalLight(0xbcd3e6, 0.45);
+    rim.position.set(-6, 2, -4);
+    scene.add(rim);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GLOBE — icosphere with gentle per-vertex displacement and two-tone colour
+    // ──────────────────────────────────────────────────────────────────────────
+    const globePivot = new THREE.Group();   // rotation target for WASD input
+    scene.add(globePivot);
+
+    function buildGlobe() {
+      const geo = new THREE.IcosahedronGeometry(GLOBE_RADIUS, 5);
+      const pos = geo.attributes.position;
+      const colors = new Float32Array(pos.count * 3);
+
+      // Cheap value-noise approximation for terrain undulation
+      const noise = (x, y, z) => {
+        const s = 1.35;
+        return (
+          Math.sin(x * s) * Math.cos(y * s * 1.1) +
+          Math.sin(y * s * 1.3 + 2.1) * Math.cos(z * s * 0.9) +
+          Math.sin(z * s * 0.8 + 1.4) * Math.cos(x * s * 1.2)
+        ) / 3;
+      };
+
+      const v = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        const n = v.clone().normalize();
+
+        // Slight outward displacement — hills and shallow valleys
+        const h = noise(n.x * 1.4, n.y * 1.4, n.z * 1.4);
+        const lift = 0.14 * h + 0.05 * Math.sin(n.y * 4 + 1.7);
+        v.copy(n).multiplyScalar(GLOBE_RADIUS + lift);
+        pos.setXYZ(i, v.x, v.y, v.z);
+
+        // Colour blend: more green up top, sandy coast near equator, teal toward south
+        const up = n.y;                                   // -1 at south, +1 at north
+        const landMix = THREE.MathUtils.smoothstep(up, -0.15, 0.35);
+        const c = new THREE.Color();
+
+        if (lift < -0.02 && up < 0.1) {
+          // low areas near the equator look like shallow water
+          c.copy(COLORS.ocean).lerp(COLORS.coast, 0.35);
+        } else if (up < 0.05) {
+          c.copy(COLORS.coast).lerp(COLORS.grassLo, landMix);
+        } else {
+          c.copy(COLORS.grassLo).lerp(COLORS.grassHi, THREE.MathUtils.smoothstep(up, 0.0, 0.9));
+        }
+
+        // Slight per-vertex colour jitter so facets read individually
+        const jitter = 0.04 * (noise(n.x * 3, n.y * 3, n.z * 3) - 0.5);
+        c.offsetHSL(0, 0, jitter);
+
+        colors[i * 3 + 0] = c.r;
+        colors[i * 3 + 1] = c.g;
+        colors[i * 3 + 2] = c.b;
+      }
+
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geo.computeVertexNormals();
+
+      const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        flatShading: true,
+        roughness: 0.95,
+        metalness: 0.0,
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      globePivot.add(mesh);
+      return mesh;
+    }
+
+    const globeMesh = buildGlobe();
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GLOBE DECOR — tree (swappable) + a few rocks/bushes so the world feels lived-in
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // Place an object on the globe's surface given (lat, lon) in radians.
+    // Also orients it so its local +Y is the globe's outward normal.
+    function placeOnGlobe(object, latRad, lonRad, extraLift = 0) {
+      const r = GLOBE_RADIUS + extraLift;
+      const x = r * Math.cos(latRad) * Math.cos(lonRad);
+      const y = r * Math.sin(latRad);
+      const z = r * Math.cos(latRad) * Math.sin(lonRad);
+      object.position.set(x, y, z);
+
+      const up = new THREE.Vector3(x, y, z).normalize();
+      const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+      object.quaternion.copy(quat);
+    }
+
+    function buildTree() {
+      const group = new THREE.Group();
+
+      // Trunk — low-sided cylinder
+      const trunkGeo = new THREE.CylinderGeometry(0.09, 0.13, 0.55, 6, 1);
+      const trunkMat = new THREE.MeshStandardMaterial({
+        color: COLORS.trunk, flatShading: true, roughness: 1,
+      });
+      const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+      trunk.position.y = 0.275;
+      group.add(trunk);
+
+      // Foliage — stacked icosahedra for a chunky canopy
+      const leafMat = new THREE.MeshStandardMaterial({
+        color: COLORS.leaves, flatShading: true, roughness: 0.9,
+      });
+      const leafMatDk = new THREE.MeshStandardMaterial({
+        color: COLORS.leavesDk, flatShading: true, roughness: 0.9,
+      });
+
+      const c1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), leafMat);
+      c1.position.y = 0.75;
+      group.add(c1);
+
+      const c2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 0), leafMatDk);
+      c2.position.set(0.22, 0.95, -0.1);
+      group.add(c2);
+
+      const c3 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), leafMat);
+      c3.position.set(-0.18, 0.88, 0.14);
+      group.add(c3);
+
+      // Random tilt so it doesn't look mechanical
+      group.rotation.y = Math.random() * Math.PI * 2;
+      return group;
+    }
+
+    function buildRock(scale = 1) {
+      const geo = new THREE.DodecahedronGeometry(0.25 * scale, 0);
+      // Squash slightly for a boulder feel
+      geo.scale(1, 0.6, 1);
+      const mat = new THREE.MeshStandardMaterial({
+        color: COLORS.rock, flatShading: true, roughness: 1,
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.4);
+      return m;
+    }
+
+    function buildBush() {
+      const g = new THREE.Group();
+      const m = new THREE.MeshStandardMaterial({
+        color: COLORS.leavesDk, flatShading: true, roughness: 1,
+      });
+      const a = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), m);
+      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), m);
+      b.position.set(0.22, -0.05, 0.1);
+      a.position.y = 0.15;
+      g.add(a); g.add(b);
+      return g;
+    }
+
+    // SWAPPABLE: Replace with any Three.js Object3D and parent to globePivot.
+    // Keep `placeOnGlobe(obj, lat, lon)` to position it on the surface.
+    const tree = buildTree();
+    placeOnGlobe(tree, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-42));
+    globePivot.add(tree);
+
+    // Scatter a few rocks + bushes so the globe has visible features as it spins.
+    // (These are NOT the swappable object — remove/keep as you like.)
+    const decorSpecs = [
+      { type: 'rock', lat:  55, lon:  30, scale: 1.1 },
+      { type: 'rock', lat: -10, lon:  90, scale: 0.8 },
+      { type: 'rock', lat:  30, lon: 140, scale: 1.4 },
+      { type: 'rock', lat: -40, lon: -60, scale: 0.9 },
+      { type: 'bush', lat:  40, lon:  70 },
+      { type: 'bush', lat:   5, lon: -120 },
+      { type: 'bush', lat: -25, lon:  10 },
+      { type: 'bush', lat:  62, lon: -100 },
+      { type: 'tree', lat: -30, lon: 170 },
+      { type: 'tree', lat:  12, lon: 100 },
+    ];
+    for (const s of decorSpecs) {
+      const obj =
+        s.type === 'rock' ? buildRock(s.scale ?? 1) :
+        s.type === 'bush' ? buildBush() :
+                            buildTree();
+      placeOnGlobe(obj, THREE.MathUtils.degToRad(s.lat), THREE.MathUtils.degToRad(s.lon));
+      globePivot.add(obj);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CHARACTER — parented to scene, fixed at north pole of globe
+    // Proportions: androgynous, chunky, no exaggerated features
+    // ──────────────────────────────────────────────────────────────────────────
+    const character = new THREE.Group();
+    scene.add(character);
+
+    // Character stands at top of globe; its feet touch GLOBE_RADIUS
+    character.position.set(0, GLOBE_RADIUS, 0);
+
+    // Parts that need animation refs
+    const parts = {};
+
+    function mat(color, extra = {}) {
+      return new THREE.MeshStandardMaterial({
+        color, flatShading: true, roughness: 0.8, ...extra,
+      });
+    }
+
+    function buildCharacter() {
+      // We build the character so y=0 is the base of the feet
+      // Total height ~1.0 unit
+
+      // Legs (two tapered boxes)
+      const legGeo = new THREE.BoxGeometry(0.12, 0.32, 0.14);
+      const pantsMat = mat(COLORS.pants);
+      const shoeMat = mat(COLORS.shoes);
+
+      parts.legL = new THREE.Group();
+      parts.legR = new THREE.Group();
+
+      const legMeshL = new THREE.Mesh(legGeo, pantsMat);
+      legMeshL.position.y = -0.16; // pivot at hip
+      const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.07, 0.18), shoeMat);
+      shoeL.position.set(0, -0.32 - 0.035, 0.02);
+      parts.legL.add(legMeshL); parts.legL.add(shoeL);
+
+      const legMeshR = legMeshL.clone();
+      const shoeR = shoeL.clone();
+      parts.legR.add(legMeshR); parts.legR.add(shoeR);
+
+      parts.legL.position.set(-0.08, 0.32, 0);
+      parts.legR.position.set( 0.08, 0.32, 0);
+
+      // Torso (tapered box via BoxGeometry scaled; narrower at hips/shoulders match)
+      const torsoGeo = new THREE.BoxGeometry(0.36, 0.34, 0.22);
+      // Taper the top and bottom vertices slightly so it's not a plain box
+      const tpos = torsoGeo.attributes.position;
+      for (let i = 0; i < tpos.count; i++) {
+        const y = tpos.getY(i);
+        if (y > 0) {
+          tpos.setX(i, tpos.getX(i) * 0.92);
+          tpos.setZ(i, tpos.getZ(i) * 0.92);
+        } else {
+          tpos.setX(i, tpos.getX(i) * 0.86);
+          tpos.setZ(i, tpos.getZ(i) * 0.86);
+        }
+      }
+      torsoGeo.computeVertexNormals();
+      parts.torso = new THREE.Mesh(torsoGeo, mat(COLORS.shirt));
+      parts.torso.position.y = 0.32 + 0.17; // on top of legs
+
+      // A small collar accent so it doesn't look plain
+      const collar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.04, 0.23),
+        mat(COLORS.accent)
+      );
+      collar.position.y = 0.17 - 0.02;
+      parts.torso.add(collar);
+
+      // Arms (two groups pivoting at shoulder)
+      const armGeo = new THREE.BoxGeometry(0.1, 0.3, 0.11);
+      const shirtArmMat = mat(COLORS.shirt);
+
+      parts.armL = new THREE.Group();
+      parts.armR = new THREE.Group();
+      const armMeshL = new THREE.Mesh(armGeo, shirtArmMat);
+      armMeshL.position.y = -0.15;
+      const handL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.1), mat(COLORS.skin));
+      handL.position.y = -0.3 - 0.04;
+      parts.armL.add(armMeshL); parts.armL.add(handL);
+
+      const armMeshR = armMeshL.clone();
+      const handR = handL.clone();
+      parts.armR.add(armMeshR); parts.armR.add(handR);
+
+      // Attach to torso (positions relative to torso origin)
+      parts.armL.position.set(-0.22, 0.14, 0);
+      parts.armR.position.set( 0.22, 0.14, 0);
+      parts.torso.add(parts.armL);
+      parts.torso.add(parts.armR);
+
+      // Head — rounded cube (icosahedron flattened works too; use rounded-ish cube)
+      const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+      // Tuck corners by slightly scaling extreme verts — approximate rounding
+      const hpos = headGeo.attributes.position;
+      const tmp = new THREE.Vector3();
+      for (let i = 0; i < hpos.count; i++) {
+        tmp.fromBufferAttribute(hpos, i);
+        tmp.multiplyScalar(0.95);
+        hpos.setXYZ(i, tmp.x, tmp.y, tmp.z);
+      }
+      headGeo.computeVertexNormals();
+
+      parts.head = new THREE.Mesh(headGeo, mat(COLORS.skin));
+      parts.head.position.y = 0.17 + 0.17;  // sits above torso
+
+      // Hair cap — flat shell on top of head
+      const hair = new THREE.Mesh(
+        new THREE.BoxGeometry(0.32, 0.14, 0.32),
+        mat(COLORS.hair)
+      );
+      hair.position.y = 0.09;
+      parts.head.add(hair);
+
+      // Eyes — two tiny dark cubes. Subtle but gives the character presence.
+      const eyeMat = mat(COLORS.shoes, { roughness: 0.4 });
+      const eyeGeo = new THREE.BoxGeometry(0.025, 0.03, 0.02);
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeL.position.set(-0.06, 0.0, 0.15);
+      eyeR.position.set( 0.06, 0.0, 0.15);
+      parts.head.add(eyeL);
+      parts.head.add(eyeR);
+
+      // Assemble
+      parts.torso.add(parts.head);
+      character.add(parts.legL);
+      character.add(parts.legR);
+      character.add(parts.torso);
+    }
+
+    buildCharacter();
+
+    // Contact shadow — a soft dark disc beneath the character for grounding.
+    // Much cheaper than real shadow mapping and matches the flat-shaded style.
+    const shadowGeo = new THREE.CircleGeometry(0.3, 24);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      color: 0x2e2a3a,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    });
+    const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
+    contactShadow.rotation.x = -Math.PI / 2;
+    contactShadow.position.set(0, 0.01, 0.05); // slight offset to avoid z-fight
+    character.add(contactShadow);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CAMERA RIG — over-the-shoulder, fixed relative to character (not globe)
+    // ──────────────────────────────────────────────────────────────────────────
+    // The character's +Y points away from globe centre; +Z is "forward".
+    // We place the camera behind and above, looking slightly past the character.
+    const cameraTarget = new THREE.Vector3();
+
+    function positionCamera() {
+      // Local-space offset relative to the character
+      const back = 3.6;
+      const up = 1.9;
+      // World position of character (its origin is at its feet on the globe top)
+      const charWorld = new THREE.Vector3();
+      character.getWorldPosition(charWorld);
+
+      // "Up" is along the character (radial outward from globe centre)
+      const upVec = charWorld.clone().normalize();
+      // "Forward" is arbitrary world axis projected onto tangent plane — we fix
+      // it to world +Z so camera feels stable while globe spins underneath.
+      const fwd = new THREE.Vector3(0, 0, 1);
+      // Camera sits BEHIND the character relative to forward, elevated along up
+      const camPos = charWorld.clone()
+        .addScaledVector(fwd, -back)
+        .addScaledVector(upVec, up);
+
+      camera.position.copy(camPos);
+      // Look at a point just past the character so horizon is visible
+      cameraTarget.copy(charWorld).addScaledVector(fwd, 2.0).addScaledVector(upVec, -0.2);
+      camera.lookAt(cameraTarget);
+    }
+    positionCamera();
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // INPUT — track key STATE, apply rotation per-frame in camera space
+    // ──────────────────────────────────────────────────────────────────────────
+    const input = {
+      forward: 0, // W / up
+      back:    0, // S / down
+      left:    0, // A / left
+      right:   0, // D / right
+    };
+
+    // Map code → input field (plus visual key-id for HUD highlight)
+    const KEY_MAP = {
+      'KeyW': { field: 'forward', visual: 'W' },
+      'KeyS': { field: 'back',    visual: 'S' },
+      'KeyA': { field: 'left',    visual: 'A' },
+      'KeyD': { field: 'right',   visual: 'D' },
+      'ArrowUp':    { field: 'forward', visual: 'W' },
+      'ArrowDown':  { field: 'back',    visual: 'S' },
+      'ArrowLeft':  { field: 'left',    visual: 'A' },
+      'ArrowRight': { field: 'right',   visual: 'D' },
+    };
+
+    function setKey(code, value) {
+      const m = KEY_MAP[code];
+      if (!m) return;
+      input[m.field] = value;
+      const el = document.querySelector(`.key[data-key="${m.visual}"]`);
+      if (el) el.classList.toggle('is-active', value === 1);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (KEY_MAP[e.code]) {
+        setKey(e.code, 1);
+        // Prevent arrow-keys from scrolling the page on mobile/scrollable contexts
+        if (e.code.startsWith('Arrow')) e.preventDefault();
+      }
+    }, { passive: false });
+
+    window.addEventListener('keyup', (e) => {
+      if (KEY_MAP[e.code]) setKey(e.code, 0);
+    });
+
+    // If the tab loses focus, clear all keys (otherwise a held key "sticks")
+    window.addEventListener('blur', () => {
+      for (const code of Object.keys(KEY_MAP)) setKey(code, 0);
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ROTATION MODEL
+    // We rotate globePivot in the camera's reference frame so inputs feel
+    // intuitive regardless of current globe orientation.
+    //
+    // Forward (W) → the globe rotates so the character appears to move toward
+    // the camera-forward direction. Character stays fixed at top, so the
+    // globe tilts "forward" (rotation around the camera-right axis).
+    // ──────────────────────────────────────────────────────────────────────────
+    const currentAngVel = new THREE.Vector3(); // smoothed angular velocity applied to globe
+    const targetAngVel = new THREE.Vector3();
+
+    function updateGlobe(dt) {
+      // Camera-aligned axes, projected so they're purely horizontal relative to character up
+      const camForward = new THREE.Vector3();
+      camera.getWorldDirection(camForward);
+      // Remove any vertical component relative to world up (+Y) — character sits at globe north
+      const worldUp = new THREE.Vector3(0, 1, 0);
+      camForward.projectOnPlane(worldUp).normalize();
+
+      const camRight = new THREE.Vector3().crossVectors(camForward, worldUp).normalize();
+
+      // Walking forward = globe rotates such that surface under feet moves TOWARD camera.
+      // That means we rotate the globe around the camera-right axis in the NEGATIVE sense.
+      //   forward → angVel = -camRight * speed
+      //   back    → angVel = +camRight * speed
+      //   left    → angVel = -camForward * speed   (globe rolls so surface moves left under feet)
+      //   right   → angVel = +camForward * speed
+      targetAngVel.set(0, 0, 0);
+      const fwdAmt = input.forward - input.back;
+      const rgtAmt = input.right   - input.left;
+
+      if (fwdAmt !== 0) {
+        targetAngVel.addScaledVector(camRight, -fwdAmt * WALK_SPEED);
+      }
+      if (rgtAmt !== 0) {
+        targetAngVel.addScaledVector(camForward, rgtAmt * WALK_SPEED);
+      }
+
+      // Smooth toward target so starting/stopping isn't jarring
+      currentAngVel.lerp(targetAngVel, 1 - Math.exp(-ACCEL * dt));
+
+      // Apply rotation: axis = normalized angVel, angle = |angVel| * dt
+      const mag = currentAngVel.length();
+      if (mag > 1e-5) {
+        const axis = currentAngVel.clone().multiplyScalar(1 / mag);
+        const q = new THREE.Quaternion().setFromAxisAngle(axis, mag * dt);
+        // Pre-multiply so rotation is in world/camera frame, not globe-local
+        globePivot.quaternion.premultiply(q);
+      }
+
+      // Return magnitude so animation can respond to "walking intensity"
+      return mag / WALK_SPEED; // 0..~1
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CHARACTER ANIMATION — idle breathing + walk cycle
+    // ──────────────────────────────────────────────────────────────────────────
+    let walkPhase = 0;
+
+    function animateCharacter(dt, walking) {
+      const t = performance.now() * 0.001;
+
+      // Idle breathing — subtle bob on torso and head even when not walking
+      const idle = Math.sin(t * 1.8) * 0.012;
+      parts.torso.position.y = 0.49 + idle;
+      parts.head.rotation.z = Math.sin(t * 0.7) * 0.02;
+
+      // Walk cycle — scale swing amplitude by input magnitude
+      walkPhase += dt * (6 + walking * 4);
+      const swing = Math.sin(walkPhase) * walking;
+      const swingCos = Math.cos(walkPhase) * walking;
+
+      parts.legL.rotation.x =  swing * 0.7;
+      parts.legR.rotation.x = -swing * 0.7;
+      parts.armL.rotation.x = -swing * 0.5;
+      parts.armR.rotation.x =  swing * 0.5;
+
+      // Slight vertical bob synced to step
+      const stepBob = Math.abs(swingCos) * 0.02 * walking;
+      character.position.y = GLOBE_RADIUS + stepBob;
+
+      // Tiny torso tilt forward while walking
+      parts.torso.rotation.x = walking * 0.08;
+
+      // Fade the shadow slightly larger/softer when walking
+      contactShadow.scale.setScalar(1 + walking * 0.1);
+      shadowMat.opacity = 0.18 - walking * 0.04;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // RESIZE
+    // ──────────────────────────────────────────────────────────────────────────
+    function onResize() {
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      positionCamera();
+    }
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // RENDER LOOP
+    // ──────────────────────────────────────────────────────────────────────────
+    let last = performance.now();
+    function tick(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);  // clamp huge dt (tab unfocus)
+      last = now;
+
+      const walking = updateGlobe(dt);
+      animateCharacter(dt, walking);
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // FIRST-PAINT NUDGE — one immediate render so the scene shows up
+    // before the first rAF tick (avoids a 1-frame blank)
+    // ──────────────────────────────────────────────────────────────────────────
+    renderer.render(scene, camera);
+  </script>
+</body>
+</html>
