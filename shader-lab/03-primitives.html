@@ -277,7 +277,7 @@
 </main>
 
 <script type="module">
-import { createShaderApp, bindSlider } from './shared/shader-helper.js';
+import { createShaderApp, bindSlider } from './shared/shader-helper.js?v=2';
 
 const shaders = {
   step: `
@@ -389,7 +389,7 @@ document.querySelectorAll('.mini-demo').forEach(demo => {
 });
 
 // Arrow-key nav
-import { setupArrowNav } from './shared/shader-helper.js';
+import { setupArrowNav } from './shared/shader-helper.js?v=2';
 setupArrowNav('02-three-layers.html', null);
 </script>
 </body>
