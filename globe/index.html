@@ -435,6 +435,8 @@
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -456,8 +458,23 @@
     scene.add(hemi);
 
     const sun = new THREE.DirectionalLight(0xfff1d6, 1.25);
-    sun.position.set(4, 8, 5);
+    sun.position.set(4, 8, 5);                 // repositioned each resize to track character
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left   = -6;
+    sun.shadow.camera.right  =  6;
+    sun.shadow.camera.top    =  6;
+    sun.shadow.camera.bottom = -6;
+    sun.shadow.camera.near   = 0.5;
+    sun.shadow.camera.far    = 40;
+    sun.shadow.bias = -0.0004;                 // reduce self-shadow acne on flat-shaded meshes
+    sun.shadow.normalBias = 0.02;
     scene.add(sun);
+
+    // Explicit target so the shadow frustum always points at the character.
+    const sunTarget = new THREE.Object3D();
+    scene.add(sunTarget);
+    sun.target = sunTarget;
 
     // Cool rim light from the opposite side picks out silhouettes
     const rim = new THREE.DirectionalLight(0xbcd3e6, 0.45);
@@ -540,6 +557,7 @@
       });
 
       globeMesh = new THREE.Mesh(geo, mat);
+      globeMesh.receiveShadow = true;
       globePivot.add(globeMesh);
       return globeMesh;
     }
@@ -552,16 +570,41 @@
     // (so when we place it and rotate +Y → outward normal, it stands upright).
     // ──────────────────────────────────────────────────────────────────────────
 
+    // Mirror of the noise field used in buildGlobe. Keep these two in sync:
+    // any change to the terrain formula must be reflected here or decor will
+    // float / embed at every sample.
+    function surfaceNoise(x, y, z) {
+      const s = 1.35;
+      return (
+        Math.sin(x * s) * Math.cos(y * s * 1.1) +
+        Math.sin(y * s * 1.3 + 2.1) * Math.cos(z * s * 0.9) +
+        Math.sin(z * s * 0.8 + 1.4) * Math.cos(x * s * 1.2)
+      ) / 3;
+    }
+    // Returns the outward lift at a given unit-length direction so decor can
+    // sit flush against raised bumps and valleys instead of hovering at the
+    // nominal radius.
+    function surfaceLiftAt(nx, ny, nz) {
+      const h = surfaceNoise(nx * 1.4, ny * 1.4, nz * 1.4);
+      return (0.14 * h + 0.05 * Math.sin(ny * 4 + 1.7)) * (GLOBE_RADIUS / 5);
+    }
+
     // Place an object on the globe's surface given (lat, lon) in radians.
-    // Also orients it so its local +Y is the globe's outward normal.
-    function placeOnGlobe(object, latRad, lonRad, extraLift = 0) {
-      const r = GLOBE_RADIUS + extraLift;
-      const x = r * Math.cos(latRad) * Math.cos(lonRad);
-      const y = r * Math.sin(latRad);
-      const z = r * Math.cos(latRad) * Math.sin(lonRad);
+    // Also orients it so its local +Y is the globe's outward normal. When
+    // snapToSurface is true (default) the radius is adjusted by the terrain
+    // displacement so the object's base kisses the ground.
+    function placeOnGlobe(object, latRad, lonRad, extraLift = 0, snapToSurface = true) {
+      const nx = Math.cos(latRad) * Math.cos(lonRad);
+      const ny = Math.sin(latRad);
+      const nz = Math.cos(latRad) * Math.sin(lonRad);
+      const lift = snapToSurface ? surfaceLiftAt(nx, ny, nz) : 0;
+      const r = GLOBE_RADIUS + lift + extraLift;
+      const x = r * nx;
+      const y = r * ny;
+      const z = r * nz;
       object.position.set(x, y, z);
 
-      const up = new THREE.Vector3(x, y, z).normalize();
+      const up = new THREE.Vector3(nx, ny, nz);
       const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
       object.quaternion.copy(quat);
     }
@@ -995,12 +1038,24 @@
       return slot;
     }
 
+    // Turn on shadow casting (and let small decor receive from neighbours)
+    // across every Mesh in a subtree.
+    function enableShadows(root) {
+      root.traverse((o) => {
+        if (o.isMesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+        }
+      });
+    }
+
     function setSlotType(slot, type) {
       if (slot.mesh) {
         slot.holder.remove(slot.mesh);
         disposeSubtree(slot.mesh);
       }
       slot.mesh = buildByType(type);
+      enableShadows(slot.mesh);
       slot.type = type;
       slot.holder.add(slot.mesh);
     }
@@ -1111,9 +1166,10 @@
     const character = new THREE.Group();
     scene.add(character);
 
-    // Character stands at top of globe; its feet touch GLOBE_RADIUS.
-    // This position is updated whenever GLOBE_RADIUS changes (via slider).
-    character.position.set(0, GLOBE_RADIUS, 0);
+    // Character stands at top of globe; its feet touch the displaced surface
+    // at the north pole. Lift precomputed so we don't resample each frame.
+    let northLift = surfaceLiftAt(0, 1, 0);
+    character.position.set(0, GLOBE_RADIUS + northLift, 0);
 
     // Parts that need animation refs
     const parts = {};
@@ -1125,108 +1181,142 @@
     }
 
     function buildCharacter() {
-      // We build the character so y=0 is the base of the feet
-      // Total height ~1.0 unit
+      // Built so y=0 is the base of the feet. Total height ~1.0 unit.
+      // Aesthetic: low-poly but rounded — cylinders for limbs/torso and
+      // low-resolution spheres for joints, head, hands, and feet.
 
-      // Legs (two tapered boxes)
-      const legGeo = new THREE.BoxGeometry(0.12, 0.32, 0.14);
       const pantsMat = mat(COLORS.pants);
-      const shoeMat = mat(COLORS.shoes);
+      const shoeMat  = mat(COLORS.shoes);
+      const shirtMat = mat(COLORS.shirt);
+      const skinMat  = mat(COLORS.skin);
 
+      // Legs — tapered cylinders with a slight narrowing toward the ankle
+      const legGeo = new THREE.CylinderGeometry(0.065, 0.055, 0.32, 8);
       parts.legL = new THREE.Group();
       parts.legR = new THREE.Group();
 
       const legMeshL = new THREE.Mesh(legGeo, pantsMat);
-      legMeshL.position.y = -0.16; // pivot at hip
-      const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.07, 0.18), shoeMat);
-      shoeL.position.set(0, -0.32 - 0.035, 0.02);
-      parts.legL.add(legMeshL); parts.legL.add(shoeL);
+      legMeshL.position.y = -0.16;             // pivot at hip
+
+      // Knee / hip caps to round the tops, low-poly
+      const hipCapL = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), pantsMat);
+      hipCapL.position.y = 0;
+
+      // Foot — horizontal ellipsoid (squashed sphere) stretched forward
+      const footL = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 1), shoeMat);
+      footL.scale.set(1.1, 0.55, 1.55);
+      footL.position.set(0, -0.35, 0.03);
+
+      parts.legL.add(legMeshL);
+      parts.legL.add(hipCapL);
+      parts.legL.add(footL);
 
       const legMeshR = legMeshL.clone();
-      const shoeR = shoeL.clone();
-      parts.legR.add(legMeshR); parts.legR.add(shoeR);
+      const hipCapR = hipCapL.clone();
+      const footR = footL.clone();
+      parts.legR.add(legMeshR);
+      parts.legR.add(hipCapR);
+      parts.legR.add(footR);
 
-      parts.legL.position.set(-0.08, 0.32, 0);
-      parts.legR.position.set( 0.08, 0.32, 0);
+      parts.legL.position.set(-0.085, 0.32, 0);
+      parts.legR.position.set( 0.085, 0.32, 0);
 
-      // Torso (tapered box via BoxGeometry scaled; narrower at hips/shoulders match)
-      const torsoGeo = new THREE.BoxGeometry(0.36, 0.34, 0.22);
-      // Taper the top and bottom vertices slightly so it's not a plain box
-      const tpos = torsoGeo.attributes.position;
-      for (let i = 0; i < tpos.count; i++) {
-        const y = tpos.getY(i);
-        if (y > 0) {
-          tpos.setX(i, tpos.getX(i) * 0.92);
-          tpos.setZ(i, tpos.getZ(i) * 0.92);
-        } else {
-          tpos.setX(i, tpos.getX(i) * 0.86);
-          tpos.setZ(i, tpos.getZ(i) * 0.86);
-        }
-      }
-      torsoGeo.computeVertexNormals();
-      parts.torso = new THREE.Mesh(torsoGeo, mat(COLORS.shirt));
-      parts.torso.position.y = 0.32 + 0.17; // on top of legs
+      // Torso — a barrel: cylinder with hemispherical caps for rounded chest
+      // and hips. We compose them so the group has feet-base at y=0 local.
+      parts.torso = new THREE.Group();
+      parts.torso.position.y = 0.32 + 0.17;    // sits on top of the legs
 
-      // A small collar accent so it doesn't look plain
+      const torsoBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.17, 0.15, 0.28, 12),
+        shirtMat
+      );
+      torsoBody.position.y = 0;
+      parts.torso.add(torsoBody);
+
+      // Hip cap — rounds the bottom of the torso
+      const hipCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.15, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+        shirtMat
+      );
+      hipCap.position.y = -0.14;
+      parts.torso.add(hipCap);
+
+      // Shoulder cap — rounds the top of the torso into the neck area
+      const shoulderCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+        shirtMat
+      );
+      shoulderCap.position.y = 0.14;
+      parts.torso.add(shoulderCap);
+
+      // Collar accent — a slim torus-like ring at the neckline
       const collar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, 0.04, 0.23),
+        new THREE.TorusGeometry(0.09, 0.018, 6, 16),
         mat(COLORS.accent)
       );
-      collar.position.y = 0.17 - 0.02;
+      collar.rotation.x = Math.PI / 2;
+      collar.position.y = 0.19;
       parts.torso.add(collar);
 
-      // Arms (two groups pivoting at shoulder)
-      const armGeo = new THREE.BoxGeometry(0.1, 0.3, 0.11);
-      const shirtArmMat = mat(COLORS.shirt);
+      // Arms — cylinder with a sphere at the shoulder and a sphere hand
+      const armGeo = new THREE.CylinderGeometry(0.048, 0.042, 0.28, 8);
 
       parts.armL = new THREE.Group();
       parts.armR = new THREE.Group();
-      const armMeshL = new THREE.Mesh(armGeo, shirtArmMat);
-      armMeshL.position.y = -0.15;
-      const handL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.1), mat(COLORS.skin));
-      handL.position.y = -0.3 - 0.04;
-      parts.armL.add(armMeshL); parts.armL.add(handL);
 
+      const armMeshL = new THREE.Mesh(armGeo, shirtMat);
+      armMeshL.position.y = -0.14;
+
+      const shoulderBallL = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.07, 1),
+        shirtMat
+      );
+      shoulderBallL.position.y = 0;
+
+      const handL = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.055, 1),
+        skinMat
+      );
+      handL.scale.set(1, 0.9, 0.95);
+      handL.position.y = -0.30;
+
+      parts.armL.add(shoulderBallL);
+      parts.armL.add(armMeshL);
+      parts.armL.add(handL);
+
+      const shoulderBallR = shoulderBallL.clone();
       const armMeshR = armMeshL.clone();
       const handR = handL.clone();
-      parts.armR.add(armMeshR); parts.armR.add(handR);
+      parts.armR.add(shoulderBallR);
+      parts.armR.add(armMeshR);
+      parts.armR.add(handR);
 
-      // Attach to torso (positions relative to torso origin)
-      parts.armL.position.set(-0.22, 0.14, 0);
-      parts.armR.position.set( 0.22, 0.14, 0);
+      // Arms hang from the top corners of the shoulder cap
+      parts.armL.position.set(-0.19, 0.12, 0);
+      parts.armR.position.set( 0.19, 0.12, 0);
       parts.torso.add(parts.armL);
       parts.torso.add(parts.armR);
 
-      // Head — rounded cube (icosahedron flattened works too; use rounded-ish cube)
-      const headGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-      // Tuck corners by slightly scaling extreme verts — approximate rounding
-      const hpos = headGeo.attributes.position;
-      const tmp = new THREE.Vector3();
-      for (let i = 0; i < hpos.count; i++) {
-        tmp.fromBufferAttribute(hpos, i);
-        tmp.multiplyScalar(0.95);
-        hpos.setXYZ(i, tmp.x, tmp.y, tmp.z);
-      }
-      headGeo.computeVertexNormals();
+      // Head — sphere (low-poly icosahedron look). Sits above the shoulders.
+      const headGeo = new THREE.IcosahedronGeometry(0.16, 2);
+      parts.head = new THREE.Mesh(headGeo, skinMat);
+      parts.head.position.y = 0.18 + 0.16;
 
-      parts.head = new THREE.Mesh(headGeo, mat(COLORS.skin));
-      parts.head.position.y = 0.17 + 0.17;  // sits above torso
-
-      // Hair cap — flat shell on top of head
+      // Hair cap — top hemisphere draped over the head
       const hair = new THREE.Mesh(
-        new THREE.BoxGeometry(0.32, 0.14, 0.32),
+        new THREE.SphereGeometry(0.168, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
         mat(COLORS.hair)
       );
-      hair.position.y = 0.09;
+      hair.position.y = 0.01;
       parts.head.add(hair);
 
-      // Eyes — two tiny dark cubes. Subtle but gives the character presence.
+      // Eyes — tiny dark rounded blobs
       const eyeMat = mat(COLORS.shoes, { roughness: 0.4 });
-      const eyeGeo = new THREE.BoxGeometry(0.025, 0.03, 0.02);
+      const eyeGeo = new THREE.SphereGeometry(0.018, 8, 6);
       const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
       const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-      eyeL.position.set(-0.06, 0.0, 0.15);
-      eyeR.position.set( 0.06, 0.0, 0.15);
+      eyeL.position.set(-0.055, 0.005, 0.14);
+      eyeR.position.set( 0.055, 0.005, 0.14);
       parts.head.add(eyeL);
       parts.head.add(eyeR);
 
@@ -1235,23 +1325,19 @@
       character.add(parts.legL);
       character.add(parts.legR);
       character.add(parts.torso);
+
+      enableShadows(character);
     }
 
     buildCharacter();
 
-    // Contact shadow — a soft dark disc beneath the character for grounding.
-    // Much cheaper than real shadow mapping and matches the flat-shaded style.
-    const shadowGeo = new THREE.CircleGeometry(0.3, 24);
-    const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x2e2a3a,
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false,
-    });
-    const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
-    contactShadow.rotation.x = -Math.PI / 2;
-    contactShadow.position.set(0, 0.01, 0.05); // slight offset to avoid z-fight
-    character.add(contactShadow);
+    // Keep the sun and its shadow target locked to the character so the
+    // shadow frustum always catches the nearby decor.
+    function syncSunToCharacter() {
+      sun.position.set(character.position.x + 4, character.position.y + 8, character.position.z + 5);
+      sunTarget.position.copy(character.position);
+    }
+    syncSunToCharacter();
 
     // ──────────────────────────────────────────────────────────────────────────
     // CAMERA RIG — over-the-shoulder, fixed relative to character (not globe)
@@ -1274,12 +1360,13 @@
     const CAM_PITCH_MIN = 0.12;
     const CAM_PITCH_MAX = 1.30;
 
-    // Distance limits scale with GLOBE_RADIUS so framing stays consistent.
-    // Multipliers chosen so small globe (R=3) still has a comfortable zoom
-    // range and large globe (R=18) doesn't require crazy far clipping.
-    function camDistMin() { return Math.max(2.0, GLOBE_RADIUS * 0.48); }
-    function camDistMax() { return Math.max(5.0, GLOBE_RADIUS * 1.8);  }
-    function camDistDefault() { return GLOBE_RADIUS * 0.82; }
+    // Camera distance is INDEPENDENT of globe radius so the character (and the
+    // decor around them) always appears at the same on-screen size. Only the
+    // globe's visible curvature changes with the slider — tiny worlds feel
+    // like a small hilltop, large worlds feel like a flat horizon.
+    function camDistMin() { return 2.0; }
+    function camDistMax() { return 8.0; }
+    function camDistDefault() { return 4.1; }
 
     function positionCamera() {
       const charWorld = new THREE.Vector3();
@@ -1514,14 +1601,10 @@
 
       // Slight vertical bob synced to step
       const stepBob = Math.abs(swingCos) * 0.02 * walking;
-      character.position.y = GLOBE_RADIUS + stepBob;
+      character.position.y = GLOBE_RADIUS + northLift + stepBob;
 
       // Tiny torso tilt forward while walking
       parts.torso.rotation.x = walking * 0.08;
-
-      // Fade the shadow slightly larger/softer when walking
-      contactShadow.scale.setScalar(1 + walking * 0.1);
-      shadowMat.opacity = 0.18 - walking * 0.04;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -1610,7 +1693,8 @@
       slot.lat = latRad;
       slot.lon = lonRad;
       if (altitude !== undefined) slot.altitude = altitude;
-      placeOnGlobe(slot.holder, latRad, lonRad, slot.altitude);
+      // Clouds sit well above the terrain; ignore per-point surface displacement.
+      placeOnGlobe(slot.holder, latRad, lonRad, slot.altitude, false);
     }
 
     function targetCloudCount() {
@@ -1768,17 +1852,16 @@
       resizeDecorPool();
       resizeCloudPool();
 
-      // Character sits at top of globe
-      character.position.set(0, GLOBE_RADIUS, 0);
+      // Character sits at top of the (possibly displaced) globe surface
+      northLift = surfaceLiftAt(0, 1, 0);
+      character.position.set(0, GLOBE_RADIUS + northLift, 0);
 
-      // Keep camera framing similar — scale distance proportionally to the
-      // previous target. If user had zoomed, preserve their relative zoom.
-      const prevMin = camDistMin();
-      const prevMax = camDistMax();
-      // Reclamp to new limits (the functions now return values for the new R)
-      camOrbit.dist = Math.max(camDistMin(), Math.min(camDistMax(), camDistDefault()));
-      // (We intentionally snap to default distance on resize — otherwise
-      // huge-to-tiny transitions produce awkward framings.)
+      // Sun and its shadow target now follow the character's new altitude
+      syncSunToCharacter();
+
+      // Camera distance doesn't depend on GLOBE_RADIUS, so preserve the
+      // user's current zoom level — just clamp to the fixed min/max.
+      camOrbit.dist = Math.max(camDistMin(), Math.min(camDistMax(), camOrbit.dist));
 
       positionCamera();
     }
