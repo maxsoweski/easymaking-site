@@ -46,10 +46,27 @@ export function createShaderApp(canvas, fragmentSrc, uniformDefs = {}) {
     return null;
   }
 
-  // Prepend standard header to fragment
-  const fullFragSrc = `precision highp float;\n` + fragmentSrc;
+  // Prepend standard header to fragment (precision + built-in uniforms
+  // that every lesson can use without having to re-declare them).
+  const HEADER = `precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec2 u_mouse;
+`;
+  const fullFragSrc = HEADER + fragmentSrc;
   const program = createProgram(gl, VERTEX_SRC, fullFragSrc);
-  if (!program) return null;
+  if (!program) {
+    // Visible on-canvas error so all-black isn't mistaken for a working render
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#1a1823';
+      ctx.fillRect(0, 0, canvas.width || 300, canvas.height || 150);
+      ctx.fillStyle = '#c46c54';
+      ctx.font = '13px ui-monospace, Menlo, monospace';
+      ctx.fillText('shader compile failed — see console', 14, 28);
+    }
+    return null;
+  }
 
   // Fullscreen quad (two triangles covering clip space)
   const posBuffer = gl.createBuffer();
