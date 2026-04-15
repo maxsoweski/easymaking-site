@@ -189,9 +189,126 @@
         radial-gradient(80% 100% at 50% 0%, rgba(200, 221, 232, 0.15) 0%, rgba(200, 221, 232, 0) 55%);
     }
 
+    /* -- World-size slider: storybook control, not a dev tool -- */
+    .hud--scale {
+      top: clamp(16px, 3vh, 28px);
+      right: clamp(18px, 4vw, 36px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      padding: 12px 16px 14px;
+      background: rgba(251, 244, 234, 0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 14px;
+      border: 1px solid rgba(46, 42, 58, 0.08);
+      box-shadow: 0 8px 24px -16px rgba(46, 42, 58, 0.35);
+      pointer-events: auto;
+    }
+
+    .hud--scale .label {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      color: var(--ink);
+    }
+
+    .hud--scale .label .word {
+      font-family: "Fraunces", Georgia, serif;
+      font-style: italic;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .hud--scale .label .value {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 3ch;
+      text-align: right;
+    }
+
+    .hud--scale input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 18px;
+      background: transparent;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .hud--scale input[type="range"]::-webkit-slider-runnable-track {
+      height: 3px;
+      background: linear-gradient(
+        to right,
+        var(--accent) 0%,
+        var(--accent) var(--fill, 20%),
+        rgba(46, 42, 58, 0.18) var(--fill, 20%),
+        rgba(46, 42, 58, 0.18) 100%
+      );
+      border-radius: 2px;
+    }
+
+    .hud--scale input[type="range"]::-moz-range-track {
+      height: 3px;
+      background: rgba(46, 42, 58, 0.18);
+      border-radius: 2px;
+    }
+
+    .hud--scale input[type="range"]::-moz-range-progress {
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .hud--scale input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--paper);
+      border: 2px solid var(--accent);
+      box-shadow: 0 1px 3px rgba(46, 42, 58, 0.2);
+      margin-top: -5.5px;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    .hud--scale input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--paper);
+      border: 2px solid var(--accent);
+      box-shadow: 0 1px 3px rgba(46, 42, 58, 0.2);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    .hud--scale input[type="range"]:hover::-webkit-slider-thumb,
+    .hud--scale input[type="range"]:active::-webkit-slider-thumb {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 6px rgba(196, 108, 84, 0.12);
+    }
+
+    .hud--scale input[type="range"]:hover::-moz-range-thumb,
+    .hud--scale input[type="range"]:active::-moz-range-thumb {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 6px rgba(196, 108, 84, 0.12);
+    }
+
+    .hud--scale input[type="range"]:focus { outline: none; }
+
     /* Hide hint on very short screens */
     @media (max-height: 420px) {
       .hud--hint { display: none; }
+    }
+
+    @media (max-width: 520px) {
+      .hud--scale input[type="range"] { width: 110px; }
     }
 
     /* Fade-in the HUD after scene initialises */
@@ -218,6 +335,21 @@
     <span class="place">with desire</span>
   </div>
 
+  <div class="hud hud--scale" role="group" aria-label="World size">
+    <div class="label">
+      <span class="word">world</span>
+      <span class="value" id="scale-readout">small</span>
+    </div>
+    <input
+      id="scale-slider"
+      type="range"
+      min="3"
+      max="18"
+      step="0.1"
+      value="5"
+      aria-label="World size" />
+  </div>
+
   <div class="hud hud--hint" role="note" aria-label="Controls">
     <div class="keys" aria-hidden="true">
       <span class="key key--blank"></span>
@@ -239,10 +371,12 @@
     // ──────────────────────────────────────────────────────────────────────────
     // CONSTANTS
     // ──────────────────────────────────────────────────────────────────────────
-    const GLOBE_RADIUS = 5;
-    const CHARACTER_HEIGHT = 1.0;         // approx total height in units
-    const WALK_SPEED = 0.85;               // radians/sec of globe rotation when a key is held
-    const ACCEL = 8.0;                     // how quickly we ramp to target angular velocity
+    let   GLOBE_RADIUS = 5;                 // mutable — the slider rebuilds the world at a new size
+    const GLOBE_RADIUS_MIN = 3;
+    const GLOBE_RADIUS_MAX = 18;
+    const CHARACTER_HEIGHT = 1.0;           // approx total height in units
+    const WALK_SPEED = 0.85;                // radians/sec of globe rotation when a key is held
+    const ACCEL = 8.0;                      // how quickly we ramp to target angular velocity
     const COLORS = {
       skyTop:    new THREE.Color('#c8dde8'),
       skyMid:    new THREE.Color('#e8d4c0'),
@@ -252,9 +386,27 @@
       coast:     new THREE.Color('#d9c08a'),
       ocean:     new THREE.Color('#8bb3b8'),
       trunk:     new THREE.Color('#7a5a3f'),
+      trunkDk:   new THREE.Color('#5a3f2a'),
       leaves:    new THREE.Color('#9dc38a'),
       leavesDk:  new THREE.Color('#7ea774'),
+      pine:      new THREE.Color('#5c7f5f'),
+      pineDk:    new THREE.Color('#3e5e47'),
       rock:      new THREE.Color('#a89b8a'),
+      rockDk:    new THREE.Color('#8a7d6e'),
+      mushroom:  new THREE.Color('#c85656'),
+      mushroomAlt: new THREE.Color('#d9a06b'),
+      mushroomStem: new THREE.Color('#f4ece0'),
+      flowerPink:new THREE.Color('#e69bb0'),
+      flowerSun: new THREE.Color('#f2c55a'),
+      flowerDusk:new THREE.Color('#9c86b0'),
+      cloud:     new THREE.Color('#fbf4ea'),
+      cloudWarm: new THREE.Color('#f4dcc8'),
+      cloudCool: new THREE.Color('#dce6ec'),
+      fence:     new THREE.Color('#a98868'),
+      hutWall:   new THREE.Color('#d9b08a'),
+      hutRoof:   new THREE.Color('#8a4e3c'),
+      windmill:  new THREE.Color('#efe4d2'),
+      signpost:  new THREE.Color('#7a5a3f'),
       skin:      new THREE.Color('#e6b894'),
       hair:      new THREE.Color('#3d2c2a'),
       shirt:     new THREE.Color('#6e8ba6'),
@@ -262,6 +414,13 @@
       shoes:     new THREE.Color('#2e2a3a'),
       accent:    new THREE.Color('#c46c54'),
     };
+
+    // Small deterministic random helper for seeded variation per object
+    function rand(seed) {
+      // Simple hashy pseudo-random — deterministic for a given seed
+      const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+      return x - Math.floor(x);
+    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // RENDERER + SCENE + CAMERA
@@ -311,7 +470,16 @@
     const globePivot = new THREE.Group();   // rotation target for WASD input
     scene.add(globePivot);
 
+    let globeMesh = null;
+
     function buildGlobe() {
+      // Dispose old mesh if we're rebuilding (slider change)
+      if (globeMesh) {
+        globePivot.remove(globeMesh);
+        globeMesh.geometry.dispose();
+        globeMesh.material.dispose();
+      }
+
       const geo = new THREE.IcosahedronGeometry(GLOBE_RADIUS, 5);
       const pos = geo.attributes.position;
       const colors = new Float32Array(pos.count * 3);
@@ -332,8 +500,9 @@
         const n = v.clone().normalize();
 
         // Slight outward displacement — hills and shallow valleys
+        // Displacement scales with radius so bigger worlds feel proportionate
         const h = noise(n.x * 1.4, n.y * 1.4, n.z * 1.4);
-        const lift = 0.14 * h + 0.05 * Math.sin(n.y * 4 + 1.7);
+        const lift = (0.14 * h + 0.05 * Math.sin(n.y * 4 + 1.7)) * (GLOBE_RADIUS / 5);
         v.copy(n).multiplyScalar(GLOBE_RADIUS + lift);
         pos.setXYZ(i, v.x, v.y, v.z);
 
@@ -342,7 +511,7 @@
         const landMix = THREE.MathUtils.smoothstep(up, -0.15, 0.35);
         const c = new THREE.Color();
 
-        if (lift < -0.02 && up < 0.1) {
+        if (lift < -0.02 * (GLOBE_RADIUS / 5) && up < 0.1) {
           // low areas near the equator look like shallow water
           c.copy(COLORS.ocean).lerp(COLORS.coast, 0.35);
         } else if (up < 0.05) {
@@ -370,15 +539,17 @@
         metalness: 0.0,
       });
 
-      const mesh = new THREE.Mesh(geo, mat);
-      globePivot.add(mesh);
-      return mesh;
+      globeMesh = new THREE.Mesh(geo, mat);
+      globePivot.add(globeMesh);
+      return globeMesh;
     }
 
-    const globeMesh = buildGlobe();
+    buildGlobe();
 
     // ──────────────────────────────────────────────────────────────────────────
-    // GLOBE DECOR — tree (swappable) + a few rocks/bushes so the world feels lived-in
+    // GLOBE DECOR — object builders
+    // Each builder returns a Group whose local +Y points away from the globe
+    // (so when we place it and rotate +Y → outward normal, it stands upright).
     // ──────────────────────────────────────────────────────────────────────────
 
     // Place an object on the globe's surface given (lat, lon) in radians.
@@ -395,25 +566,25 @@
       object.quaternion.copy(quat);
     }
 
+    // Shared flat-shaded material helper for decor
+    function flat(color, roughness = 0.95) {
+      return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness });
+    }
+
+    // Round-leaf tree — stacked icospheres (original style)
     function buildTree() {
       const group = new THREE.Group();
+      const leafJit = (Math.random() - 0.5) * 0.05;
 
-      // Trunk — low-sided cylinder
       const trunkGeo = new THREE.CylinderGeometry(0.09, 0.13, 0.55, 6, 1);
-      const trunkMat = new THREE.MeshStandardMaterial({
-        color: COLORS.trunk, flatShading: true, roughness: 1,
-      });
-      const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+      const trunk = new THREE.Mesh(trunkGeo, flat(COLORS.trunk.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.04), 1));
       trunk.position.y = 0.275;
       group.add(trunk);
 
-      // Foliage — stacked icosahedra for a chunky canopy
-      const leafMat = new THREE.MeshStandardMaterial({
-        color: COLORS.leaves, flatShading: true, roughness: 0.9,
-      });
-      const leafMatDk = new THREE.MeshStandardMaterial({
-        color: COLORS.leavesDk, flatShading: true, roughness: 0.9,
-      });
+      const leafCol  = COLORS.leaves.clone().offsetHSL(leafJit * 0.3, 0, leafJit);
+      const leafColD = COLORS.leavesDk.clone().offsetHSL(leafJit * 0.3, 0, leafJit);
+      const leafMat   = flat(leafCol, 0.9);
+      const leafMatDk = flat(leafColD, 0.9);
 
       const c1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), leafMat);
       c1.position.y = 0.75;
@@ -427,64 +598,511 @@
       c3.position.set(-0.18, 0.88, 0.14);
       group.add(c3);
 
-      // Random tilt so it doesn't look mechanical
       group.rotation.y = Math.random() * Math.PI * 2;
+      const s = 0.85 + Math.random() * 0.4;
+      group.scale.setScalar(s);
       return group;
     }
 
-    function buildRock(scale = 1) {
-      const geo = new THREE.DodecahedronGeometry(0.25 * scale, 0);
-      // Squash slightly for a boulder feel
-      geo.scale(1, 0.6, 1);
-      const mat = new THREE.MeshStandardMaterial({
-        color: COLORS.rock, flatShading: true, roughness: 1,
-      });
-      const m = new THREE.Mesh(geo, mat);
-      m.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.4);
-      return m;
+    // Tall pine — stacked cones getting smaller toward the top
+    function buildPine() {
+      const group = new THREE.Group();
+      const col  = COLORS.pine.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.06);
+      const colD = COLORS.pineDk.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.06);
+
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.1, 0.35, 6),
+        flat(COLORS.trunkDk, 1)
+      );
+      trunk.position.y = 0.175;
+      group.add(trunk);
+
+      const heights = [0.35, 0.65, 0.9];
+      const radii   = [0.38, 0.28, 0.18];
+      const mats    = [flat(col, 0.9), flat(colD, 0.9), flat(col, 0.9)];
+      for (let i = 0; i < 3; i++) {
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(radii[i], 0.42, 7, 1),
+          mats[i]
+        );
+        cone.position.y = heights[i] + 0.15;
+        cone.rotation.y = Math.random() * Math.PI * 2;
+        group.add(cone);
+      }
+
+      group.rotation.y = Math.random() * Math.PI * 2;
+      const s = 0.9 + Math.random() * 0.5;
+      group.scale.setScalar(s);
+      return group;
     }
 
-    function buildBush() {
+    // Single boulder — dodecahedron, squashed
+    function buildRock(scale = null) {
+      const s = scale ?? (0.7 + Math.random() * 0.9);
       const g = new THREE.Group();
-      const m = new THREE.MeshStandardMaterial({
-        color: COLORS.leavesDk, flatShading: true, roughness: 1,
-      });
-      const a = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), m);
-      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), m);
-      b.position.set(0.22, -0.05, 0.1);
-      a.position.y = 0.15;
-      g.add(a); g.add(b);
+      const geo = new THREE.DodecahedronGeometry(0.25 * s, 0);
+      geo.scale(1, 0.6, 1);
+      const col = Math.random() < 0.5 ? COLORS.rock : COLORS.rockDk;
+      const m = new THREE.Mesh(geo, flat(col.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.05), 1));
+      m.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.4);
+      m.position.y = 0.25 * s * 0.55;
+      g.add(m);
       return g;
     }
 
-    // SWAPPABLE: Replace with any Three.js Object3D and parent to globePivot.
-    // Keep `placeOnGlobe(obj, lat, lon)` to position it on the surface.
-    const tree = buildTree();
-    placeOnGlobe(tree, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-42));
-    globePivot.add(tree);
-
-    // Scatter a few rocks + bushes so the globe has visible features as it spins.
-    // (These are NOT the swappable object — remove/keep as you like.)
-    const decorSpecs = [
-      { type: 'rock', lat:  55, lon:  30, scale: 1.1 },
-      { type: 'rock', lat: -10, lon:  90, scale: 0.8 },
-      { type: 'rock', lat:  30, lon: 140, scale: 1.4 },
-      { type: 'rock', lat: -40, lon: -60, scale: 0.9 },
-      { type: 'bush', lat:  40, lon:  70 },
-      { type: 'bush', lat:   5, lon: -120 },
-      { type: 'bush', lat: -25, lon:  10 },
-      { type: 'bush', lat:  62, lon: -100 },
-      { type: 'tree', lat: -30, lon: 170 },
-      { type: 'tree', lat:  12, lon: 100 },
-    ];
-    for (const s of decorSpecs) {
-      const obj =
-        s.type === 'rock' ? buildRock(s.scale ?? 1) :
-        s.type === 'bush' ? buildBush() :
-                            buildTree();
-      placeOnGlobe(obj, THREE.MathUtils.degToRad(s.lat), THREE.MathUtils.degToRad(s.lon));
-      globePivot.add(obj);
+    // Cluster of smaller pebbles — always close to the ground
+    function buildPebbleCluster() {
+      const g = new THREE.Group();
+      const mat = flat(COLORS.rock, 1);
+      const matDk = flat(COLORS.rockDk, 1);
+      const count = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < count; i++) {
+        const r = 0.06 + Math.random() * 0.08;
+        const geo = new THREE.DodecahedronGeometry(r, 0);
+        geo.scale(1, 0.55, 1);
+        const m = new THREE.Mesh(geo, Math.random() < 0.5 ? mat : matDk);
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * 0.22;
+        m.position.set(Math.cos(a) * d, r * 0.5, Math.sin(a) * d);
+        m.rotation.y = Math.random() * Math.PI * 2;
+        g.add(m);
+      }
+      return g;
     }
+
+    // Round bush
+    function buildBush() {
+      const g = new THREE.Group();
+      const col = COLORS.leavesDk.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.06);
+      const m = flat(col, 1);
+      const a = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), m);
+      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), m);
+      b.position.set(0.22, 0.1, 0.1);
+      a.position.y = 0.2;
+      g.add(a); g.add(b);
+      const s = 0.85 + Math.random() * 0.4;
+      g.scale.setScalar(s);
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    // Mushroom — cap on a slim stem, with a chance of a paired smaller mushroom
+    function buildMushroom() {
+      const g = new THREE.Group();
+      const capCol = Math.random() < 0.7 ? COLORS.mushroom : COLORS.mushroomAlt;
+
+      const makeOne = (scale, x, z) => {
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.045 * scale, 0.06 * scale, 0.16 * scale, 6),
+          flat(COLORS.mushroomStem, 0.85)
+        );
+        stem.position.set(x, 0.08 * scale, z);
+        g.add(stem);
+
+        const capGeo = new THREE.SphereGeometry(0.13 * scale, 7, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
+        const cap = new THREE.Mesh(capGeo, flat(capCol.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.05), 0.8));
+        cap.position.set(x, 0.17 * scale, z);
+        g.add(cap);
+
+        // Tiny white spots — small spheres pressed onto the cap surface
+        if (Math.random() < 0.65) {
+          const spotMat = flat(new THREE.Color('#fbf4ea'), 0.9);
+          const spotCount = 2 + Math.floor(Math.random() * 2);
+          for (let i = 0; i < spotCount; i++) {
+            const spot = new THREE.Mesh(
+              new THREE.IcosahedronGeometry(0.022 * scale, 0),
+              spotMat
+            );
+            const ang = Math.random() * Math.PI * 2;
+            const rad = Math.random() * 0.08 * scale;
+            const yUp = Math.sqrt(Math.max(0, (0.13 * scale) ** 2 - rad ** 2));
+            spot.position.set(x + Math.cos(ang) * rad, 0.17 * scale + yUp - 0.005, z + Math.sin(ang) * rad);
+            spot.scale.y = 0.4;
+            g.add(spot);
+          }
+        }
+      };
+
+      makeOne(0.9 + Math.random() * 0.4, 0, 0);
+      if (Math.random() < 0.35) {
+        const a = Math.random() * Math.PI * 2;
+        makeOne(0.55, Math.cos(a) * 0.18, Math.sin(a) * 0.18);
+      }
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    // Tiny flower patch — a few stemmed blossoms in soft pop colours
+    function buildFlowerPatch() {
+      const g = new THREE.Group();
+      const palette = [COLORS.flowerPink, COLORS.flowerSun, COLORS.flowerDusk];
+      const col = palette[Math.floor(Math.random() * palette.length)].clone()
+        .offsetHSL((Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.04);
+      const petalMat = flat(col, 0.7);
+      const stemMat  = flat(COLORS.pine, 1);
+
+      const count = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * 0.18;
+        const x = Math.cos(a) * d;
+        const z = Math.sin(a) * d;
+        const h = 0.12 + Math.random() * 0.05;
+
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.01, 0.012, h, 4),
+          stemMat
+        );
+        stem.position.set(x, h * 0.5, z);
+        g.add(stem);
+
+        const bloom = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(0.045, 0),
+          petalMat
+        );
+        bloom.position.set(x, h + 0.02, z);
+        g.add(bloom);
+      }
+      return g;
+    }
+
+    // Low-poly hill mound — a squashed icosphere in grass colours
+    function buildHill() {
+      const g = new THREE.Group();
+      const s = 0.7 + Math.random() * 0.7;
+      const geo = new THREE.IcosahedronGeometry(0.6 * s, 1);
+      const pos = geo.attributes.position;
+      const v = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        v.y *= 0.45;
+        if (v.y < 0) v.y = 0;
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+      geo.computeVertexNormals();
+      const col = COLORS.grassHi.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.05);
+      const m = new THREE.Mesh(geo, flat(col, 1));
+      g.add(m);
+      return g;
+    }
+
+    // Wooden fence post — short stake, sometimes two in a row
+    function buildFencePost() {
+      const g = new THREE.Group();
+      const mat = flat(COLORS.fence, 1);
+      const makePost = (x, z) => {
+        const post = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.28, 0.05),
+          mat
+        );
+        post.position.set(x, 0.14, z);
+        post.rotation.y = Math.random() * 0.3;
+        g.add(post);
+
+        // cap
+        const cap = new THREE.Mesh(
+          new THREE.BoxGeometry(0.07, 0.02, 0.07),
+          mat
+        );
+        cap.position.set(x, 0.29, z);
+        g.add(cap);
+      };
+      makePost(0, 0);
+      if (Math.random() < 0.6) {
+        const a = Math.random() * Math.PI * 2;
+        const d = 0.25 + Math.random() * 0.15;
+        const x2 = Math.cos(a) * d;
+        const z2 = Math.sin(a) * d;
+        makePost(x2, z2);
+        // crossbeam between them
+        const beam = new THREE.Mesh(
+          new THREE.BoxGeometry(0.03, 0.03, d),
+          mat
+        );
+        beam.position.set(x2 * 0.5, 0.2, z2 * 0.5);
+        beam.lookAt(new THREE.Vector3(x2, 0.2, z2));
+        g.add(beam);
+      }
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    // Feature: tiny hut
+    function buildHut() {
+      const g = new THREE.Group();
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(0.7, 0.45, 0.55),
+        flat(COLORS.hutWall, 1)
+      );
+      wall.position.y = 0.225;
+      g.add(wall);
+
+      const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(0.55, 0.32, 4),
+        flat(COLORS.hutRoof, 1)
+      );
+      roof.position.y = 0.45 + 0.16;
+      roof.rotation.y = Math.PI / 4;
+      g.add(roof);
+
+      // Door — small dark rectangle on front face
+      const door = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.24, 0.02),
+        flat(COLORS.shoes, 1)
+      );
+      door.position.set(0, 0.12, 0.276);
+      g.add(door);
+
+      const s = 0.9 + Math.random() * 0.3;
+      g.scale.setScalar(s);
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    // Feature: windmill — post + four blades
+    function buildWindmill() {
+      const g = new THREE.Group();
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.08, 0.9, 6),
+        flat(COLORS.trunkDk, 1)
+      );
+      post.position.y = 0.45;
+      g.add(post);
+
+      const head = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.14, 0.18),
+        flat(COLORS.windmill, 0.9)
+      );
+      head.position.y = 0.9;
+      g.add(head);
+
+      const bladeMat = flat(COLORS.windmill, 0.9);
+      const blades = new THREE.Group();
+      for (let i = 0; i < 4; i++) {
+        const blade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.42, 0.015),
+          bladeMat
+        );
+        // Place each blade offset from the hub along its local +Y, then rotate
+        // the whole thing to point outward at the right angle.
+        blade.position.y = 0.21;
+        const holder = new THREE.Group();
+        holder.add(blade);
+        holder.rotation.z = (i * Math.PI) / 2;
+        blades.add(holder);
+      }
+      blades.position.set(0, 0.9, 0.11);
+      g.add(blades);
+      g.userData.animate = (dt) => {
+        blades.rotation.z += dt * 0.8;
+      };
+
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    // Feature: signpost — post with a little sign
+    function buildSignpost() {
+      const g = new THREE.Group();
+      const post = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, 0.5, 0.04),
+        flat(COLORS.signpost, 1)
+      );
+      post.position.y = 0.25;
+      g.add(post);
+
+      const sign = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.12, 0.03),
+        flat(COLORS.fence, 1)
+      );
+      sign.position.set(0.09, 0.42, 0);
+      g.add(sign);
+
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // OBJECT POOL — one descriptor per slot; rebuilds mesh on type change
+    // We keep pooled slots so we never add/remove from the scene graph at
+    // runtime. Each slot's mesh is disposed and rebuilt only when its type
+    // changes during regeneration.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // Weighted type table. Features (hut/windmill/signpost) are rare.
+    const DECOR_TYPES = [
+      { key: 'tree',    weight: 16 },
+      { key: 'pine',    weight: 14 },
+      { key: 'bush',    weight: 12 },
+      { key: 'rock',    weight: 10 },
+      { key: 'pebbles', weight: 10 },
+      { key: 'hill',    weight:  7 },
+      { key: 'mushroom',weight:  8 },
+      { key: 'flowers', weight:  6 },
+      { key: 'fence',   weight:  5 },
+    ];
+    const FEATURE_TYPES = ['hut', 'windmill', 'signpost'];
+    const DECOR_TOTAL_WEIGHT = DECOR_TYPES.reduce((a, b) => a + b.weight, 0);
+
+    function pickDecorType() {
+      let r = Math.random() * DECOR_TOTAL_WEIGHT;
+      for (const t of DECOR_TYPES) {
+        r -= t.weight;
+        if (r <= 0) return t.key;
+      }
+      return DECOR_TYPES[0].key;
+    }
+
+    function buildByType(type) {
+      switch (type) {
+        case 'tree':     return buildTree();
+        case 'pine':     return buildPine();
+        case 'bush':     return buildBush();
+        case 'rock':     return buildRock();
+        case 'pebbles':  return buildPebbleCluster();
+        case 'hill':     return buildHill();
+        case 'mushroom': return buildMushroom();
+        case 'flowers':  return buildFlowerPatch();
+        case 'fence':    return buildFencePost();
+        case 'hut':      return buildHut();
+        case 'windmill': return buildWindmill();
+        case 'signpost': return buildSignpost();
+        default:         return buildBush();
+      }
+    }
+
+    // Dispose all geometries + materials under a root (deep)
+    function disposeSubtree(root) {
+      root.traverse((o) => {
+        if (o.isMesh) {
+          o.geometry?.dispose();
+          if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
+          else o.material?.dispose();
+        }
+      });
+    }
+
+    // Pool of decor slots. Each slot has: { holder, mesh, type, lat, lon }
+    // holder is the container we place on the globe; mesh is the current build.
+    const decorPool = [];
+
+    function makeSlot() {
+      const holder = new THREE.Group();
+      holder.userData.isDecorSlot = true;
+      globePivot.add(holder);
+      const slot = { holder, mesh: null, type: null, lat: 0, lon: 0 };
+      decorPool.push(slot);
+      return slot;
+    }
+
+    function setSlotType(slot, type) {
+      if (slot.mesh) {
+        slot.holder.remove(slot.mesh);
+        disposeSubtree(slot.mesh);
+      }
+      slot.mesh = buildByType(type);
+      slot.type = type;
+      slot.holder.add(slot.mesh);
+    }
+
+    function placeSlot(slot, latRad, lonRad) {
+      slot.lat = latRad;
+      slot.lon = lonRad;
+      placeOnGlobe(slot.holder, latRad, lonRad);
+    }
+
+    // Target decor count scales with surface area: 4πR²
+    // At R=5 → ~30, at R=18 → ~390 (approx; we use a simple proportional formula)
+    function targetDecorCount() {
+      const baseR = 5;
+      const baseCount = 30;
+      return Math.round(baseCount * (GLOBE_RADIUS * GLOBE_RADIUS) / (baseR * baseR));
+    }
+
+    // Pick a random surface point — uniformly on the sphere
+    function randomSurfacePoint() {
+      const u = Math.random();
+      const v = Math.random();
+      const theta = 2 * Math.PI * u;                  // longitude 0..2π
+      const phi = Math.acos(2 * v - 1);               // polar angle 0..π
+      const lat = Math.PI / 2 - phi;                  // -π/2..π/2
+      const lon = theta - Math.PI;                    // -π..π
+      return { lat, lon };
+    }
+
+    // Pick a point in the hemisphere currently HIDDEN from the camera.
+    // We do this by sampling points, transforming to world space, and keeping
+    // points whose world-Y is below a threshold (under the visible hemisphere).
+    function randomHiddenSurfacePoint() {
+      // Try up to N samples to find a genuinely hidden one. Fall back to any.
+      const tmpLocal = new THREE.Vector3();
+      const tmpWorld = new THREE.Vector3();
+      for (let i = 0; i < 12; i++) {
+        const p = randomSurfacePoint();
+        // Compute world position after pivot rotation
+        tmpLocal.set(
+          GLOBE_RADIUS * Math.cos(p.lat) * Math.cos(p.lon),
+          GLOBE_RADIUS * Math.sin(p.lat),
+          GLOBE_RADIUS * Math.cos(p.lat) * Math.sin(p.lon)
+        );
+        tmpWorld.copy(tmpLocal).applyMatrix4(globePivot.matrixWorld);
+        if (tmpWorld.y < GLOBE_RADIUS * 0.1) {
+          return p;
+        }
+      }
+      return randomSurfacePoint();
+    }
+
+    // Initial seed decor positions — sprinkled across the whole globe
+    function seedDecor() {
+      const target = targetDecorCount();
+      while (decorPool.length < target) makeSlot();
+
+      for (let i = 0; i < decorPool.length; i++) {
+        const slot = decorPool[i];
+        if (i < target) {
+          const type = pickDecorType();
+          setSlotType(slot, type);
+          const p = randomSurfacePoint();
+          placeSlot(slot, p.lat, p.lon);
+          slot.holder.visible = true;
+        } else {
+          slot.holder.visible = false;
+        }
+      }
+
+      // Place 1-3 rare feature objects
+      const featureCount = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < featureCount && i < decorPool.length; i++) {
+        const idx = Math.floor(Math.random() * Math.min(decorPool.length, target));
+        const featType = FEATURE_TYPES[Math.floor(Math.random() * FEATURE_TYPES.length)];
+        setSlotType(decorPool[idx], featType);
+      }
+    }
+
+    // Resize the pool when the globe is rebuilt at a new radius
+    function resizeDecorPool() {
+      const target = targetDecorCount();
+      // Grow
+      while (decorPool.length < target) {
+        const slot = makeSlot();
+        setSlotType(slot, pickDecorType());
+        const p = randomSurfacePoint();
+        placeSlot(slot, p.lat, p.lon);
+      }
+      // Activate/deactivate slots to match target (cheaper than destroying)
+      for (let i = 0; i < decorPool.length; i++) {
+        const slot = decorPool[i];
+        slot.holder.visible = i < target;
+      }
+      // Re-place all active slots (surface location depends on GLOBE_RADIUS)
+      for (let i = 0; i < Math.min(target, decorPool.length); i++) {
+        const slot = decorPool[i];
+        placeSlot(slot, slot.lat, slot.lon);
+      }
+    }
+
+    seedDecor();
 
     // ──────────────────────────────────────────────────────────────────────────
     // CHARACTER — parented to scene, fixed at north pole of globe
@@ -493,7 +1111,8 @@
     const character = new THREE.Group();
     scene.add(character);
 
-    // Character stands at top of globe; its feet touch GLOBE_RADIUS
+    // Character stands at top of globe; its feet touch GLOBE_RADIUS.
+    // This position is updated whenever GLOBE_RADIUS changes (via slider).
     character.position.set(0, GLOBE_RADIUS, 0);
 
     // Parts that need animation refs
@@ -640,16 +1259,27 @@
     // The character's +Y points away from globe centre; +Z is "forward".
     // Camera orbits on a sphere around the character. yaw=0 puts camera behind
     // the character (in -Z), pitch=0 is level with character, positive=above.
+    //
+    // Pitch is clamped so the camera stays well above the horizon — the user
+    // should NEVER see the bottom hemisphere of the globe.
     const cameraTarget = new THREE.Vector3();
     const camOrbit = {
       yaw:   0,
-      pitch: 0.45,
+      pitch: 0.55,
       dist:  4.1,
     };
-    const CAM_PITCH_MIN = 0.05;
+    // Minimum pitch is set so camera stays a safe bit above the tangent plane
+    // at the character's feet. 0.12 rad ~= 7 degrees — enough to hide the
+    // opposite hemisphere even at very large globe radii.
+    const CAM_PITCH_MIN = 0.12;
     const CAM_PITCH_MAX = 1.30;
-    const CAM_DIST_MIN  = 2.4;
-    const CAM_DIST_MAX  = 9.0;
+
+    // Distance limits scale with GLOBE_RADIUS so framing stays consistent.
+    // Multipliers chosen so small globe (R=3) still has a comfortable zoom
+    // range and large globe (R=18) doesn't require crazy far clipping.
+    function camDistMin() { return Math.max(2.0, GLOBE_RADIUS * 0.48); }
+    function camDistMax() { return Math.max(5.0, GLOBE_RADIUS * 1.8);  }
+    function camDistDefault() { return GLOBE_RADIUS * 0.82; }
 
     function positionCamera() {
       const charWorld = new THREE.Vector3();
@@ -723,7 +1353,7 @@
     renderer.domElement.addEventListener('wheel', (e) => {
       e.preventDefault();
       const factor = 1 + e.deltaY * ZOOM_RATE;
-      camOrbit.dist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camOrbit.dist * factor));
+      camOrbit.dist = Math.max(camDistMin(), Math.min(camDistMax(), camOrbit.dist * factor));
     }, { passive: false });
 
     // Touch — single-finger drag = orbit, two-finger pinch = zoom
@@ -746,7 +1376,7 @@
         const d = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
         if (drag.pinchDist > 0) {
           const factor = drag.pinchDist / d;
-          camOrbit.dist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camOrbit.dist * factor));
+          camOrbit.dist = Math.max(camDistMin(), Math.min(camDistMax(), camOrbit.dist * factor));
         }
         drag.pinchDist = d;
       }
@@ -895,6 +1525,324 @@
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // CLOUDS — low-poly puffs parented to globePivot so they rotate with world
+    // Each cloud is a tight cluster of icosahedra at a random altitude above
+    // the surface. Altitude stored per-slot so when globe resizes we can
+    // re-place them at a proportional height.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    const cloudPool = [];
+
+    function buildCloud() {
+      const g = new THREE.Group();
+      // Pick a tint — mostly warm cream, sometimes pastel blue/pink
+      const r = Math.random();
+      const baseCol =
+        r < 0.65 ? COLORS.cloud :
+        r < 0.85 ? COLORS.cloudWarm :
+                   COLORS.cloudCool;
+      const col = baseCol.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.03);
+      const mat = new THREE.MeshStandardMaterial({
+        color: col,
+        flatShading: true,
+        roughness: 1,
+        metalness: 0,
+        emissive: col.clone().multiplyScalar(0.12),
+      });
+
+      // 4-6 overlapping icosahedra clustered in a horizontal ellipse.
+      const puffs = 4 + Math.floor(Math.random() * 3);
+      const spread = 0.35 + Math.random() * 0.25;
+      for (let i = 0; i < puffs; i++) {
+        const pr = 0.24 + Math.random() * 0.18;
+        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(pr, 0), mat);
+        const t = (i / puffs) * Math.PI * 2 + Math.random() * 0.5;
+        const d = Math.random() * spread;
+        m.position.set(
+          Math.cos(t) * d,
+          (Math.random() - 0.5) * 0.12,
+          Math.sin(t) * d * 0.7
+        );
+        // Stretch each puff slightly flat
+        m.scale.set(
+          0.9 + Math.random() * 0.3,
+          0.7 + Math.random() * 0.2,
+          0.9 + Math.random() * 0.3
+        );
+        m.rotation.set(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        );
+        g.add(m);
+      }
+
+      g.rotation.y = Math.random() * Math.PI * 2;
+      return g;
+    }
+
+    function makeCloudSlot() {
+      const holder = new THREE.Group();
+      holder.userData.isCloudSlot = true;
+      globePivot.add(holder);
+      const slot = {
+        holder,
+        mesh: null,
+        lat: 0,
+        lon: 0,
+        altitude: 1.5,            // units above globe surface
+        driftSpeed: 0,
+      };
+      cloudPool.push(slot);
+      return slot;
+    }
+
+    function setCloudMesh(slot) {
+      if (slot.mesh) {
+        slot.holder.remove(slot.mesh);
+        disposeSubtree(slot.mesh);
+      }
+      slot.mesh = buildCloud();
+      slot.holder.add(slot.mesh);
+    }
+
+    function placeCloud(slot, latRad, lonRad, altitude) {
+      slot.lat = latRad;
+      slot.lon = lonRad;
+      if (altitude !== undefined) slot.altitude = altitude;
+      placeOnGlobe(slot.holder, latRad, lonRad, slot.altitude);
+    }
+
+    function targetCloudCount() {
+      const baseR = 5;
+      const baseCount = 8;
+      return Math.round(baseCount * (GLOBE_RADIUS * GLOBE_RADIUS) / (baseR * baseR));
+    }
+
+    function seedClouds() {
+      const target = targetCloudCount();
+      while (cloudPool.length < target) makeCloudSlot();
+
+      for (let i = 0; i < cloudPool.length; i++) {
+        const slot = cloudPool[i];
+        if (i < target) {
+          if (!slot.mesh) setCloudMesh(slot);
+          const p = randomSurfacePoint();
+          // Altitude: absolute offset above surface, 1.4-2.6 units.
+          // We deliberately don't scale altitude with globe radius so clouds
+          // remain perceptually close to the character at all scales.
+          const alt = 1.8 + Math.random() * 1.2;
+          placeCloud(slot, p.lat, p.lon, alt);
+          slot.holder.visible = true;
+        } else {
+          slot.holder.visible = false;
+        }
+      }
+    }
+
+    function resizeCloudPool() {
+      const target = targetCloudCount();
+      while (cloudPool.length < target) {
+        const slot = makeCloudSlot();
+        setCloudMesh(slot);
+        const p = randomSurfacePoint();
+        const alt = 1.8 + Math.random() * 1.2;
+        placeCloud(slot, p.lat, p.lon, alt);
+      }
+      for (let i = 0; i < cloudPool.length; i++) {
+        cloudPool[i].holder.visible = i < target;
+      }
+      // Re-place active slots at the new globe radius
+      for (let i = 0; i < Math.min(target, cloudPool.length); i++) {
+        const slot = cloudPool[i];
+        placeCloud(slot, slot.lat, slot.lon, slot.altitude);
+      }
+    }
+
+    seedClouds();
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // REGENERATION — cycle hidden objects to create an "infinite walk" feel
+    // Every ~0.7s we sample some slots, check if they're below the horizon,
+    // and with small probability reposition them to a new hidden point and
+    // re-randomise their type. Same logic for clouds.
+    // ──────────────────────────────────────────────────────────────────────────
+    const REGEN_INTERVAL = 0.7;           // seconds between checks
+    const REGEN_CHANCE_DECOR = 0.08;      // per-slot chance when hidden
+    const REGEN_CHANCE_CLOUD = 0.06;
+    let regenTimer = 0;
+
+    // Only touch a subset per tick so big worlds don't spike CPU
+    const REGEN_CHECK_FRACTION = 0.25;
+
+    const _tmpWorld = new THREE.Vector3();
+
+    function slotIsHidden(holder, threshold) {
+      holder.getWorldPosition(_tmpWorld);
+      return _tmpWorld.y < threshold;
+    }
+
+    function stepRegen(dt) {
+      regenTimer += dt;
+      if (regenTimer < REGEN_INTERVAL) return;
+      regenTimer = 0;
+
+      // Ensure world matrices reflect the latest globePivot rotation before
+      // we inspect world-space positions.
+      globePivot.updateMatrixWorld(true);
+
+      // Hidden threshold: anything below ~-30% of the radius is well under
+      // the horizon from the character's point of view.
+      const hiddenThreshold = -GLOBE_RADIUS * 0.3;
+      // Cloud threshold is a bit higher (they sit above the surface, so the
+      // same world-Y threshold would never catch them unless they really are
+      // on the far side)
+      const cloudHiddenThreshold = -GLOBE_RADIUS * 0.15;
+
+      // Decor slots
+      {
+        const n = decorPool.length;
+        const sampleCount = Math.max(4, Math.floor(n * REGEN_CHECK_FRACTION));
+        for (let k = 0; k < sampleCount; k++) {
+          const i = Math.floor(Math.random() * n);
+          const slot = decorPool[i];
+          if (!slot.holder.visible) continue;
+          if (!slotIsHidden(slot.holder, hiddenThreshold)) continue;
+          if (Math.random() < REGEN_CHANCE_DECOR) {
+            // Re-roll type (mostly regular decor; rarely a feature)
+            const type = Math.random() < 0.02
+              ? FEATURE_TYPES[Math.floor(Math.random() * FEATURE_TYPES.length)]
+              : pickDecorType();
+            setSlotType(slot, type);
+            const p = randomHiddenSurfacePoint();
+            placeSlot(slot, p.lat, p.lon);
+          }
+        }
+      }
+
+      // Clouds
+      {
+        const n = cloudPool.length;
+        const sampleCount = Math.max(3, Math.floor(n * REGEN_CHECK_FRACTION));
+        for (let k = 0; k < sampleCount; k++) {
+          const i = Math.floor(Math.random() * n);
+          const slot = cloudPool[i];
+          if (!slot.holder.visible) continue;
+          if (!slotIsHidden(slot.holder, cloudHiddenThreshold)) continue;
+          if (Math.random() < REGEN_CHANCE_CLOUD) {
+            setCloudMesh(slot);
+            const p = randomHiddenSurfacePoint();
+            const alt = 1.8 + Math.random() * 1.2;
+            placeCloud(slot, p.lat, p.lon, alt);
+          }
+        }
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ANIMATED FEATURES — windmill blades etc.
+    // ──────────────────────────────────────────────────────────────────────────
+    function stepFeatureAnimations(dt) {
+      for (const slot of decorPool) {
+        if (!slot.holder.visible || !slot.mesh) continue;
+        const anim = slot.mesh.userData.animate;
+        if (typeof anim === 'function') anim(dt);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // WORLD RESIZE — rebuild globe + reposition everything at new radius
+    // Called from the slider. Keeps current camera orbit angles but clamps
+    // distance to the new proportional min/max.
+    // ──────────────────────────────────────────────────────────────────────────
+    function resizeWorld(newRadius) {
+      GLOBE_RADIUS = newRadius;
+
+      // Scale fog to match — near/far in world units
+      if (scene.fog) {
+        scene.fog.near = Math.max(4, GLOBE_RADIUS * 1.8);
+        scene.fog.far  = Math.max(12, GLOBE_RADIUS * 4.2);
+      }
+
+      buildGlobe();
+      resizeDecorPool();
+      resizeCloudPool();
+
+      // Character sits at top of globe
+      character.position.set(0, GLOBE_RADIUS, 0);
+
+      // Keep camera framing similar — scale distance proportionally to the
+      // previous target. If user had zoomed, preserve their relative zoom.
+      const prevMin = camDistMin();
+      const prevMax = camDistMax();
+      // Reclamp to new limits (the functions now return values for the new R)
+      camOrbit.dist = Math.max(camDistMin(), Math.min(camDistMax(), camDistDefault()));
+      // (We intentionally snap to default distance on resize — otherwise
+      // huge-to-tiny transitions produce awkward framings.)
+
+      positionCamera();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // SLIDER — world size control
+    // ──────────────────────────────────────────────────────────────────────────
+    const slider = document.getElementById('scale-slider');
+    const readout = document.getElementById('scale-readout');
+
+    function updateSliderFill() {
+      const min = parseFloat(slider.min);
+      const max = parseFloat(slider.max);
+      const val = parseFloat(slider.value);
+      const pct = ((val - min) / (max - min)) * 100;
+      slider.style.setProperty('--fill', pct.toFixed(1) + '%');
+    }
+
+    function describeScale(r) {
+      if (r < 4.2)  return 'tiny';
+      if (r < 6.5)  return 'small';
+      if (r < 9.5)  return 'wide';
+      if (r < 13.5) return 'vast';
+      return 'boundless';
+    }
+
+    // Throttle: rebuilding the globe every input tick is expensive. Queue the
+    // latest value and apply it on the next animation frame. The slider UI
+    // still updates instantly; only the scene rebuild is rate-limited.
+    let pendingRadius = null;
+    let rebuildScheduled = false;
+
+    function flushPendingRebuild() {
+      rebuildScheduled = false;
+      if (pendingRadius !== null) {
+        const r = pendingRadius;
+        pendingRadius = null;
+        resizeWorld(r);
+      }
+    }
+
+    function handleSliderInput() {
+      const v = parseFloat(slider.value);
+      readout.textContent = describeScale(v);
+      updateSliderFill();
+      pendingRadius = v;
+      if (!rebuildScheduled) {
+        rebuildScheduled = true;
+        requestAnimationFrame(flushPendingRebuild);
+      }
+    }
+
+    // `input` fires continuously while dragging
+    slider.addEventListener('input', handleSliderInput);
+
+    // Touch-friendly: stop the drag bubbling up to the canvas orbit handler
+    slider.addEventListener('pointerdown', (e) => e.stopPropagation());
+    slider.addEventListener('touchstart',  (e) => e.stopPropagation(), { passive: true });
+
+    // Initial sync
+    updateSliderFill();
+    readout.textContent = describeScale(parseFloat(slider.value));
+
+    // ──────────────────────────────────────────────────────────────────────────
     // RESIZE
     // ──────────────────────────────────────────────────────────────────────────
     function onResize() {
@@ -918,6 +1866,8 @@
 
       const walking = updateGlobe(dt);
       animateCharacter(dt, walking);
+      stepFeatureAnimations(dt);
+      stepRegen(dt);
       positionCamera();
 
       renderer.render(scene, camera);
