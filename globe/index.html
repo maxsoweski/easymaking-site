@@ -837,7 +837,10 @@
         targetAngVel.addScaledVector(camRight, fwdAmt * WALK_SPEED);
       }
       if (rgtAmt !== 0) {
-        targetAngVel.addScaledVector(camForward, rgtAmt * WALK_SPEED);
+        // Negative because camForward points away-from-camera; D should make
+        // the character appear to walk to the viewer's right (and the world
+        // beneath them roll to the left).
+        targetAngVel.addScaledVector(camForward, -rgtAmt * WALK_SPEED);
       }
 
       // Smooth toward target so starting/stopping isn't jarring
