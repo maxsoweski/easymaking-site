@@ -547,18 +547,22 @@ function step() {
   drawTo(advectMat, velB);
   [velA, velB] = [velB, velA];
 
-  // 2) Diffuse velocity (viscosity) — a couple of Jacobi iterations
+  // 2) Diffuse velocity (viscosity) — relaxed Jacobi iterations.
+  // Note: proper Jacobi needs a fixed b-term (the pre-diffusion velocity),
+  // which requires a 3rd texture. With only 2 ping-pong textures, we let the
+  // b-term drift with u_prev. That's mathematically a repeated smoothing
+  // rather than a true diffusion solve — visually indistinguishable for our
+  // purposes, and avoids a framebuffer/texture feedback loop.
   const visc = state.viscosity;
   if (visc > 0.001) {
-    // alpha = dx^2 / (nu * dt) — in sim-cell coordinates dx=1, treat nu*dt as visc
     const alpha = 1.0 / Math.max(0.001, visc * dt);
     const rBeta = 1.0 / (4.0 + alpha);
-    diffuseMat.uniforms.u_target.value = velA.texture;
     diffuseMat.uniforms.u_alpha.value = alpha;
     diffuseMat.uniforms.u_rBeta.value = rBeta;
     const iters = 6;
     for (let i = 0; i < iters; i++) {
       diffuseMat.uniforms.u_prev.value = velA.texture;
+      diffuseMat.uniforms.u_target.value = velA.texture;
       drawTo(diffuseMat, velB);
       [velA, velB] = [velB, velA];
     }
