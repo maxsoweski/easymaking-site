@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L26: Parallax Occlusion Mapping · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">26.</span>Parallax occlusion mapping</span>
+  </div>
+  <nav class="prev-next">
+    <a href="25-gerstner-waves.html">← prev</a>
+    <a href="27-raymarching.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Parallax occlusion mapping</h1>
+  <div class="lesson-subtitle">Arc 5 · 3D Geometry · Lesson 26 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="depth">depth</label>
+      <input type="range" id="depth" min="0" max="0.2" step="0.002" value="0.08">
+      <div class="value" id="depth-value">0.08</div>
+    </div>
+    <div class="control">
+      <label for="tilt">camera tilt</label>
+      <input type="range" id="tilt" min="15" max="82" step="1" value="30">
+      <div class="value" id="tilt-value">30</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A brick wall can <em>look</em> deeply inset without any of its geometry actually being inset — if every pixel shifts which texel it samples based on the viewing angle, bricks slide realistically as you move, selling depth that isn't there.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Normal mapping (L22) fakes <em>lighting</em> as if the surface had bumps. That works until you look at the wall sideways — the bumps don't move against each other like real depth would, and the illusion collapses. POM adds one more trick: for each pixel, instead of sampling the texture at the pixel's own UV, raymarch the view ray <em>into</em> a heightmap attached to the surface.</p>
+    <p>Step forward along the ray, checking at each step: <em>am I still above the surface at this height?</em> When you first dip below, stop — that's where the pixel "really" is. Use <em>that</em> UV for the texture sample. Bricks slide against each other with parallax, as if they were truly inset.</p>
+    <p>All of this happens in the <strong>fragment stage</strong>. The mesh is still a flat quad. The silhouette is still flat. But everything inside the shape feels solid. Critical contrast with L24: vertex-data is unchanged, per-pixel <em>coordinate</em> is hijacked.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Set <code>depth</code> to max and drag <code>camera tilt</code> toward 80°</strong> (grazing angle). The edges of the quad reveal the truth — the brick wall has no thickness. A real displaced mesh (L24 on a subdivided plane) would stick ridges out past the silhouette. POM can't. <em>Teaches the entire tradeoff:</em> POM is cheaper than true displacement (no mesh subdivision needed) but it lies about silhouettes. For flat walls and floors viewed head-on, it's invisible; for objects viewed from any angle, it breaks.</p>
+    <p>This is the core fragment-stage-vs-vertex-stage tradeoff of Arc 5 — feel it, don't just hear it. Pull <code>depth</code> to 0 and watch the wall flatten to painted-on. Push it up and bricks visibly sink. Find the angle at which they start to shear unnaturally at the quad's edge.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"painted-on bricks"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth to 0 (normal-map only)</span>
+
+      <span class="phrase">"deeper inset bricks"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth up</span>
+
+      <span class="phrase">"exaggerated relief / cartoon carving"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth high</span>
+
+      <span class="phrase">"carved stone floor"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">POM with moderate depth</span>
+
+      <span class="phrase">"looks fine head-on but weird from the side"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">POM's limit — switch to real displacement (L24) or tessellation</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"fake it per-pixel"</em> vs. <em>"really move the geometry."</em> You can now tell a developer <em>"POM is fine here, the view is always head-on"</em> or <em>"we need actual displacement, this is a hero asset."</em>
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L24 (the honest vertex-stage alternative), L22 (Normal/Bump — POM reuses the same heightmap), L21 (PBR — POM's depth illusion is sold by how parallax-shifted normals light correctly).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader doing all the work (mesh is a flat quad)</span>
+    </div>
+    <pre id="code-pre"><code>// VERTEX STAGE — unchanged. Just a flat quad; pass UV and view direction.
+varying vec2 vUv;
+varying vec3 vViewTS;     // view direction in tangent space (surface-local)
+
+void main() {
+  vUv = uv;
+  // Plane is in local space with normal +Z, tangent +X, bitangent +Y.
+  // View in tangent space is the vector FROM the surface TO the camera.
+  vec3 worldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+  vec3 toCam = normalize(cameraPosition - worldPos);
+  mat3 invModel = mat3(transpose(inverse(modelMatrix)));
+  vViewTS = normalize(invModel * toCam);
+  gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+}
+
+// FRAGMENT STAGE — the ENTIRE POM effect lives here.
+// Procedural brick heightmap. Raymarch the view ray into it.
+uniform float u_depth;
+varying vec2 vUv;
+varying vec3 vViewTS;
+
+// Brick heightmap: low in mortar channels, high on brick faces.
+float heightAt(vec2 uv) {
+  vec2 scaled = uv * vec2(6.0, 12.0);    // 6 bricks wide, 12 rows
+  float row = floor(scaled.y);
+  scaled.x += mod(row, 2.0) * 0.5;       // offset every other row (running bond)
+  vec2 f = fract(scaled);
+  // Inset mortar gaps: bricks are high (1.0), mortar is low (0.0)
+  float mx = smoothstep(0.0, 0.06, f.x) * smoothstep(0.0, 0.06, 1.0 - f.x);
+  float my = smoothstep(0.0, 0.10, f.y) * smoothstep(0.0, 0.10, 1.0 - f.y);
+  return mx * my;
+}
+
+void main() {
+  vec3 V = normalize(vViewTS);
+  // Parallax offset per unit of depth, in UV units per unit of height.
+  // The classic POM direction is -V.xy / V.z (ray entering the surface).
+  vec2 dir = -V.xy / max(V.z, 0.1) * u_depth;
+
+  // Sphere-tracing-lite: fixed-step raymarch down through the heightfield.
+  const int STEPS = 32;
+  float layer = 1.0;
+  vec2 uv = vUv;
+  float h = heightAt(uv);
+  // Walk along the ray, dropping height each step. Stop when layer dips
+  // below the heightmap — that's where the view ray first "hits" the surface.
+  for (int i = 0; i < STEPS; i++) {
+    if (layer < h) break;
+    layer -= 1.0 / float(STEPS);
+    uv += dir / float(STEPS);
+    h = heightAt(uv);
+  }
+
+  // Shade with the parallax-shifted UV: this is the ENTIRE POM illusion.
+  float height = heightAt(uv);
+  vec3 brick = mix(vec3(0.22, 0.12, 0.10), vec3(0.74, 0.38, 0.26), height);
+  vec3 mortar = vec3(0.22, 0.20, 0.17);
+  vec3 col = mix(mortar, brick, smoothstep(0.05, 0.4, height));
+
+  // Light from above, with a fake normal from the heightmap gradient.
+  vec2 e = vec2(0.002, 0.0);
+  float hx = heightAt(uv + e.xy) - heightAt(uv - e.xy);
+  float hy = heightAt(uv + e.yx) - heightAt(uv - e.yx);
+  vec3 n = normalize(vec3(-hx, -hy, 0.05));
+  float shade = max(0.0, dot(n, normalize(vec3(0.3, 0.6, 0.8))));
+  col *= 0.45 + 0.75 * shade;
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x0b0a12, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+
+// Flat 1x1 quad. Completely flat geometry — POM is all fragment-stage work.
+const geometry = new THREE.PlaneGeometry(2.6, 2.6, 1, 1);
+
+const uniforms = {
+  u_depth: { value: 0.08 },
+};
+
+const vertexShader = `
+  varying vec2 vUv;
+  varying vec3 vViewTS;
+
+  void main() {
+    vUv = uv;
+    vec3 worldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+    vec3 toCam = normalize(cameraPosition - worldPos);
+    mat3 invModel = mat3(transpose(inverse(modelMatrix)));
+    vViewTS = normalize(invModel * toCam);
+    gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+  }
+`;
+
+const fragmentShader = `
+  uniform float u_depth;
+  varying vec2 vUv;
+  varying vec3 vViewTS;
+
+  float heightAt(vec2 uv) {
+    vec2 scaled = uv * vec2(6.0, 12.0);
+    float row = floor(scaled.y);
+    scaled.x += mod(row, 2.0) * 0.5;
+    vec2 f = fract(scaled);
+    float mx = smoothstep(0.0, 0.06, f.x) * smoothstep(0.0, 0.06, 1.0 - f.x);
+    float my = smoothstep(0.0, 0.10, f.y) * smoothstep(0.0, 0.10, 1.0 - f.y);
+    return mx * my;
+  }
+
+  void main() {
+    vec3 V = normalize(vViewTS);
+    vec2 dir = -V.xy / max(V.z, 0.1) * u_depth;
+
+    const int STEPS = 32;
+    float layer = 1.0;
+    vec2 uv = vUv;
+    float h = heightAt(uv);
+    for (int i = 0; i < STEPS; i++) {
+      if (layer < h) break;
+      layer -= 1.0 / float(STEPS);
+      uv += dir / float(STEPS);
+      h = heightAt(uv);
+    }
+
+    float height = heightAt(uv);
+    vec3 brick = mix(vec3(0.22, 0.12, 0.10), vec3(0.74, 0.38, 0.26), height);
+    vec3 mortar = vec3(0.22, 0.20, 0.17);
+    vec3 col = mix(mortar, brick, smoothstep(0.05, 0.4, height));
+
+    vec2 e = vec2(0.002, 0.0);
+    float hx = heightAt(uv + e.xy) - heightAt(uv - e.xy);
+    float hy = heightAt(uv + e.yx) - heightAt(uv - e.yx);
+    vec3 n = normalize(vec3(-hx, -hy, 0.05));
+    float shade = max(0.0, dot(n, normalize(vec3(0.3, 0.6, 0.8))));
+    col *= 0.45 + 0.75 * shade;
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const material = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader,
+  fragmentShader,
+  side: THREE.DoubleSide,
+});
+
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+function setCamera(tiltDeg) {
+  // Keep the quad centered; orbit camera to a tilt angle around the horizontal axis.
+  const rad = tiltDeg * Math.PI / 180;
+  const dist = 3.4;
+  camera.position.set(0, dist * Math.sin(rad), dist * Math.cos(rad));
+  camera.lookAt(0, 0, 0);
+}
+setCamera(30);
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+function animate() {
+  resize();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+const depthSlider = document.getElementById('depth');
+const depthValue = document.getElementById('depth-value');
+function updateDepth() {
+  const v = parseFloat(depthSlider.value);
+  uniforms.u_depth.value = v;
+  depthValue.textContent = v.toFixed(3);
+}
+depthSlider.addEventListener('input', updateDepth);
+updateDepth();
+
+const tiltSlider = document.getElementById('tilt');
+const tiltValue = document.getElementById('tilt-value');
+function updateTilt() {
+  const v = parseFloat(tiltSlider.value);
+  setCamera(v);
+  tiltValue.textContent = v.toFixed(0);
+}
+tiltSlider.addEventListener('input', updateTilt);
+updateTilt();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('25-gerstner-waves.html', '27-raymarching.html');
+</script>
+</body>
+</html>

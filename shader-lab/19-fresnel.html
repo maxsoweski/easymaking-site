@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L19: Fresnel / Rim Light · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">19.</span>Fresnel / Rim Light</span>
+  </div>
+  <nav class="prev-next">
+    <a href="18-blinn-phong.html">← prev</a>
+    <a href="20-toon.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Fresnel / Rim Light</h1>
+  <div class="lesson-subtitle">Arc 4 · 3D Lighting · Lesson 19 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="edge-sharpness">edge-sharpness</label>
+      <input type="range" id="edge-sharpness" min="0.5" max="16" step="0.1" value="4">
+      <div class="value" id="edge-sharpness-value">4.00</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Fresnel is the opposite question from specular — instead of "where does the normal point at the camera," it asks "where does the normal point <em>away</em> from the camera," and that grazing-angle rim is what makes silhouettes pop.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Every surface reflects more light at glancing angles than head-on. Look at a lake from above — it's transparent. Look at it across the horizon — it's a mirror. That's Fresnel. The formula flips the specular dot: where <code>dot(normal, view)</code> is near zero (surface edge-on to the camera), <code>1 - dot(normal, view)</code> is near one. Raise that to a power to control sharpness, and you get a bright ring along the silhouette.</p>
+    <p>Rim light does two things nothing else does: it separates a character from the background regardless of actual lighting, and it suggests soft-edged materials — skin, velvet, bubbles, force fields. It's also the term living <em>inside</em> PBR's Fresnel later, so learning it isolated means L21 has nothing new conceptually.</p>
+    <p>Drag <code>edge-sharpness</code> and watch the glow pull toward the true silhouette as the exponent climbs.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Edge-sharpness to its minimum (~0.5).</strong> The whole object glows like an unlit sphere pretending to be a light. The "edge" disappears because Fresnel with no power is just a soft inverse dot — a different effect entirely.</p>
+    <p><em>Teaches:</em> Fresnel needs the exponent to read as an <em>edge</em>. Without it, you've built a cheap ambient bloom, not a rim.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"pop the silhouette"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">rim light on</span>
+
+      <span class="phrase">"softer halo"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">edge-sharpness down</span>
+
+      <span class="phrase">"thin crisp outline glow"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">edge-sharpness up</span>
+
+      <span class="phrase">"backlit feel"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">rim color cool/blue, rim intensity up</span>
+
+      <span class="phrase">"skin sheen"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">rim with low power, warm tint</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> "grazing angle" is the right description — it covers rim light, Fresnel in PBR, water at the horizon, and any effect that brightens where a surface turns edge-on to the viewer.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L17/L18 (sits as a third term in the lighting sum), L20 (toon often quantizes rim into a hard band), L21 (PBR Fresnel is this exact math wired into the spec reflection). Also a staple of character portraits and sci-fi shielding.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the vertex + fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>// VERTEX — normal + world position (we need view direction in frag)
+varying vec3 vNormal;
+varying vec3 vWorldPos;
+
+void main() {
+  vNormal = normalize(normalMatrix * normal);
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}
+
+// FRAGMENT — Lambert + Fresnel rim (grazing-angle highlight)
+uniform vec3 uLightDir;
+uniform vec3 uBaseColor;
+uniform vec3 uRimColor;
+uniform float uEdgeSharpness;
+uniform vec3 uCameraPos;
+
+varying vec3 vNormal;
+varying vec3 vWorldPos;
+
+void main() {
+  vec3 n = normalize(vNormal);
+  vec3 v = normalize(uCameraPos - vWorldPos);
+
+  float diffuse = max(0.0, dot(n, uLightDir));
+  float rim = pow(1.0 - max(0.0, dot(n, v)), uEdgeSharpness);
+
+  vec3 col = uBaseColor * (0.08 + diffuse) + uRimColor * rim;
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupArrowNav, setupCodeToggle, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
+camera.position.set(0, 0.6, 5.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const vertexSrc = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vWorldPos = wp.xyz;
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }
+`;
+
+const fragmentSrc = `
+  uniform vec3 uLightDir;
+  uniform vec3 uBaseColor;
+  uniform vec3 uRimColor;
+  uniform float uEdgeSharpness;
+  uniform vec3 uCameraPos;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vec3 n = normalize(vNormal);
+    vec3 v = normalize(uCameraPos - vWorldPos);
+    float diffuse = max(0.0, dot(n, uLightDir));
+    float rim = pow(1.0 - max(0.0, dot(n, v)), uEdgeSharpness);
+    vec3 col = uBaseColor * (0.08 + diffuse) + uRimColor * rim;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const material = new THREE.ShaderMaterial({
+  vertexShader: vertexSrc,
+  fragmentShader: fragmentSrc,
+  uniforms: {
+    uLightDir: { value: new THREE.Vector3(0.8, 0.4, 0.6).normalize() },
+    uBaseColor: { value: new THREE.Color(0x4a4668) },
+    uRimColor: { value: new THREE.Color(0xfff2d1).multiplyScalar(1.6) },
+    uEdgeSharpness: { value: 4 },
+    uCameraPos: { value: camera.position.clone() },
+  },
+});
+
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.9, 96, 96), material);
+sphere.position.set(-1.1, 0, 0);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), material);
+cube.position.set(1.25, 0, 0);
+scene.add(cube);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w > 0 && h > 0) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+const clock = new THREE.Clock();
+function tick() {
+  const t = clock.getElapsedTime();
+  sphere.rotation.y = t * 0.25;
+  cube.rotation.y = t * 0.25;
+  cube.rotation.x = t * 0.12;
+  material.uniforms.uCameraPos.value.copy(camera.position);
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+const sharpSlider = document.getElementById('edge-sharpness');
+const sharpValue = document.getElementById('edge-sharpness-value');
+function updateSharp() {
+  const v = parseFloat(sharpSlider.value);
+  material.uniforms.uEdgeSharpness.value = v;
+  sharpValue.textContent = v.toFixed(2);
+}
+sharpSlider.addEventListener('input', updateSharp);
+updateSharp();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('18-blinn-phong.html', '20-toon.html');
+</script>
+</body>
+</html>

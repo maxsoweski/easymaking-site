@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L10: Domain Warping · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">10.</span>Domain warping</span>
+  </div>
+  <nav class="prev-next">
+    <a href="09-fbm.html">← prev</a>
+    <a href="11-dithering.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Domain warping</h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 10 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="turbulence">turbulence</label>
+      <input type="range" id="turbulence" min="0" max="2" step="0.01" value="0.6">
+      <div class="value" id="turbulence-value">0.60</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>If you offset a noise's input coordinate with <em>another</em> noise, you get molten, curling, wavy, turbulent results. This trick — "noise warping noise" — is how almost all organic, stream-like, flowing textures are made.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>So far the coordinate layer has been simple: scale it, snap it, sine-offset it. Domain warping puts noise <em>in</em> the coordinate layer itself. Evaluate noise at the pixel's UV to get a small 2D offset, then add that offset to the UV and evaluate <em>another</em> noise at the warped coordinate.</p>
+    <p>The first noise decides <em>where each point asks</em>; the second noise decides <em>what each point gets</em>. Because the warp is smooth, neighboring pixels still get nearby-ish answers — but the warp bends contours into rivers, veins, and whorls. The technique is dirt cheap and transforms any noise from "clouds" to "lava," "smoke," or "marble" with one extra function call.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Start at <code>turbulence</code> = 0 and slowly raise to maximum.</strong> Watch the contours of the noise — the iso-lines where brightness is constant. At 0 they're rounded blobs; as turbulence rises they bend, stretch, then pinch and curl into the paisley/flame-tongue shapes that are the visual signature of warping. <em>Teaches:</em> domain warping operates on <strong>contours, not on brightness</strong>. You're bending the map of equal values; whatever lives along those contours (marble veins, flame edges) bends with them.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"lava flow / molten"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">turbulence high, warm palette</span>
+
+      <span class="phrase">"marble veins"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">turbulence low-medium, contour the result with a high-contrast palette</span>
+
+      <span class="phrase">"fire tongues"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">turbulence medium, vertical coordinate stretch before the warp, hot palette</span>
+
+      <span class="phrase">"gently curled clouds"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">turbulence very low</span>
+
+      <span class="phrase">"warp twice for more character"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">iterate — nest the offset noise inside another offset noise (iquilezles's recipe)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"warp the coordinate with noise"</em> / <em>"domain warping."</em> Also <em>"iterated warp"</em> for the nested version. You can now ask for this effect by name.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L8/L9 (both the base noise and the warping noise are Perlin/FBM), Arc 3's procedural textures (marble, lava, fire all live here), L6 (sine-UV warping is a degenerate domain warp where the "noise" is a sine).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_turbulence;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float perlin(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float a = dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+  float b = dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+  float c = dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+  float d = dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbm(vec2 p) {
+  float total = 0.0;
+  float amp = 0.5;
+  float freq = 1.0;
+  for (int i = 0; i &lt; 5; i++) {
+    total += amp * perlin(p * freq);
+    freq *= 2.0;
+    amp  *= 0.5;
+  }
+  return total;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  vec2 p = uv * 2.5;
+
+  // COORDINATE LAYER — the offset itself is noise. Two noise calls
+  // (different seeds via +100) give a 2D offset vector.
+  vec2 offset = vec2(fbm(p + vec2(0.0, 0.0)),
+                     fbm(p + vec2(100.0, 100.0)));
+
+  // SIGNAL LAYER — final FBM evaluated at the warped coordinate.
+  float n = fbm(p + offset * u_turbulence);
+  float v = 0.5 + 0.5 * n;
+
+  gl_FragColor = vec4(vec3(v), 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_turbulence;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float perlin(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float a = dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+  float b = dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+  float c = dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+  float d = dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbm(vec2 p) {
+  float total = 0.0;
+  float amp = 0.5;
+  float freq = 1.0;
+  for (int i = 0; i < 5; i++) {
+    total += amp * perlin(p * freq);
+    freq *= 2.0;
+    amp  *= 0.5;
+  }
+  return total;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  vec2 p = uv * 2.5;
+  vec2 offset = vec2(fbm(p + vec2(0.0, 0.0)),
+                     fbm(p + vec2(100.0, 100.0)));
+  float n = fbm(p + offset * u_turbulence);
+  float v = 0.5 + 0.5 * n;
+  gl_FragColor = vec4(vec3(v), 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_turbulence: { type: '1f', value: 0.6 },
+});
+if (app) {
+  bindSlider(document.getElementById('turbulence'), document.getElementById('turbulence-value'), app, 'u_turbulence');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('09-fbm.html', '11-dithering.html');
+</script>
+</body>
+</html>

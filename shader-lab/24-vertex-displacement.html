@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L24: Vertex Displacement · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">24.</span>Vertex displacement</span>
+  </div>
+  <nav class="prev-next">
+    <a href="23-triplanar.html">← prev</a>
+    <a href="25-gerstner-waves.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Vertex displacement</h1>
+  <div class="lesson-subtitle">Arc 5 · 3D Geometry · Lesson 24 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="sway">sway</label>
+      <input type="range" id="sway" min="0" max="1" step="0.01" value="0.35">
+      <div class="value" id="sway-value">0.35</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Before the GPU rasterizes a mesh into pixels, a <em>vertex shader</em> runs on every vertex — moving those points in 3D space is how you make flags flap, grass sway, and flesh wobble.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Every lesson before this has worked on a canvas someone else drew. The mesh was fixed; you painted it. The vertex shader is the stage <em>before</em> that — it runs once per vertex, receives the vertex's original position, and outputs a (possibly changed) position. Offset each vertex by <code>sin(time + worldPosition)</code> and a flat plane becomes a rippling banner.</p>
+    <p>The silhouette actually changes, because the triangles themselves have moved — unlike anything in the fragment layer, which can only paint within the shape it was given. Push <code>sway</code> and watch the <em>outline</em> of the plane breathe. That's only possible here, at the vertex stage.</p>
+    <p>Two costs: (1) lighting normals were computed from the <em>original</em> mesh, so they're stale on the now-displaced surface — you can see it in slightly-off shading on the crests; (2) detail is limited by mesh density, because the GPU interpolates linearly between vertices.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Crank <code>sway</code> to max</strong> and watch the crests. Notice the faceted look near peaks — the displacement is smooth mathematically, but the mesh only has a finite number of vertices, so the GPU interpolates in straight lines between them. You're seeing the polygons. <em>Teaches:</em> vertex work is coarse. A smooth-looking wind on a flag requires either a dense mesh or tessellation — this is where Gerstner waves (L25) need a subdivided water plane, and where POM (L26) cheats by not touching geometry at all.</p>
+    <p>Also notice the lighting on the crests looks slightly wrong — highlights don't quite track the bumps. Those are the stale normals from the flat plane, still pointing straight up while the surface has tilted underneath them. Fixing that means recomputing normals in the vertex shader, which is extra work this lesson skips on purpose.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"make it sway"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">sway up</span>
+
+      <span class="phrase">"add wind"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">sway up, slower noise time-scale</span>
+
+      <span class="phrase">"flabby / wobbly"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">sway up, lower noise frequency</span>
+
+      <span class="phrase">"tauter, just a breeze"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">sway down</span>
+
+      <span class="phrase">"do this in the vertex shader"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">the silhouette needs to change — vertex stage</span>
+
+      <span class="phrase">"do this in the fragment shader"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">only surface color changes — fragment stage</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"do this in the vertex shader"</em> vs. <em>"do this in the fragment shader"</em> — the single most important disambiguation for any shader effect. From now on, when you see something moving in 3D, ask: <em>is the silhouette changing?</em> If yes, it's vertex work.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L25 (Gerstner — a specific recipe for vertex displacement), L26 (POM — the per-pixel counterpart that fakes the same thing without moving geometry), L17-L21 (any lighting lesson — shows why stale normals look wrong on displaced surfaces).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the vertex + fragment shaders running above</span>
+    </div>
+    <pre id="code-pre"><code>// VERTEX STAGE — pre-fragment coordinate layer.
+// Runs once per vertex BEFORE the mesh is rasterized.
+uniform float u_time;
+uniform float u_sway;
+varying vec3 vNormal;
+varying float vDisplace;
+
+// Cheap 3D value noise for the wind field
+float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float noise(vec3 p) {
+  vec3 i = floor(p); vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(hash(i+vec3(0,0,0)), hash(i+vec3(1,0,0)), f.x),
+        mix(hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)), f.x), f.y),
+    mix(mix(hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)), f.x),
+        mix(hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)), f.x), f.y),
+    f.z);
+}
+
+void main() {
+  // Each vertex starts at its rest position. We push it ALONG the normal
+  // by a noise value — so flat plane vertices rise and fall like wind.
+  float n = noise(position * 1.2 + vec3(u_time * 0.6));
+  float offset = (n - 0.5) * u_sway;
+  vec3 displaced = position + normal * offset;
+
+  vDisplace = offset;
+  vNormal = normal;  // STALE — the flat-plane normal, not the new surface
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+}
+
+// FRAGMENT STAGE — simple Lambert-ish shading using the stale normal.
+// The slightly wrong highlights on crests are a feature of this lesson.
+varying vec3 vNormal;
+varying float vDisplace;
+
+void main() {
+  vec3 light = normalize(vec3(0.5, 0.8, 0.4));
+  float shade = max(0.0, dot(normalize(vNormal), light));
+  vec3 warm = vec3(0.96, 0.74, 0.52);
+  vec3 cool = vec3(0.38, 0.52, 0.66);
+  vec3 base = mix(cool, warm, 0.5 + vDisplace * 2.0);
+  vec3 col = base * (0.25 + 0.85 * shade);
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x0b0a12, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+camera.position.set(0, 2.4, 5.2);
+camera.lookAt(0, 0, 0);
+
+// Subdivided flat plane — density matters for vertex-displacement smoothness
+const geometry = new THREE.PlaneGeometry(5, 5, 64, 64);
+geometry.rotateX(-Math.PI / 2);
+
+const uniforms = {
+  u_time: { value: 0 },
+  u_sway: { value: 0.35 },
+};
+
+const vertexShader = `
+  uniform float u_time;
+  uniform float u_sway;
+  varying vec3 vNormal;
+  varying float vDisplace;
+
+  float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+  float noise(vec3 p) {
+    vec3 i = floor(p); vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(hash(i+vec3(0,0,0)), hash(i+vec3(1,0,0)), f.x),
+          mix(hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)), f.x),
+          mix(hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)), f.x), f.y),
+      f.z);
+  }
+
+  void main() {
+    float n = noise(position * 1.2 + vec3(u_time * 0.6));
+    float offset = (n - 0.5) * u_sway;
+    vec3 displaced = position + normal * offset;
+
+    vDisplace = offset;
+    vNormal = normal;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+  }
+`;
+
+const fragmentShader = `
+  varying vec3 vNormal;
+  varying float vDisplace;
+
+  void main() {
+    vec3 light = normalize(vec3(0.5, 0.8, 0.4));
+    float shade = max(0.0, dot(normalize(vNormal), light));
+    vec3 warm = vec3(0.96, 0.74, 0.52);
+    vec3 cool = vec3(0.38, 0.52, 0.66);
+    vec3 base = mix(cool, warm, 0.5 + vDisplace * 2.0);
+    vec3 col = base * (0.25 + 0.85 * shade);
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const material = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader,
+  fragmentShader,
+  side: THREE.DoubleSide,
+});
+
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+const start = performance.now();
+function animate() {
+  uniforms.u_time.value = (performance.now() - start) / 1000;
+  resize();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Slider wiring
+const swaySlider = document.getElementById('sway');
+const swayValue = document.getElementById('sway-value');
+function updateSway() {
+  const v = parseFloat(swaySlider.value);
+  uniforms.u_sway.value = v;
+  swayValue.textContent = v.toFixed(2);
+}
+swaySlider.addEventListener('input', updateSway);
+updateSway();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('23-triplanar.html', '25-gerstner-waves.html');
+</script>
+</body>
+</html>

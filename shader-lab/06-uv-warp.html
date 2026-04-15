@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L6: UV Warp with Sine · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">06.</span>UV warp</span>
+  </div>
+  <nav class="prev-next">
+    <a href="05-pixelation.html">← prev</a>
+    <a href="07-chromatic-aberration.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">UV warp with sine</h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 6 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="wobble">wobble</label>
+      <input type="range" id="wobble" min="0" max="0.1" step="0.001" value="0.02">
+      <div class="value" id="wobble-value">0.02</div>
+    </div>
+    <div class="control">
+      <label for="speed">speed</label>
+      <input type="range" id="speed" min="0" max="5" step="0.05" value="1.2">
+      <div class="value" id="speed-value">1.20</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Adding a time-driven sine wave to the UV before sampling produces a wobbling, rippling, drifting image — the first demonstration that the coordinate layer plus a clock makes motion, with nothing else needed.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>The coordinate layer doesn't have to be static. If the offset you add to each UV is itself a function of <code>time</code>, the image moves — even though the source scene is a single still frame. A sine of <code>uv.y</code> plus <code>time</code> pushes each row of pixels left and right on a schedule; the whole image appears to wobble horizontally.</p>
+    <p>Change what's <em>inside</em> the sine and you change the shape of the motion: sine of distance-from-center gives ripple rings; sine of UV plus a scrolling noise gives heat haze. The <em>source of the wave</em> is what directs the motion; the sine just turns that source into oscillation.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Crank <code>wobble</code> to the maximum and let <code>speed</code> run.</strong> UVs now regularly exceed 0 and 1, so you see whatever happens past the scene's edge — stretched pixels, wrapped copies, or dead space. <em>Teaches:</em> UV space is a bounded rectangle. A warp doesn't invent new image content; it just asks the scene about locations the scene may or may not have answers for. Knowing your sampler's edge behavior is part of directing any distortion effect.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"gentle ripple / underwater"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">wobble low, speed low</span>
+
+      <span class="phrase">"heat haze above the fire"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">wobble low, speed medium, plus a mask limiting it to the hot region</span>
+
+      <span class="phrase">"broken-signal shake / glitch"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">wobble higher, speed high</span>
+
+      <span class="phrase">"vertical ripple instead of horizontal"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">swap which UV axis the sine reads from</span>
+
+      <span class="phrase">"more waves across the screen"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">increase the multiplier inside the sine (frequency)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"time-driven coordinate offset."</em> The general class this lesson teaches, encompassing every ripple, wobble, shimmer, and drift you'll ever need to brief.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L3 (<code>sin</code> primitive, generalized), L7 (chromatic aberration is often applied <em>to</em> a wobbling image for extra analog feel), L12 (a CRT's tiny scanline-synced wobble is a UV warp on the horizontal scanline phase).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_wobble;
+uniform float u_speed;
+
+vec3 scene(vec2 uv) {
+  // Off-screen reads return flat space so the warp edges are visible.
+  if (uv.x &lt; 0.0 || uv.x &gt; 1.0 || uv.y &lt; 0.0 || uv.y &gt; 1.0) {
+    return vec3(0.04, 0.03, 0.08);
+  }
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y &lt; 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  // COORDINATE LAYER — offset x by a sine whose phase depends on y + time.
+  // Rows at different y values wobble out of sync, producing the ripple.
+  float phase = uv.y * 20.0 + u_time * u_speed * 2.0;
+  uv.x += sin(phase) * u_wobble;
+
+  gl_FragColor = vec4(scene(uv), 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_wobble;
+uniform float u_speed;
+
+vec3 scene(vec2 uv) {
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+    return vec3(0.04, 0.03, 0.08);
+  }
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y < 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float phase = uv.y * 20.0 + u_time * u_speed * 2.0;
+  uv.x += sin(phase) * u_wobble;
+  gl_FragColor = vec4(scene(uv), 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_wobble: { type: '1f', value: 0.02 },
+  u_speed: { type: '1f', value: 1.2 },
+});
+if (app) {
+  bindSlider(document.getElementById('wobble'), document.getElementById('wobble-value'), app, 'u_wobble');
+  bindSlider(document.getElementById('speed'), document.getElementById('speed-value'), app, 'u_speed');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('05-pixelation.html', '07-chromatic-aberration.html');
+</script>
+</body>
+</html>

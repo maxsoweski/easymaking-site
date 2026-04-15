@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L17: Lambert · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">17.</span>Lambert</span>
+  </div>
+  <nav class="prev-next">
+    <a href="16-truchet.html">← prev</a>
+    <a href="18-blinn-phong.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Lambert</h1>
+  <div class="lesson-subtitle">Arc 4 · 3D Lighting · Lesson 17 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="sun-angle">sun-angle</label>
+      <input type="range" id="sun-angle" min="0" max="360" step="1" value="45">
+      <div class="value" id="sun-angle-value">45</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Diffuse shading is one dot product — how aligned the surface is with the light — and every lighting model from here on is a variation or addition on top of that one dot.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>In 2D, every pixel asked "where am I on the screen?" In 3D, every pixel also asks "which way am I facing?" That facing is the <strong>surface normal</strong>, a unit vector pointing straight out of the surface. The light has a direction too. When the surface points <em>at</em> the light, <code>dot(normal, light)</code> is 1 (fully lit). When it's perpendicular, the dot is 0 (the terminator). When it faces away, the dot goes negative — we clamp it to 0, giving pitch black.</p>
+    <p>That single number, multiplied by the surface color, is Lambert. It is what chalk, matte paper, and unfinished wood look like — light scatters equally in all directions, so brightness depends only on <em>how much</em> light hits the surface, not on <em>where</em> the camera is. Move your head around a Lambert sphere and nothing changes.</p>
+    <p>Drag <code>sun-angle</code> and watch the bright band follow the light. Everything you'll ever learn about lighting is variations on that band.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Park the sun directly behind the hero meshes</strong> (around <code>sun-angle = 270</code>, with 90 lighting them from the camera's side). The visible faces go pitch black — every normal pointing at the camera points <em>away</em> from the light, so the dot is negative and we clamp.</p>
+    <p><em>Teaches:</em> pure Lambert has no ambient term. "Away from the light" means zero photons, full stop. This is why real engines always add a tiny ambient floor or a fill light — otherwise shadowed sides are unreadable.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"darker shadow side"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">lower ambient floor (or stay pure Lambert)</span>
+
+      <span class="phrase">"softer wrap around the terminator"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">Half-Lambert (remap dot with *0.5 + 0.5)</span>
+
+      <span class="phrase">"warmer daylight"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">light color shift</span>
+
+      <span class="phrase">"light it from camera-left"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">sun-angle parameter</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"how aligned are the normal and the light"</em> is the signal under every lighting model you'll meet. Specular, Fresnel, toon, PBR — all variations on this one dot.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L18 (Blinn-Phong adds a specular term on top), L20 (toon quantizes this exact scalar), L21 (PBR replaces the model but keeps the "angle to light" intuition).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the vertex + fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>// VERTEX — pass the world-space normal to the fragment stage
+varying vec3 vNormal;
+
+void main() {
+  vNormal = normalize(normalMatrix * normal);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+
+// FRAGMENT — one dot product, clamped to zero, times base color
+uniform vec3 uLightDir;      // world-space light direction (unit vector)
+uniform vec3 uBaseColor;
+varying vec3 vNormal;
+
+void main() {
+  vec3 n = normalize(vNormal);
+  float lambert = max(0.0, dot(n, uLightDir));   // THE lighting signal
+  vec3 col = uBaseColor * lambert;                // no ambient, no specular
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupArrowNav, setupCodeToggle, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
+camera.position.set(0, 0.6, 5.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Pure Lambert — no ambient, just one directional "sun"
+const vertexSrc = `
+  varying vec3 vNormal;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const fragmentSrc = `
+  uniform vec3 uLightDir;
+  uniform vec3 uBaseColor;
+  varying vec3 vNormal;
+  void main() {
+    vec3 n = normalize(vNormal);
+    float lambert = max(0.0, dot(n, uLightDir));
+    vec3 col = uBaseColor * lambert;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const material = new THREE.ShaderMaterial({
+  vertexShader: vertexSrc,
+  fragmentShader: fragmentSrc,
+  uniforms: {
+    uLightDir: { value: new THREE.Vector3(1, 0.5, 1).normalize() },
+    uBaseColor: { value: new THREE.Color(0xd4a373) },
+  },
+});
+
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.9, 96, 96), material);
+sphere.position.set(-1.1, 0, 0);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), material);
+cube.position.set(1.25, 0, 0);
+scene.add(cube);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w > 0 && h > 0) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+const clock = new THREE.Clock();
+function tick() {
+  const t = clock.getElapsedTime();
+  sphere.rotation.y = t * 0.25;
+  cube.rotation.y = t * 0.25;
+  cube.rotation.x = t * 0.12;
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+// sun-angle slider — orbits the directional light around the scene
+const angleSlider = document.getElementById('sun-angle');
+const angleValue = document.getElementById('sun-angle-value');
+function updateAngle() {
+  const deg = parseFloat(angleSlider.value);
+  const rad = (deg * Math.PI) / 180;
+  // camera looks down -Z; sun 0° = from camera's right, 90° = from above, 180° = from behind viewer
+  const dir = new THREE.Vector3(Math.cos(rad), 0.45, Math.sin(rad)).normalize();
+  material.uniforms.uLightDir.value.copy(dir);
+  angleValue.textContent = Math.round(deg);
+}
+angleSlider.addEventListener('input', updateAngle);
+updateAngle();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('16-truchet.html', '18-blinn-phong.html');
+</script>
+</body>
+</html>

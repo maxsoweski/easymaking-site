@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L23: Triplanar Projection · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">23.</span>Triplanar projection</span>
+  </div>
+  <nav class="prev-next">
+    <a href="22-normal-mapping.html">← prev</a>
+    <a href="24-vertex-displacement.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Triplanar Projection</h1>
+  <div class="lesson-subtitle">Arc 4 · 3D Lighting · Lesson 23 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="blend-crispness">blend-crispness</label>
+      <input type="range" id="blend-crispness" min="1" max="16" step="0.1" value="5">
+      <div class="value" id="blend-crispness-value">5.0</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Triplanar texturing drops UVs entirely — it samples the same texture three times from the X, Y, and Z world axes, then blends them by which way the surface is facing, so any mesh of any shape can be textured without unwrapping.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>UVs are a flat map for a 3D surface — every artist who's unwrapped a cliff or a procedurally-generated mesh knows it's a battle of stretching and seams. Triplanar sidesteps the whole problem. Project the texture as if it were sprayed from three orthogonal directions: X-facing walls get a YZ projection, Y-facing floors get an XZ projection, Z-facing faces get an XY projection. Each pixel blends the three samples weighted by how much its normal points along each axis.</p>
+    <p>An upward-facing floor is almost entirely the XZ projection. A vertical wall is almost entirely one of the verticals. A 45° slope is a blend of two. The <code>blend-crispness</code> dial controls how abrupt that transition is — low gives smooth crossfades but muddy corners; high gives clean separation but visible pinching where two projections meet.</p>
+    <p>This is the terrain technique: rocky planets, cliffsides, voxel output, marching-cubes surfaces. Any mesh where unwrapping is insane.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Blend-crispness to 16 on the sphere.</strong> Three clear quadrants emerge like the Mercedes logo, with pinches at the axes where two projections meet head-on. <em>Teaches:</em> the limit case of "always prefer one projection" is a visible trivariant split. The sweet spot for most art is around 4–8, where the dominant projection wins but corners still crossfade.</p>
+    <p><strong>Blend-crispness to 1.</strong> On the cube each face still reads clearly, but on the sphere the three samples crossfade so softly that corners go muddy. <em>Teaches:</em> triplanar always trades corner crispness against seam visibility. There's no free lunch — this is the <em>one</em> real knob, and it's a continuum.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"no UV seams"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">triplanar on</span>
+
+      <span class="phrase">"texture this procedural mesh"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">triplanar on (UVs don't exist)</span>
+
+      <span class="phrase">"cleaner projection on flat faces"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">blend-crispness up</span>
+
+      <span class="phrase">"softer transitions on curves"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">blend-crispness down</span>
+
+      <span class="phrase">"keep the grain running one way"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">stop — this is the wrong tool. Use UV-based texturing.</span>
+
+      <span class="phrase">"scale the texture"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">world-space scale (not UV scale)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> triplanar works best for <em>non-directional</em> materials (stone, moss, concrete, noise, weathering) and fails on directional ones (wood, metal brush, text). Briefing a material for a procedural mesh now carries an implicit "triplanar-friendly?" check.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L21 (PBR + triplanar is the terrain rendering stack), L22 (normal maps triplanar-project too, with a per-axis TBN fix — the "reoriented normal mapping" trick), and all Arc 3 procedural textures (noise, Worley, FBM) which are triplanar-friendly because they have no inherent orientation.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the vertex + fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>// VERTEX — pass object-space position + normal (so texture sticks to
+// each mesh as it rotates). In production terrain this is world-space
+// instead, but the triplanar concept is identical either way.
+varying vec3 vObjPos;
+varying vec3 vObjNormal;
+
+void main() {
+  vObjPos = position;
+  vObjNormal = normal;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+
+// FRAGMENT — three samples, blended by which axis the normal points along
+uniform sampler2D uTex;
+uniform float uScale;        // texture scale
+uniform float uCrispness;    // exponent on the blend weights
+uniform vec3 uLightDir;
+
+varying vec3 vObjPos;
+varying vec3 vObjNormal;
+
+void main() {
+  vec3 n = normalize(vObjNormal);
+
+  // three planar UV sets, one per axis
+  vec2 uvX = vObjPos.yz * uScale;
+  vec2 uvY = vObjPos.xz * uScale;
+  vec2 uvZ = vObjPos.xy * uScale;
+
+  vec3 sX = texture2D(uTex, uvX).rgb;
+  vec3 sY = texture2D(uTex, uvY).rgb;
+  vec3 sZ = texture2D(uTex, uvZ).rgb;
+
+  // blend weights: how strongly the normal points along each axis,
+  // raised to a power to sharpen the winner
+  vec3 w = pow(abs(n), vec3(uCrispness));
+  w /= (w.x + w.y + w.z);
+
+  vec3 albedo = sX * w.x + sY * w.y + sZ * w.z;
+
+  // simple Lambert so the 3D surface reads
+  float diffuse = max(0.0, dot(n, uLightDir));
+  gl_FragColor = vec4(albedo * (0.2 + 0.9 * diffuse), 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupArrowNav, setupCodeToggle, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
+camera.position.set(0, 0.6, 5.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Procedural non-directional texture: warm base with cool speckles (stone-ish)
+function makeStoneTexture(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  // warm base
+  ctx.fillStyle = '#b89168';
+  ctx.fillRect(0, 0, size, size);
+  // darker veins/noise via random circles
+  for (let i = 0; i < 1400; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 1 + Math.random() * 5;
+    const shade = Math.random();
+    if (shade < 0.5) ctx.fillStyle = `rgba(60, 42, 30, ${0.2 + Math.random() * 0.35})`;
+    else if (shade < 0.8) ctx.fillStyle = `rgba(210, 188, 150, ${0.2 + Math.random() * 0.25})`;
+    else ctx.fillStyle = `rgba(130, 90, 60, ${0.2 + Math.random() * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const tex = makeStoneTexture(256);
+
+// Using object-space position + normal so the texture stays put on each
+// rotating mesh. In shipped terrain code, this is usually world-space —
+// the concept ("three projections blended by normal axis") is identical.
+const vertexSrc = `
+  varying vec3 vObjPos;
+  varying vec3 vObjNormal;
+  varying vec3 vWorldNormal;
+  void main() {
+    vObjPos = position;
+    vObjNormal = normal;
+    vWorldNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const fragmentSrc = `
+  uniform sampler2D uTex;
+  uniform float uScale;
+  uniform float uCrispness;
+  uniform vec3 uLightDir;
+  varying vec3 vObjPos;
+  varying vec3 vObjNormal;
+  varying vec3 vWorldNormal;
+  void main() {
+    vec3 n = normalize(vObjNormal);
+    vec2 uvX = vObjPos.yz * uScale;
+    vec2 uvY = vObjPos.xz * uScale;
+    vec2 uvZ = vObjPos.xy * uScale;
+    vec3 sX = texture2D(uTex, uvX).rgb;
+    vec3 sY = texture2D(uTex, uvY).rgb;
+    vec3 sZ = texture2D(uTex, uvZ).rgb;
+    vec3 w = pow(abs(n), vec3(uCrispness));
+    w /= (w.x + w.y + w.z + 1e-5);
+    vec3 albedo = sX * w.x + sY * w.y + sZ * w.z;
+    // Lambert so the 3D form reads — uses world-space normal
+    float diffuse = max(0.0, dot(normalize(vWorldNormal), uLightDir));
+    gl_FragColor = vec4(albedo * (0.2 + 0.9 * diffuse), 1.0);
+  }
+`;
+
+const material = new THREE.ShaderMaterial({
+  vertexShader: vertexSrc,
+  fragmentShader: fragmentSrc,
+  uniforms: {
+    uTex: { value: tex },
+    uScale: { value: 0.8 },
+    uCrispness: { value: 5 },
+    uLightDir: { value: new THREE.Vector3(0.7, 0.55, 0.7).normalize() },
+  },
+});
+
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.9, 96, 96), material);
+sphere.position.set(-1.1, 0, 0);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), material);
+cube.position.set(1.25, 0, 0);
+scene.add(cube);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w > 0 && h > 0) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+const clock = new THREE.Clock();
+function tick() {
+  const t = clock.getElapsedTime();
+  sphere.rotation.y = t * 0.25;
+  cube.rotation.y = t * 0.25;
+  cube.rotation.x = t * 0.12;
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+const cSlider = document.getElementById('blend-crispness');
+const cValue = document.getElementById('blend-crispness-value');
+function updateC() {
+  const v = parseFloat(cSlider.value);
+  material.uniforms.uCrispness.value = v;
+  cValue.textContent = v.toFixed(1);
+}
+cSlider.addEventListener('input', updateC);
+updateC();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('22-normal-mapping.html', '24-vertex-displacement.html');
+</script>
+</body>
+</html>

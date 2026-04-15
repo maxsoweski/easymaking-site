@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L11: Dithering (Bayer) · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">11.</span>Dithering</span>
+  </div>
+  <nav class="prev-next">
+    <a href="10-domain-warping.html">← prev</a>
+    <a href="12-crt.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Dithering <span style="font-weight:400;color:var(--muted);font-size:0.6em">(Bayer)</span></h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 11 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="tones">tones</label>
+      <input type="range" id="tones" min="2" max="8" step="1" value="2">
+      <div class="value" id="tones-value">2</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Bayer dithering fakes smooth gradients with a tiny repeating grid of brightness thresholds — compare each pixel's brightness to the threshold at its grid cell, snap to black or white, and the eye averages the resulting crosshatch back into the gradient.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>A monitor can show any color, but a <em>ditherpunk</em> look wants only two or four tones. The naive approach — "if brightness &gt; 0.5, white, else black" — produces ugly banded posters. Bayer's insight: instead of one global threshold, use a <em>different</em> threshold for each pixel, arranged in a small 4×4 matrix that tiles across the screen.</p>
+    <p>Dark pixels pass the threshold only in cells whose threshold is very low; bright pixels pass almost everywhere. The result is a patterned mix of on and off pixels whose density tracks the original brightness, which reads as a gradient from a step back. This is simultaneously a <strong style="color:var(--layer-coord)">coordinate-layer</strong> operation (which matrix cell am I in?), a <strong style="color:var(--layer-signal)">signal-layer</strong> operation (compare to the cell's threshold), and a <strong style="color:var(--layer-color)">color-layer</strong> operation (map the binary result to palette entries). It's the cleanest three-layer effect in the arc.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Set <code>tones</code> = 2, then look closely at the canvas.</strong> From a step back you see a gradient; up close you see the explicit Bayer crosshatch grid. <em>Teaches:</em> dithering only works because your eye integrates many pixels. The pattern isn't hidden — it's just small enough that your visual system averages it. Every "gradient" in a dithered image is a lie, and you're seeing the lie's mechanism.</p>
+    <p>Now slide <code>tones</code> up to 8. The crosshatch dissolves and the image looks nearly smooth — the tradeoff is that the distinctive ditherpunk look fades.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"1-bit look / Game Boy / Mac Classic"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">tones = 2, high-contrast palette</span>
+
+      <span class="phrase">"4-tone ditherpunk"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">tones = 4</span>
+
+      <span class="phrase">"subtle noise to break up banding"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">tones high, Bayer pattern barely visible (polish-level use)</span>
+
+      <span class="phrase">"bigger dither pattern"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">larger Bayer matrix (8×8 vs. 4×4)</span>
+
+      <span class="phrase">"dither only the shadows"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">apply the effect inside a luminance mask</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"Bayer-matrix threshold quantization"</em> — or, more briefly, <em>"dither to N tones with a Bayer matrix."</em> A fully specified brief.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L5 (pixelation first, then dither — the canonical retro stack), L8 (noise as an alternative threshold source — <em>blue-noise dithering</em> — same shader, different threshold map), L12 (some CRTs show mild dithering due to limited color precision), L4 (dither-rendered vignette has its own aesthetic).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform int u_tones;
+
+// Scene: a smooth diagonal gradient so the banding/dithering is obvious.
+vec3 scene(vec2 uv) {
+  float g = (uv.x * 0.6 + uv.y * 0.4);
+  vec3 a = vec3(0.10, 0.04, 0.18);
+  vec3 b = vec3(1.00, 0.88, 0.70);
+  return mix(a, b, g);
+}
+
+// 4x4 Bayer matrix, values 0..15 / 16 → thresholds in [0, 1).
+float bayer4(ivec2 p) {
+  int x = p.x - (p.x / 4) * 4;
+  int y = p.y - (p.y / 4) * 4;
+  int i = x + y * 4;
+  if (i == 0)  return  0.0/16.0;
+  if (i == 1)  return  8.0/16.0;
+  if (i == 2)  return  2.0/16.0;
+  if (i == 3)  return 10.0/16.0;
+  if (i == 4)  return 12.0/16.0;
+  if (i == 5)  return  4.0/16.0;
+  if (i == 6)  return 14.0/16.0;
+  if (i == 7)  return  6.0/16.0;
+  if (i == 8)  return  3.0/16.0;
+  if (i == 9)  return 11.0/16.0;
+  if (i == 10) return  1.0/16.0;
+  if (i == 11) return  9.0/16.0;
+  if (i == 12) return 15.0/16.0;
+  if (i == 13) return  7.0/16.0;
+  if (i == 14) return 13.0/16.0;
+  return  5.0/16.0;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  vec3 col = scene(uv);
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+
+  // COORDINATE LAYER — which cell of the 4×4 Bayer matrix does this pixel land in?
+  ivec2 cell = ivec2(mod(gl_FragCoord.xy, 4.0));
+  float threshold = bayer4(cell);
+
+  // SIGNAL LAYER — push the brightness by (threshold - 0.5) / tones, then quantize.
+  float levels = float(u_tones) - 1.0;
+  float nudged = lum + (threshold - 0.5) / levels;
+  float quantized = floor(clamp(nudged, 0.0, 1.0) * levels + 0.5) / levels;
+
+  // COLOR LAYER — snap color to a grayscale palette entry (could be any palette).
+  gl_FragColor = vec4(vec3(quantized), 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform int u_tones;
+
+vec3 scene(vec2 uv) {
+  float g = (uv.x * 0.6 + uv.y * 0.4);
+  vec3 a = vec3(0.10, 0.04, 0.18);
+  vec3 b = vec3(1.00, 0.88, 0.70);
+  return mix(a, b, g);
+}
+
+float bayer4(ivec2 p) {
+  int x = p.x - (p.x / 4) * 4;
+  int y = p.y - (p.y / 4) * 4;
+  int i = x + y * 4;
+  if (i == 0)  return  0.0/16.0;
+  if (i == 1)  return  8.0/16.0;
+  if (i == 2)  return  2.0/16.0;
+  if (i == 3)  return 10.0/16.0;
+  if (i == 4)  return 12.0/16.0;
+  if (i == 5)  return  4.0/16.0;
+  if (i == 6)  return 14.0/16.0;
+  if (i == 7)  return  6.0/16.0;
+  if (i == 8)  return  3.0/16.0;
+  if (i == 9)  return 11.0/16.0;
+  if (i == 10) return  1.0/16.0;
+  if (i == 11) return  9.0/16.0;
+  if (i == 12) return 15.0/16.0;
+  if (i == 13) return  7.0/16.0;
+  if (i == 14) return 13.0/16.0;
+  return  5.0/16.0;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  vec3 col = scene(uv);
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+  ivec2 cell = ivec2(mod(gl_FragCoord.xy, 4.0));
+  float threshold = bayer4(cell);
+  float levels = float(u_tones) - 1.0;
+  float nudged = lum + (threshold - 0.5) / levels;
+  float quantized = floor(clamp(nudged, 0.0, 1.0) * levels + 0.5) / levels;
+  gl_FragColor = vec4(vec3(quantized), 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_tones: { type: '1i', value: 2 },
+});
+if (app) {
+  const slider = document.getElementById('tones');
+  const valueEl = document.getElementById('tones-value');
+  const update = () => {
+    const v = parseInt(slider.value);
+    app.setUniform('u_tones', v);
+    valueEl.textContent = v;
+  };
+  slider.addEventListener('input', update);
+  update();
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('10-domain-warping.html', '12-crt.html');
+</script>
+</body>
+</html>

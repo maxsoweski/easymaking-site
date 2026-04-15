@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L14: Procedural Wood · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">14.</span>Procedural wood</span>
+  </div>
+  <nav class="prev-next">
+    <a href="13-marble.html">← prev</a>
+    <a href="15-voronoi.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Procedural wood</h1>
+  <div class="lesson-subtitle">Arc 3 · Procedural Patterns · Lesson 14 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="ring-tightness">ring-tightness</label>
+      <input type="range" id="ring-tightness" min="2" max="25" step="0.1" value="9">
+      <div class="value" id="ring-tightness-value">9.0</div>
+    </div>
+    <div class="control">
+      <label for="tree-center-x">tree-center x</label>
+      <input type="range" id="tree-center-x" min="-3" max="3" step="0.01" value="0">
+      <div class="value" id="tree-center-x-value">0.00</div>
+    </div>
+    <div class="control">
+      <label for="tree-center-y">tree-center y</label>
+      <input type="range" id="tree-center-y" min="-3" max="3" step="0.01" value="0">
+      <div class="value" id="tree-center-y-value">0.00</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Wood is marble with one change — replace <code>x</code> with <code>distance-to-center</code> — so the same sine-plus-turbulence recipe produces concentric rings instead of parallel veins.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Two materials can share a recipe and differ only in what goes into it. Marble fed the sine a straight coordinate (<code>p.x</code>). Wood feeds the sine a radial coordinate (<code>length(p - center)</code>, the distance from a chosen tree-center). A sine of a linear coordinate gives parallel bands. A sine of a radial coordinate gives concentric bands — rings.</p>
+    <p>The turbulence added to the sine's argument works exactly as in marble: it wobbles rings into natural irregular arcs instead of perfect bullseyes. Less turbulence than marble, though, because rings still need to read as rings. The <strong style="color:var(--layer-coord)">coordinate layer</strong> is where the wood-vs-marble distinction lives; signal and color are almost identical.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Drag <code>tree-center</code> far off-canvas</strong> (either slider to ±3). Rings flatten into nearly-straight lines. <em>Teaches:</em> wood and marble are the same shader at different radii — at infinite distance from the ring-center, a circle is a straight line. This is the literal geometric bridge between marble and wood.</p>
+    <p><strong>2. Crank <code>ring-tightness</code> to its minimum (2).</strong> Only one or two rings remain — you can see the underlying bullseye cleanly. <em>Teaches:</em> the radial coordinate itself is smooth; it's the sine that slices it into rings. Same coordinate, fewer slices, fewer rings.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"tighter grain / denser rings"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ring-tightness up</span>
+
+      <span class="phrase">"wider grain / looser rings"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ring-tightness down</span>
+
+      <span class="phrase">"cross-section / bullseye in the middle"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">tree-center inside the frame</span>
+
+      <span class="phrase">"sawn plank / straight grain"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">tree-center far off one edge</span>
+
+      <span class="phrase">"more natural / wavier rings"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">turbulence amount up (kept small)</span>
+
+      <span class="phrase">"cleaner / more diagrammatic rings"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">turbulence amount down toward zero</span>
+
+      <span class="phrase">"warmer wood / cooler wood"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">color palette shift</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"same recipe, different coordinate"</em> — recognizing that marble and wood are one shader with <code>p.x</code> vs. <code>length(p - c)</code> swapped is the template you'll reuse for every procedural material after this.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> Lesson 13 (its sibling — same recipe, different coord), Lesson 3 (<code>length</code> primitive — the coordinate transform is lifted straight from there), Lesson 23 (triplanar projection puts 2D wood onto a 3D plank without UV authoring).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_ringTightness;  // signal layer: sine frequency of radial dist
+uniform vec2  u_treeCenter;     // coordinate layer: where the rings converge
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f*f*(3.0 - 2.0*f);
+  return mix(
+    mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+    mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x),
+    f.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i &lt; 4; i++) {
+    v += a * vnoise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  vec2 p = uv * 3.0;
+
+  // COORDINATE LAYER — marble used p.x; wood uses length(p - center)
+  float turb = fbm(p * 2.0 + u_time * 0.02);
+  float r = length(p - u_treeCenter) + 0.35 * turb;
+
+  // SIGNAL LAYER — sine of the (slightly warped) radial distance
+  float rings = 0.5 + 0.5 * sin(r * u_ringTightness);
+
+  // shape the dark-ring / pale-wood contrast
+  rings = pow(rings, 1.6);
+
+  // COLOR LAYER — warm wood palette
+  vec3 pale = vec3(0.82, 0.58, 0.36);
+  vec3 mid  = vec3(0.52, 0.30, 0.15);
+  vec3 dark = vec3(0.22, 0.11, 0.06);
+  vec3 col = mix(dark, mid,  smoothstep(0.0, 0.5, rings));
+  col      = mix(col,  pale, smoothstep(0.55, 1.0, rings));
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_ringTightness;
+uniform vec2  u_treeCenter;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f*f*(3.0 - 2.0*f);
+  return mix(
+    mix(hash(i + vec2(0.0,0.0)), hash(i + vec2(1.0,0.0)), f.x),
+    mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), f.x),
+    f.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    v += a * vnoise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  vec2 p = uv * 3.0;
+
+  float turb = fbm(p * 2.0 + u_time * 0.02);
+  float r = length(p - u_treeCenter) + 0.35 * turb;
+
+  float rings = 0.5 + 0.5 * sin(r * u_ringTightness);
+  rings = pow(rings, 1.6);
+
+  vec3 pale = vec3(0.82, 0.58, 0.36);
+  vec3 mid  = vec3(0.52, 0.30, 0.15);
+  vec3 dark = vec3(0.22, 0.11, 0.06);
+  vec3 col = mix(dark, mid,  smoothstep(0.0, 0.5, rings));
+  col      = mix(col,  pale, smoothstep(0.55, 1.0, rings));
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_ringTightness: { type: '1f', value: 9 },
+  u_treeCenter: { type: '2f', value: [0, 0] },
+});
+if (app) {
+  bindSlider(document.getElementById('ring-tightness'), document.getElementById('ring-tightness-value'), app, 'u_ringTightness');
+
+  // Two sliders composed into the vec2 u_treeCenter
+  const xSlider = document.getElementById('tree-center-x');
+  const ySlider = document.getElementById('tree-center-y');
+  const xVal = document.getElementById('tree-center-x-value');
+  const yVal = document.getElementById('tree-center-y-value');
+  function updateCenter() {
+    const x = parseFloat(xSlider.value);
+    const y = parseFloat(ySlider.value);
+    app.setUniform('u_treeCenter', [x, y]);
+    xVal.textContent = x.toFixed(2);
+    yVal.textContent = y.toFixed(2);
+  }
+  xSlider.addEventListener('input', updateCenter);
+  ySlider.addEventListener('input', updateCenter);
+  updateCenter();
+
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('13-marble.html', '15-voronoi.html');
+</script>
+</body>
+</html>

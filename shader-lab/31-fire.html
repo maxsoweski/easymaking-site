@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L31: Fire (Noise-Based) · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">31.</span>Fire (noise-based)</span>
+  </div>
+  <nav class="prev-next">
+    <a href="30-curl-particles.html">← prev</a>
+    <a href="32-bloom.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Fire (noise-based)</h1>
+  <div class="lesson-subtitle">Arc 6 · Simulations · Lesson 31 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="heat">heat</label>
+      <input type="range" id="heat" min="0" max="1" step="0.01" value="0.55">
+      <div class="value" id="heat-value">0.55</div>
+    </div>
+    <div class="control">
+      <label for="warp">warp</label>
+      <input type="range" id="warp" min="0" max="1.2" step="0.01" value="0.6">
+      <div class="value" id="warp-value">0.60</div>
+    </div>
+    <div class="control">
+      <label for="taper">taper</label>
+      <input type="range" id="taper" min="0" max="1" step="0.01" value="1">
+      <div class="value" id="taper-value">1.00</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A stylized flame is four ingredients stacked — rising coordinate, domain-warped FBM, vertical fade mask, fire color ramp — and the whole thing costs a fraction of a real fluid sim while giving up almost all interactivity in exchange.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>This is the <em>procedural</em> tier of the trilemma in its purest form. There is no combustion, no temperature field, no advection. We scroll a noise field upward over time, warp its coordinates to fake turbulence, multiply by a mask that says <em>"this is a flame shape, fade at the top,"</em> and run the result through a palette that goes hot-to-white at the peaks and black at the troughs.</p>
+    <p>The flame looks alive because (a) the noise is animating, (b) <strong style="color:var(--layer-coord)">domain warping</strong> makes the swirls irregular in a way stacked sine waves can't fake, and (c) the color ramp is where <em>all</em> the heat lives — the signal is just a grayscale noise field until the ramp turns bright values into the incandescent colors the eye reads as fire.</p>
+    <p>No ping-pong here. No state across frames. Every pixel is computed from <code>u_time</code> and its own coordinate. By the next frame the shader has forgotten everything. That's why you can't throw a ball through it and have the flame bend around the ball. For that you go back to Lesson 28.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Drag <code>warp</code> to 0.</strong> The flame turns into vertical scrolling FBM clouds — clearly rising, but cloud-shaped and smooth, not flame-shaped. <em>Teaches:</em> the flame-ness <em>is the warping</em>. FBM alone is clouds. Domain warping twists the cloud structure into the curling, licking, vortex-heavy shapes the eye reads as combustion.</p>
+    <p><strong>2. Pull <code>taper</code> to 0.</strong> The flame fills the frame — a full rectangle of fire color with no silhouette. <em>Teaches:</em> the flame's shape is the mask, not the noise. The upward-taper, the pointed top, the way flames thin out — that lives in the multiplier. The noise paints the interior; the mask carves the shape.</p>
+    <p><strong>3. Compare to L28 (mentally).</strong> Move your cursor across the canvas. The flame ignores you completely — it's a function of time only. In L28's Stam fluid, the dye swirls away from the cursor. That is the trilemma made visible: procedural is cheap and unresponsive; simulate is expensive and interactive.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"hotter flames / more white-hot"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">heat up</span>
+
+      <span class="phrase">"cooler flames / more ember-orange"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">heat down</span>
+
+      <span class="phrase">"more turbulent / more curling"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">warp up</span>
+
+      <span class="phrase">"smoother / more laminar"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">warp down (approaches clouds)</span>
+
+      <span class="phrase">"taller flame"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">taper down (mask stays opaque further up)</span>
+
+      <span class="phrase">"just the tongue at the base"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">taper up</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> the whole trilemma vocabulary. <em>"Give me a procedural fire — domain-warped FBM, fire palette, vertical mask"</em> means L31. <em>"Give me a Stam-fluid smoke the cursor can push"</em> means L28. <em>"Give me a swarm of magic sparks following curl noise"</em> means L30. Three different briefs, three different tiers, chosen for the job.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L28 (use L31 as a cheap background fire with a small L28 pocket for the hero flame the player can touch — the classic optimization), L29 (the coral pattern makes a great fire-bed shape), Arc 7 bloom (where fire earns its glow), L30 sparks layered on top.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_heat;   // color layer — palette peak
+uniform float u_warp;   // coordinate layer — domain-warp amount
+uniform float u_taper;  // signal layer — vertical mask strength
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f*f*(3.0 - 2.0*f);
+  return mix(
+    mix(hash(i + vec2(0,0)), hash(i + vec2(1,0)), f.x),
+    mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x),
+    f.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i &lt; 5; i++) {
+    v += a * vnoise(p);
+    p *= 2.03;
+    a *= 0.5;
+  }
+  return v;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 p = vec2((uv.x - 0.5) * aspect, uv.y);
+
+  // COORDINATE LAYER — rising scroll + domain warp
+  vec2 flow = p * 2.2 + vec2(0.0, -u_time * 0.9);
+  vec2 q = vec2(
+    fbm(flow + vec2(0.0, 0.0)),
+    fbm(flow + vec2(5.2, 1.3))
+  );
+  vec2 warped = flow + u_warp * (q - 0.5) * 2.0;
+
+  // SIGNAL LAYER — FBM at the warped coordinate, times vertical taper
+  float noise = fbm(warped);
+  float side = smoothstep(0.55, 0.0, abs(p.x));
+  float top  = mix(1.0, smoothstep(1.1, 0.0, uv.y), u_taper);
+  float mask = mix(1.0, side * top, u_taper);
+  float heat = clamp(noise * mask * 1.6 - 0.12, 0.0, 1.0);
+
+  // COLOR LAYER — fire ramp: black → red → orange → yellow → white
+  float h = heat * (0.6 + 0.55 * u_heat);
+  vec3 col = vec3(0.0);
+  col = mix(col, vec3(0.28, 0.02, 0.0),  smoothstep(0.02, 0.18, h));
+  col = mix(col, vec3(0.82, 0.12, 0.0),  smoothstep(0.15, 0.38, h));
+  col = mix(col, vec3(1.00, 0.55, 0.05), smoothstep(0.34, 0.62, h));
+  col = mix(col, vec3(1.00, 0.92, 0.35), smoothstep(0.58, 0.85, h));
+  col = mix(col, vec3(1.00, 0.99, 0.88), smoothstep(0.82, 1.02, h));
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_heat;
+uniform float u_warp;
+uniform float u_taper;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f*f*(3.0 - 2.0*f);
+  return mix(
+    mix(hash(i + vec2(0.0,0.0)), hash(i + vec2(1.0,0.0)), f.x),
+    mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), f.x),
+    f.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * vnoise(p);
+    p *= 2.03;
+    a *= 0.5;
+  }
+  return v;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 p = vec2((uv.x - 0.5) * aspect, uv.y);
+
+  vec2 flow = p * 2.2 + vec2(0.0, -u_time * 0.9);
+  vec2 q = vec2(
+    fbm(flow + vec2(0.0, 0.0)),
+    fbm(flow + vec2(5.2, 1.3))
+  );
+  vec2 warped = flow + u_warp * (q - 0.5) * 2.0;
+
+  float noise = fbm(warped);
+  float side = smoothstep(0.55, 0.0, abs(p.x));
+  float top  = mix(1.0, smoothstep(1.1, 0.0, uv.y), u_taper);
+  float mask = mix(1.0, side * top, u_taper);
+  float heat = clamp(noise * mask * 1.6 - 0.12, 0.0, 1.0);
+
+  float h = heat * (0.6 + 0.55 * u_heat);
+  vec3 col = vec3(0.0);
+  col = mix(col, vec3(0.28, 0.02, 0.0),  smoothstep(0.02, 0.18, h));
+  col = mix(col, vec3(0.82, 0.12, 0.0),  smoothstep(0.15, 0.38, h));
+  col = mix(col, vec3(1.00, 0.55, 0.05), smoothstep(0.34, 0.62, h));
+  col = mix(col, vec3(1.00, 0.92, 0.35), smoothstep(0.58, 0.85, h));
+  col = mix(col, vec3(1.00, 0.99, 0.88), smoothstep(0.82, 1.02, h));
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_heat: { type: '1f', value: 0.55 },
+  u_warp: { type: '1f', value: 0.6 },
+  u_taper: { type: '1f', value: 1.0 },
+});
+if (app) {
+  bindSlider(document.getElementById('heat'), document.getElementById('heat-value'), app, 'u_heat');
+  bindSlider(document.getElementById('warp'), document.getElementById('warp-value'), app, 'u_warp');
+  bindSlider(document.getElementById('taper'), document.getElementById('taper-value'), app, 'u_taper');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('30-curl-particles.html', '32-bloom.html');
+</script>
+</body>
+</html>
+</content>
+</invoke>

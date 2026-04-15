@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L18: Blinn-Phong · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">18.</span>Blinn-Phong</span>
+  </div>
+  <nav class="prev-next">
+    <a href="17-lambert.html">← prev</a>
+    <a href="19-fresnel.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Blinn-Phong</h1>
+  <div class="lesson-subtitle">Arc 4 · 3D Lighting · Lesson 18 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="glossiness">glossiness</label>
+      <input type="range" id="glossiness" min="1" max="256" step="1" value="48">
+      <div class="value" id="glossiness-value">48</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>The shiny highlight on a classic 3D render is a second dot product raised to a power — Lambert tells you how much light hits the surface, specular tells you how much of that light bounces <em>toward the camera</em>.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Lambert is camera-blind. Move your head around a Lambert sphere and nothing changes — the lit side stays the lit side. But real objects have a bright spot that <em>follows your eye</em>. That's because the camera matters now. Blinn-Phong finds the <strong>halfway vector</strong> between the light direction and the view direction, then asks how closely the surface normal matches that halfway vector. When they match, the surface is reflecting the light <em>directly at you</em>, so you see the brightest highlight.</p>
+    <p>Raising that dot to a power controls how tight the highlight is. Low power (say 4) smears it across half the sphere; high power (say 256) shrinks it to a pinpoint. The exponent is the single most important lever in pre-PBR shading — it is the difference between a matte ceramic and a glossy pool ball.</p>
+    <p>Drag <code>glossiness</code> and watch the highlight tighten from a broad sheen to a hotspot to a star.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Glossiness to 1.</strong> The specular lobe spreads across the entire lit hemisphere, and the surface stops looking "shiny" separately from "bright" — it just looks overexposed.</p>
+    <p><em>Teaches:</em> specular needs to be spatially concentrated to read as a highlight. Without tightness, it's just more diffuse. This is why pre-PBR games look plastic when tuned wrong — flat specular everywhere reads as cheap.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more matte"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">glossiness down (or kill specular)</span>
+
+      <span class="phrase">"more glossy / wet-looking"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">glossiness up</span>
+
+      <span class="phrase">"tighter highlight"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">glossiness up</span>
+
+      <span class="phrase">"softer, broader highlight"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">glossiness down</span>
+
+      <span class="phrase">"warmer highlight"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">specular color shift (colored spec is right for metals, wrong for dielectrics — L21 makes this rigorous)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> "shininess" is literally a steepness knob on a single power function. This is exactly what roughness will invert in the next lesson's PBR preview — low roughness is high glossiness.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L17 (sits on top of Lambert), L19 (rim light is the <em>other</em> grazing-angle term, orthogonal to specular), L20 (toon often quantizes specular into a single hard shape).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the vertex + fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>// VERTEX — pass normal + world position so fragment can build a view vector
+varying vec3 vNormal;
+varying vec3 vWorldPos;
+
+void main() {
+  vNormal = normalize(normalMatrix * normal);
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}
+
+// FRAGMENT — Lambert (diffuse) + Blinn-Phong specular (halfway dot, raised to power)
+uniform vec3 uLightDir;
+uniform vec3 uBaseColor;
+uniform float uGlossiness;   // the specular exponent
+uniform vec3 uCameraPos;
+
+varying vec3 vNormal;
+varying vec3 vWorldPos;
+
+void main() {
+  vec3 n = normalize(vNormal);
+  vec3 v = normalize(uCameraPos - vWorldPos);     // view direction
+  vec3 h = normalize(uLightDir + v);              // halfway vector
+
+  float diffuse = max(0.0, dot(n, uLightDir));
+  float spec    = pow(max(0.0, dot(n, h)), uGlossiness);
+
+  vec3 col = uBaseColor * (0.08 + diffuse) + vec3(1.0) * spec;
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupArrowNav, setupCodeToggle, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
+camera.position.set(0, 0.6, 5.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+const vertexSrc = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vWorldPos = wp.xyz;
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }
+`;
+
+const fragmentSrc = `
+  uniform vec3 uLightDir;
+  uniform vec3 uBaseColor;
+  uniform float uGlossiness;
+  uniform vec3 uCameraPos;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vec3 n = normalize(vNormal);
+    vec3 v = normalize(uCameraPos - vWorldPos);
+    vec3 h = normalize(uLightDir + v);
+    float diffuse = max(0.0, dot(n, uLightDir));
+    float spec = pow(max(0.0, dot(n, h)), uGlossiness);
+    // tiny ambient floor so the shadow side doesn't swallow the specular lesson
+    vec3 col = uBaseColor * (0.08 + diffuse) + vec3(1.0) * spec;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const material = new THREE.ShaderMaterial({
+  vertexShader: vertexSrc,
+  fragmentShader: fragmentSrc,
+  uniforms: {
+    uLightDir: { value: new THREE.Vector3(0.7, 0.5, 0.7).normalize() },
+    uBaseColor: { value: new THREE.Color(0x9fb6c7) },
+    uGlossiness: { value: 48 },
+    uCameraPos: { value: camera.position.clone() },
+  },
+});
+
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.9, 96, 96), material);
+sphere.position.set(-1.1, 0, 0);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), material);
+cube.position.set(1.25, 0, 0);
+scene.add(cube);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w > 0 && h > 0) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+const clock = new THREE.Clock();
+function tick() {
+  const t = clock.getElapsedTime();
+  sphere.rotation.y = t * 0.25;
+  cube.rotation.y = t * 0.25;
+  cube.rotation.x = t * 0.12;
+  material.uniforms.uCameraPos.value.copy(camera.position);
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+const glossSlider = document.getElementById('glossiness');
+const glossValue = document.getElementById('glossiness-value');
+function updateGloss() {
+  const v = parseFloat(glossSlider.value);
+  material.uniforms.uGlossiness.value = v;
+  glossValue.textContent = Math.round(v);
+}
+glossSlider.addEventListener('input', updateGloss);
+updateGloss();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('17-lambert.html', '19-fresnel.html');
+</script>
+</body>
+</html>

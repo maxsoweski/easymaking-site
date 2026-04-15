@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L32: Bloom · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">32.</span>Bloom</span>
+  </div>
+  <nav class="prev-next">
+    <a href="31-fire.html">← prev</a>
+    <a href="33-aces.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Bloom</h1>
+  <div class="lesson-subtitle">Arc 7 · Post-Pipeline · Lesson 32 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="radiance">radiance</label>
+      <input type="range" id="radiance" min="0" max="1.5" step="0.01" value="0.85">
+      <div class="value" id="radiance-value">0.85</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Bloom is a three-step recipe — threshold the bright pixels, blur them, add them back on top — and that threshold is the knob that decides whether the effect feels like polish or feels like fog.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Cameras and eyes can't cleanly resolve very bright light; it leaks into its surroundings. Shaders fake this with a pipeline. <strong>Step one:</strong> build a second image that only contains pixels above some brightness threshold — everything else goes black. <strong>Step two:</strong> blur that image heavily (downsample, blur, upsample). <strong>Step three:</strong> add the blurred bright-only image on top of the original.</p>
+    <p>The original scene is untouched; the glow is a second image layered over it. Because a pixel can only see its own coordinate, the blur is what <em>gives</em> each pixel knowledge of its bright neighbors — the multi-pass contract from Lesson 1. Bloom is also why scene values are allowed to exceed 1.0 (HDR): if every pixel maxed at 1.0, nothing would ever cross the threshold.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Pull <code>radiance</code> to 0.</strong> Every pixel crosses the threshold, so every pixel bleeds into its neighbors. The image looks like it's been hit with a soft-focus filter — contrast collapses, blacks lift, the scene looks underwater. <em>Teaches:</em> bloom is a soft-blur layered over the source; without selectivity, it becomes the entire image. The threshold isn't a minor knob — it's the reason bloom reads as "highlights glowing" instead of "the scene is blurry."</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more magical / dreamier"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">radiance down</span>
+
+      <span class="phrase">"more grounded / less hazy"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">radiance up</span>
+
+      <span class="phrase">"punchier highlights"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">radiance up, bloom strength up</span>
+
+      <span class="phrase">"soft-focus / filmic diffusion"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">radiance low, bloom strength moderate</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"bloom in HDR."</em> Bloom must run on raw lighting values <em>before</em> anything squashes them to 0–1. Ask for bloom placed "before tone-mapping" whenever you brief a full post chain.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L33 (ACES) — bloom runs first on HDR, <em>then</em> tone mapping compresses the result. L34 (LUT) — LUT is applied after tone mapping; bloom's job is already done by then. L35 (SSAO) — SSAO multiplies darkness in before bloom thresholds, so deeper AO means slightly less bloom in those crevices. <strong>Canonical order:</strong> SSAO → bloom → ACES → LUT.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the post-FX wiring running above</span>
+    </div>
+    <pre id="code-pre"><code>// Base scene: sphere (emissive) + cube + ground plane under a sun.
+// Emissive color on the sphere is (5, 3, 1) — ABOVE 1.0.
+// That's HDR: raw scene values can exceed the display's 0-1 range,
+// which is what makes bloom possible at all.
+
+const renderTarget = new THREE.WebGLRenderTarget(w, h, {
+  type: THREE.HalfFloatType,  // float precision so values &gt; 1 survive
+});
+
+const composer = new EffectComposer(renderer, renderTarget);
+composer.addPass(new RenderPass(scene, camera));
+
+// --- The three-step bloom recipe ---
+// UnrealBloomPass does all of it in one pass object:
+//   step 1: threshold (keep only pixels above `threshold`)
+//   step 2: blur (mip-chain downsample + gaussian)
+//   step 3: add the blurred bright-only image back on top
+
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(w, h),
+  1.2,   // strength — how much glow adds in
+  0.6,   // radius — how far the glow spreads
+  0.85   // THRESHOLD — this is u_radiance below
+);
+composer.addPass(bloom);
+
+// Tone-map + display (bloom runs BEFORE this, on the raw HDR values)
+composer.addPass(new OutputPass());
+
+// The slider just updates the threshold:
+function setRadiance(v) { bloom.threshold = v; }</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/OutputPass.js';
+import { highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+// ACES tone-map applied by OutputPass at the END. Bloom runs earlier, on raw HDR.
+// (The ordering is the L33 lesson — here it just makes the bloom legible.)
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
+camera.position.set(2.2, 1.8, 4.6);
+camera.lookAt(0, 0.4, 0);
+
+// --- Sun (directional) + a dim ambient to fill shadows ---
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
+sun.position.set(3, 4, 2);
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x4a5070, 0.6));
+
+// --- Shared PBR scene: emissive sphere + cube + ground ---
+const sphereMat = new THREE.MeshStandardMaterial({
+  color: 0x221a14,
+  emissive: new THREE.Color(5.0, 3.0, 1.0), // HDR — above 1.0 on purpose
+  roughness: 0.4,
+  metalness: 0.0,
+});
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.7, 48, 48), sphereMat);
+sphere.position.set(-0.9, 0.7, 0.2);
+scene.add(sphere);
+
+const cubeMat = new THREE.MeshStandardMaterial({
+  color: 0x8c9aa8,
+  roughness: 0.35,
+  metalness: 0.6,
+});
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMat);
+cube.position.set(0.9, 0.5, 0.0);
+scene.add(cube);
+
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x5a5665,
+  roughness: 0.85,
+  metalness: 0.05,
+});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = 0;
+scene.add(ground);
+
+const sceneGroup = new THREE.Group();
+// We rotate the shapes (not ground) for the auto-rotate feel
+sceneGroup.add(sphere);
+sceneGroup.add(cube);
+scene.add(sceneGroup);
+
+function sizeOf() {
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  return { w, h };
+}
+
+const { w: w0, h: h0 } = sizeOf();
+
+const renderTarget = new THREE.WebGLRenderTarget(w0, h0, {
+  type: THREE.HalfFloatType,
+});
+
+const composer = new EffectComposer(renderer, renderTarget);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(w0, h0),
+  1.2,   // strength
+  0.6,   // radius
+  0.85   // threshold
+);
+composer.addPass(bloom);
+
+composer.addPass(new OutputPass());
+
+function resize() {
+  const { w, h } = sizeOf();
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  bloom.resolution.set(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+const start = performance.now();
+function animate() {
+  const t = (performance.now() - start) / 1000;
+  sphere.position.x = -0.9 + Math.sin(t * 0.4) * 0.15;
+  cube.rotation.y = t * 0.35;
+  cube.rotation.x = t * 0.2;
+  resize();
+  composer.render();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Slider wiring: radiance → bloom threshold
+const radianceSlider = document.getElementById('radiance');
+const radianceValue = document.getElementById('radiance-value');
+function updateRadiance() {
+  const v = parseFloat(radianceSlider.value);
+  bloom.threshold = v;
+  radianceValue.textContent = v.toFixed(2);
+}
+radianceSlider.addEventListener('input', updateRadiance);
+updateRadiance();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('31-fire.html', '33-aces.html');
+</script>
+</body>
+</html>

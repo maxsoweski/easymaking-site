@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L34: LUT Color Grading · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+<style>
+  /* LUT strip shown directly under the canvas — lets Max see the mapping itself */
+  .lut-strip {
+    height: 22px;
+    border-radius: 4px;
+    margin: -12px 0 24px;
+    border: 1px solid var(--line);
+    background: var(--paper-warm);
+    overflow: hidden;
+  }
+  .lut-strip canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .lut-caption {
+    margin-top: -18px;
+    margin-bottom: 28px;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">34.</span>LUT color grading</span>
+  </div>
+  <nav class="prev-next">
+    <a href="33-aces.html">← prev</a>
+    <a href="35-ssao.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">LUT color grading</h1>
+  <div class="lesson-subtitle">Arc 7 · Post-Pipeline · Lesson 34 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="lut-strip"><canvas id="lut-canvas" width="256" height="16"></canvas></div>
+  <div class="lut-caption">The strip above IS the LUT — every input brightness (left = black, right = white) maps to the color shown.</div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="mood">mood</label>
+      <input type="range" id="mood" min="0" max="3" step="0.01" value="0">
+      <div class="value" id="mood-value">identity</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A LUT is a texture that encodes the answer to "every possible input color → what output color should it become?", which means the creative work of grading an entire scene's look happens in an image, not in code.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Tone mapping (L33) gave you a displayable image that looks technically correct. Color grading gives it a <em>mood</em> — cool teal shadows, warm orange skin, lifted blacks, crushed greens, the "Netflix look," the "horror movie look," the "sunset biome." A <strong>LUT</strong> (Look-Up Table) handles this with one idea: take a reference chart that contains every possible color, grade it in Photoshop exactly the way you want the scene to look, export it as a small texture, hand it to the shader. At runtime, each pixel's color becomes coordinates into that texture, and the texture's value at that coordinate is the new color.</p>
+    <p>The entire creative work lives in the texture. The shader just does a sample. This is the lesson where art direction <em>is</em> the work. You are not briefing a developer to write math — you are briefing a colorist (which might be you, in Photoshop) on the <em>look</em>.</p>
+    <p>This lab uses a simplified 1D "strip" LUT — 256 pixels wide, 1 tall, indexed by pixel brightness. Real production uses a 3D cube (every RGB → every RGB), but the lesson is the same: a texture swap changes the whole scene.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Sit on the identity LUT (<code>mood</code> = 0).</strong> The scene looks tone-mapped-but-ungraded — correct, neutral, slightly lifeless. This is the "before" state every AAA scene starts in. Now slide to <code>warm</code> (1), <code>cool</code> (2), and <code>bleached</code> (3) and watch the scene gain personality — or lose it, in the bleached case. Nothing in the lighting, geometry, or materials changed. The strip below the canvas is the only thing that did. <em>Teaches:</em> tone-mapping alone never has a "look." Look is the LUT. If a scene feels neutral or lifeless, the brief is for grading, not for lighting or tone-map changes.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"stronger grade"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">mood pinned at the target LUT</span>
+
+      <span class="phrase">"subtler grade"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">mood partway toward target (blend with identity)</span>
+
+      <span class="phrase">"warmer LUT"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">grade the chart toward oranges in highlights, browns in shadows</span>
+
+      <span class="phrase">"cooler LUT"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">grade toward teal in shadows, cool blues in highlights</span>
+
+      <span class="phrase">"crushed blacks / more contrast"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">lower the bottom of the chart's tonal range</span>
+
+      <span class="phrase">"bleached / desaturated"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pull saturation down across the chart</span>
+
+      <span class="phrase">"day-for-night"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">shift the whole chart toward blue, darken, crush highlights</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"grade the reference chart."</em> This is the correct brief for any LUT work. Never ask for a grade "in shader" — ask for a reference chart graded the way you want the scene to look. The engine applies it automatically.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L33 (ACES) — LUT must come <em>after</em> tone mapping; grading HDR or clipped values defeats the LUT. L32 (bloom) — bloom is done before tone mapping, so by the time the LUT sees the image the glow halos are already part of it; the grade colors them alongside everything else. L35 (SSAO) — SSAO also runs pre-grade, so darkened crevices also get graded. <strong>Canonical order:</strong> SSAO → bloom → ACES → LUT.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the LUT shader pass running above</span>
+    </div>
+    <pre id="code-pre"><code>// --- The LUT itself, built in JS as a 256x1 RGBA texture.
+// Four "strips" concatenated into one 256x4 texture:
+//   row 0: identity  — grayscale (no grade)
+//   row 1: warm      — brown-orange shadows, golden highlights
+//   row 2: cool      — teal shadows, cold blue highlights
+//   row 3: bleached  — desaturated with lifted blacks
+// The shader picks rows by mood and crossfades between them.
+
+const lutTex = new THREE.DataTexture(lutData, 256, 4, THREE.RGBAFormat);
+
+// --- Shader pass, applied AFTER tone-mapping:
+//     RenderPass → BloomPass → ToneMap → THIS → display
+
+uniform sampler2D tDiffuse;  // the tone-mapped image
+uniform sampler2D tLUT;      // the 256x4 LUT
+uniform float u_mood;        // 0..3, crossfades between LUT rows
+
+vec3 applyLUT(vec3 color, float moodIndex) {
+  // Use perceptual luminance as the index into the LUT
+  float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
+
+  // Two nearest LUT rows + blend fraction
+  float idx = clamp(moodIndex, 0.0, 3.0);
+  float row0 = floor(idx);
+  float row1 = min(row0 + 1.0, 3.0);
+  float t = idx - row0;
+
+  // Sample both rows at the brightness index
+  vec2 uv0 = vec2(brightness, (row0 + 0.5) / 4.0);
+  vec2 uv1 = vec2(brightness, (row1 + 0.5) / 4.0);
+  vec3 lut0 = texture2D(tLUT, uv0).rgb;
+  vec3 lut1 = texture2D(tLUT, uv1).rgb;
+
+  // The LUT defines a per-brightness tint; blend the original toward it
+  vec3 graded0 = color * (lut0 / max(brightness, 1e-4));
+  vec3 graded1 = color * (lut1 / max(brightness, 1e-4));
+  return mix(graded0, graded1, t);
+}
+
+void main() {
+  vec4 src = texture2D(tDiffuse, vUv);
+  gl_FragColor = vec4(applyLUT(src.rgb, u_mood), src.a);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/ShaderPass.js';
+import { highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
+camera.position.set(2.2, 1.8, 4.6);
+camera.lookAt(0, 0.4, 0);
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
+sun.position.set(3, 4, 2);
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x4a5070, 0.6));
+
+const sphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.7, 48, 48),
+  new THREE.MeshStandardMaterial({
+    color: 0x8a6f55,
+    roughness: 0.45,
+    metalness: 0.1,
+  })
+);
+sphere.position.set(-0.9, 0.7, 0.2);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({
+    color: 0x8c9aa8,
+    roughness: 0.35,
+    metalness: 0.6,
+  })
+);
+cube.position.set(0.9, 0.5, 0.0);
+scene.add(cube);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(10, 10),
+  new THREE.MeshStandardMaterial({
+    color: 0x5a5665,
+    roughness: 0.85,
+    metalness: 0.05,
+  })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+// --- Build the LUT: 256x4 RGBA, one row per LUT.
+// Each row is a brightness-indexed "target color" at that brightness level.
+// Row 0 = identity (gray), Row 1 = warm, Row 2 = cool, Row 3 = bleached.
+const LUT_W = 256;
+const LUT_H = 4;
+const lutData = new Uint8Array(LUT_W * LUT_H * 4);
+
+function writeLut(row, fn) {
+  for (let x = 0; x < LUT_W; x++) {
+    const t = x / (LUT_W - 1);
+    const [r, g, b] = fn(t);
+    const i = (row * LUT_W + x) * 4;
+    lutData[i + 0] = Math.round(Math.max(0, Math.min(1, r)) * 255);
+    lutData[i + 1] = Math.round(Math.max(0, Math.min(1, g)) * 255);
+    lutData[i + 2] = Math.round(Math.max(0, Math.min(1, b)) * 255);
+    lutData[i + 3] = 255;
+  }
+}
+
+// Row 0 — identity. Grayscale diagonal.
+writeLut(0, t => [t, t, t]);
+
+// Row 1 — warm. Shadows lean amber-brown; highlights lean gold.
+writeLut(1, t => {
+  // lerp from a warm dark (0.12, 0.06, 0.03) through (0.85, 0.65, 0.38) to (1.1, 0.95, 0.7)
+  const r = 0.12 + t * (0.88) + t * t * 0.10;
+  const g = 0.06 + t * (0.85) + t * t * 0.04;
+  const b = 0.03 + t * (0.62) + t * t * 0.05;
+  return [r, g, b];
+});
+
+// Row 2 — cool. Shadows teal; highlights cold blue.
+writeLut(2, t => {
+  const r = 0.04 + t * (0.72);
+  const g = 0.10 + t * (0.80);
+  const b = 0.18 + t * (0.82);
+  return [r, g, b];
+});
+
+// Row 3 — bleached. Desaturated, lifted blacks, rolled highlights.
+writeLut(3, t => {
+  const lifted = 0.18 + t * 0.70;  // lifts blacks, rolls whites
+  const desat = lifted * 0.95 + 0.03;
+  return [desat * 1.02, desat, desat * 0.98];
+});
+
+const lutTex = new THREE.DataTexture(lutData, LUT_W, LUT_H, THREE.RGBAFormat);
+lutTex.magFilter = THREE.LinearFilter;
+lutTex.minFilter = THREE.LinearFilter;
+lutTex.wrapS = THREE.ClampToEdgeWrapping;
+lutTex.wrapT = THREE.ClampToEdgeWrapping;
+lutTex.needsUpdate = true;
+
+// --- Composer chain: RenderPass → Bloom → OutputPass (ACES) → LUTPass
+function sizeOf() {
+  const rect = canvas.getBoundingClientRect();
+  return { w: Math.max(1, Math.floor(rect.width)), h: Math.max(1, Math.floor(rect.height)) };
+}
+const { w: w0, h: h0 } = sizeOf();
+
+const renderTarget = new THREE.WebGLRenderTarget(w0, h0, { type: THREE.HalfFloatType });
+const composer = new EffectComposer(renderer, renderTarget);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloom = new UnrealBloomPass(new THREE.Vector2(w0, h0), 0.7, 0.5, 0.9);
+composer.addPass(bloom);
+
+composer.addPass(new OutputPass());
+
+// --- The LUT pass (the payload of this lesson)
+const LUTShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    tLUT: { value: lutTex },
+    u_mood: { value: 0.0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform sampler2D tLUT;
+    uniform float u_mood;
+    varying vec2 vUv;
+
+    vec3 applyLUT(vec3 color, float moodIndex) {
+      float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
+      float idx = clamp(moodIndex, 0.0, 3.0);
+      float row0 = floor(idx);
+      float row1 = min(row0 + 1.0, 3.0);
+      float t = idx - row0;
+
+      vec2 uv0 = vec2(brightness, (row0 + 0.5) / 4.0);
+      vec2 uv1 = vec2(brightness, (row1 + 0.5) / 4.0);
+      vec3 lut0 = texture2D(tLUT, uv0).rgb;
+      vec3 lut1 = texture2D(tLUT, uv1).rgb;
+
+      // Tint the original color by the per-brightness LUT target.
+      // At identity, lut == vec3(brightness) → ratio == 1.0, color unchanged.
+      vec3 graded0 = color * (lut0 / max(brightness, 1e-4));
+      vec3 graded1 = color * (lut1 / max(brightness, 1e-4));
+      return mix(graded0, graded1, t);
+    }
+
+    void main() {
+      vec4 src = texture2D(tDiffuse, vUv);
+      gl_FragColor = vec4(applyLUT(src.rgb, u_mood), src.a);
+    }
+  `,
+};
+
+const lutPass = new ShaderPass(LUTShader);
+composer.addPass(lutPass);
+
+function resize() {
+  const { w, h } = sizeOf();
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  bloom.resolution.set(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+const start = performance.now();
+function animate() {
+  const t = (performance.now() - start) / 1000;
+  sphere.position.x = -0.9 + Math.sin(t * 0.4) * 0.15;
+  cube.rotation.y = t * 0.35;
+  cube.rotation.x = t * 0.2;
+  resize();
+  composer.render();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// --- Paint the LUT strip under the canvas so Max can see the mapping itself
+const stripCanvas = document.getElementById('lut-canvas');
+const stripCtx = stripCanvas.getContext('2d');
+function repaintStrip(moodIndex) {
+  const idx = Math.max(0, Math.min(3, moodIndex));
+  const row0 = Math.floor(idx);
+  const row1 = Math.min(row0 + 1, 3);
+  const frac = idx - row0;
+
+  const imgData = stripCtx.createImageData(LUT_W, stripCanvas.height);
+  for (let x = 0; x < LUT_W; x++) {
+    const i0 = (row0 * LUT_W + x) * 4;
+    const i1 = (row1 * LUT_W + x) * 4;
+    const r = lutData[i0] * (1 - frac) + lutData[i1] * frac;
+    const g = lutData[i0 + 1] * (1 - frac) + lutData[i1 + 1] * frac;
+    const b = lutData[i0 + 2] * (1 - frac) + lutData[i1 + 2] * frac;
+    for (let y = 0; y < stripCanvas.height; y++) {
+      const p = (y * LUT_W + x) * 4;
+      imgData.data[p] = r;
+      imgData.data[p + 1] = g;
+      imgData.data[p + 2] = b;
+      imgData.data[p + 3] = 255;
+    }
+  }
+  stripCtx.putImageData(imgData, 0, 0);
+}
+
+// Slider: mood 0..3 crossfades between LUT rows
+const moodSlider = document.getElementById('mood');
+const moodValue = document.getElementById('mood-value');
+const moodNames = ['identity', 'warm', 'cool', 'bleached'];
+function updateMood() {
+  const v = parseFloat(moodSlider.value);
+  lutPass.uniforms.u_mood.value = v;
+  // Label: if close to a pure LUT, show its name; else show a crossfade
+  const nearest = Math.round(v);
+  if (Math.abs(v - nearest) < 0.05) {
+    moodValue.textContent = moodNames[nearest];
+  } else {
+    const a = moodNames[Math.floor(v)];
+    const b = moodNames[Math.floor(v) + 1] || a;
+    moodValue.textContent = `${a}→${b}`;
+  }
+  repaintStrip(v);
+}
+moodSlider.addEventListener('input', updateMood);
+updateMood();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('33-aces.html', '35-ssao.html');
+</script>
+</body>
+</html>

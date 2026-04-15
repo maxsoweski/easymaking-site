@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L33: ACES Tone Mapping · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">33.</span>ACES tone mapping</span>
+  </div>
+  <nav class="prev-next">
+    <a href="32-bloom.html">← prev</a>
+    <a href="34-lut.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">ACES tone mapping</h1>
+  <div class="lesson-subtitle">Arc 7 · Post-Pipeline · Lesson 33 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="exposure">exposure</label>
+      <input type="range" id="exposure" min="-2" max="2" step="0.01" value="0">
+      <div class="value" id="exposure-value">0.00</div>
+    </div>
+    <button class="toggle" id="aces-btn" data-active="true">ACES: on</button>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Real lighting produces values that go far above 1.0, your monitor can only display 0–1, and tone mapping is the S-curve that squashes the extra down smoothly instead of clipping it flat.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>When the lighting in a scene adds up — a specular highlight plus a sky color plus an emissive material — the red/green/blue value for that pixel might be 3.0 or 12.0 or 80.0. The monitor cannot show anything above 1.0. The naive answer is to clip — anything above 1 becomes pure white — but that destroys detail. The cloud gets a flat white patch instead of the sun; the metal reflects a flat white square instead of a highlight shape.</p>
+    <p>Tone mapping replaces clipping with a curve: near-linear in the mid-tones (where most of the image lives), with a gentle shoulder that rolls off highlights and a toe that handles shadows. <strong>ACES</strong> is the industry curve most engines ship with — it's the reason modern lighting looks "cinematic" instead of "CGI blown out." The curve doesn't change any geometry or signal; it changes how numbers become pixels.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Toggle ACES off</strong> (the button flips the renderer to raw clip: <code>color = min(color, 1.0)</code>). The brightest pixels — the sun, the specular highlights on the cube, the emissive sphere — become flat featureless white blobs. Color channels also clip independently, so a bright yellow highlight (red + green both at 1.5) clips to pure yellow, losing the slight red-shift a real camera would show. Turn ACES back on: the highlights regain shape, gain a slight filmic warmth, and the color shoulder does its job. <em>Teaches:</em> clipping destroys highlight detail and shifts color weirdly; ACES preserves highlight shape and handles color in a way that matches how cameras and film behave.</p>
+    <p>Now slide <code>exposure</code> up. With ACES on, the highlights don't smash into flat white — they compress smoothly into a warm shoulder. With ACES off, the same slide produces a flat-white ceiling.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more filmic"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ACES on, neutral exposure</span>
+
+      <span class="phrase">"richer highlights"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ACES on, exposure up (more scene in the shoulder)</span>
+
+      <span class="phrase">"softer highlights"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ACES on (any curve beats clipping)</span>
+
+      <span class="phrase">"more contrast / more punch"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ACES on, exposure down (scene into the toe)</span>
+
+      <span class="phrase">"cinematic grade"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">ACES on, then LUT on top (L34)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"tone-map before grade."</em> Grading (next lesson) assumes its input already looks right in brightness. If you grade unclipped HDR or clipped SDR, the LUT cannot do its job. Always tone-map first.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L32 (bloom) — bloom runs on HDR <em>before</em> tone-mapping; if you tone-map first you've already squashed the brights the bloom wanted. L34 (LUT) — tone-map first, <em>then</em> LUT. This ordering is non-negotiable and is the single most common brief-level mistake. <strong>Canonical order:</strong> SSAO → bloom → ACES → LUT.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the tone-mapping config running above</span>
+    </div>
+    <pre id="code-pre"><code>// Tone mapping in Three.js is a one-line switch on the renderer.
+// It is applied by the OutputPass at the end of the composer chain,
+// AFTER bloom has already done its HDR work.
+
+// --- ACES on (default for this lesson) ---
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;   // the `exposure` slider, in linear units
+
+// --- ACES off (the "break it") ---
+renderer.toneMapping = THREE.NoToneMapping;
+// The OutputPass will now just clip: any channel above 1.0 becomes 1.0.
+
+// The slider converts photographic stops to the linear multiplier:
+//   exposure (stops) → pow(2, stops)
+// +1 stop = 2x brighter, -1 stop = 0.5x.
+function setExposure(stops) {
+  renderer.toneMappingExposure = Math.pow(2, stops);
+}
+
+// NOTE on ordering:
+//   RenderPass (scene, HDR float)
+//   UnrealBloomPass (HDR, threshold + blur + add)  ← bloom sees raw values
+//   OutputPass (applies tone mapping + converts to sRGB for the display)
+// If you tone-map first, the bloom pass only sees 0-1 values and can't tell
+// "genuinely bright" from "merely light." Order matters.</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/OutputPass.js';
+import { highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
+camera.position.set(2.2, 1.8, 4.6);
+camera.lookAt(0, 0.4, 0);
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
+sun.position.set(3, 4, 2);
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x4a5070, 0.6));
+
+// Same HDR scene as L32 — bright emissive sphere gives the tone-mapper
+// something real to squash, and the specular on the metallic cube tests
+// the color shoulder.
+const sphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.7, 48, 48),
+  new THREE.MeshStandardMaterial({
+    color: 0x221a14,
+    emissive: new THREE.Color(5.0, 3.0, 1.0),
+    roughness: 0.4,
+    metalness: 0.0,
+  })
+);
+sphere.position.set(-0.9, 0.7, 0.2);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({
+    color: 0x8c9aa8,
+    roughness: 0.25,
+    metalness: 0.75,
+  })
+);
+cube.position.set(0.9, 0.5, 0.0);
+scene.add(cube);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(10, 10),
+  new THREE.MeshStandardMaterial({
+    color: 0x5a5665,
+    roughness: 0.85,
+    metalness: 0.05,
+  })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+function sizeOf() {
+  const rect = canvas.getBoundingClientRect();
+  return { w: Math.max(1, Math.floor(rect.width)), h: Math.max(1, Math.floor(rect.height)) };
+}
+const { w: w0, h: h0 } = sizeOf();
+
+const renderTarget = new THREE.WebGLRenderTarget(w0, h0, { type: THREE.HalfFloatType });
+const composer = new EffectComposer(renderer, renderTarget);
+composer.addPass(new RenderPass(scene, camera));
+
+// Bloom is here too — it's what makes ACES vs. clip most visible.
+// Bloom runs BEFORE tone-mapping (this is the Arc 7 ordering rule).
+const bloom = new UnrealBloomPass(new THREE.Vector2(w0, h0), 1.1, 0.6, 0.85);
+composer.addPass(bloom);
+
+// OutputPass reads renderer.toneMapping + toneMappingExposure and applies them.
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
+
+function resize() {
+  const { w, h } = sizeOf();
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  bloom.resolution.set(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+const start = performance.now();
+function animate() {
+  const t = (performance.now() - start) / 1000;
+  sphere.position.x = -0.9 + Math.sin(t * 0.4) * 0.15;
+  cube.rotation.y = t * 0.35;
+  cube.rotation.x = t * 0.2;
+  resize();
+  composer.render();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Slider: exposure in photographic stops → linear multiplier
+const exposureSlider = document.getElementById('exposure');
+const exposureValue = document.getElementById('exposure-value');
+function updateExposure() {
+  const stops = parseFloat(exposureSlider.value);
+  renderer.toneMappingExposure = Math.pow(2, stops);
+  const sign = stops >= 0 ? '+' : '';
+  exposureValue.textContent = sign + stops.toFixed(2);
+}
+exposureSlider.addEventListener('input', updateExposure);
+updateExposure();
+
+// Toggle: ACES on ↔ NoToneMapping (raw clip)
+// OutputPass bakes the tone-map into its shader at compile time, so we have
+// to flag the material for recompile whenever we flip the mode.
+const acesBtn = document.getElementById('aces-btn');
+acesBtn.addEventListener('click', () => {
+  const on = acesBtn.dataset.active === 'true';
+  if (on) {
+    renderer.toneMapping = THREE.NoToneMapping;
+    acesBtn.textContent = 'ACES: off (raw clip)';
+    acesBtn.dataset.active = 'false';
+  } else {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    acesBtn.textContent = 'ACES: on';
+    acesBtn.dataset.active = 'true';
+  }
+  outputPass.material.needsUpdate = true;
+});
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('32-bloom.html', '34-lut.html');
+</script>
+</body>
+</html>

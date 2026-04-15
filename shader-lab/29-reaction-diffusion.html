@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L29: Reaction-Diffusion · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">29.</span>Reaction-diffusion</span>
+  </div>
+  <nav class="prev-next">
+    <a href="28-fluid.html">← prev</a>
+    <a href="30-curl-particles.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Reaction-diffusion (Gray-Scott)</h1>
+  <div class="lesson-subtitle">Arc 6 · Simulations · Lesson 29 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+  <p style="font-size:13px; color:var(--muted); margin:-8px 0 18px;"><em>The signal layer now holds <strong>state</strong> — two chemical concentrations written each frame into a ping-pong texture and read back the next frame. This is the first arc where a pixel sees its own past.</em></p>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="pattern-mood">pattern-mood</label>
+      <input type="range" id="pattern-mood" min="0" max="1" step="0.001" value="0.5">
+      <div class="value" id="pattern-mood-value">0.50</div>
+    </div>
+    <div class="control">
+      <button class="toggle" id="reset-btn">reset seed</button>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Stripes, spots, coral, fingerprints, mitosis — they are all the <em>same</em> equation. Two diffusing chemicals on a grid, reacting by a tiny local rule. The parameter that decides which one you get is a two-number address in a phase diagram.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Alan Turing proposed in 1952 that biology's patterns — a leopard's spots, a zebra's stripes, the whorls on a fingerprint — come from two diffusing chemicals with a feedback reaction. Gray and Scott made it concrete in 1984. Each cell tracks two numbers, <code>U</code> and <code>V</code>. Every step: <code>U</code> diffuses to its neighbors, <code>V</code> diffuses at about half the rate, the reaction <code>U + 2V → 3V</code> converts U into V, a <strong>feed rate F</strong> drip-drips new U in, and a <strong>kill rate k</strong> removes V.</p>
+    <p>Run it for thousands of steps and patterns <em>emerge</em>. The astonishing part: a tiny change to F and k takes you from solid dots to stripes to labyrinths to mitosis (self-replicating blobs). The patterns are not painted — they are computed from local rules. The sim state lives in a texture (<code>U</code> in red, <code>V</code> in green), we render <em>into</em> a second texture each frame, then swap. Ping-pong.</p>
+    <p>The <code>pattern-mood</code> slider below sweeps a curated path through the F-k phase diagram. Drag it slowly. The universe of emergent organic patterns is not a gallery of algorithms — it is <em>one algorithm</em> at different coordinates in a two-number space.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Let it settle, then nudge <code>pattern-mood</code> slightly.</strong> The pattern doesn't redraw — it <em>reorganizes</em>. Dots become striped, stripes branch, branches fuse. <em>Teaches:</em> the image on screen is an equilibrium the rule reaches over time. Change the rule a little and equilibrium shifts a little.</p>
+    <p><strong>2. Push <code>pattern-mood</code> all the way right (mitosis), then hit reset.</strong> A single blob in the center splits. The children split. Within a minute an entire colony has unfolded from one seed. <em>Teaches:</em> the exact phenomenon Turing was pointing at — self-replicating structure from local chemistry, nothing painted, everything grown.</p>
+    <p><strong>3. Click anywhere on the canvas</strong> to drop a fresh seed of <code>V</code>. Watch the pattern rebuild from your click. <em>Teaches:</em> you are not painting the pattern — you are <em>perturbing</em> the field. The simulation does the rest.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more dots / cellular"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pattern-mood left</span>
+
+      <span class="phrase">"more stripes / flowing"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pattern-mood mid-left</span>
+
+      <span class="phrase">"more labyrinth / maze-like"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pattern-mood middle</span>
+
+      <span class="phrase">"more coral / branching"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pattern-mood mid-right</span>
+
+      <span class="phrase">"mitosis / self-replicating blobs"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pattern-mood far right</span>
+
+      <span class="phrase">"watch it form slowly"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">iterations-per-frame down</span>
+
+      <span class="phrase">"settle faster"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">iterations-per-frame up</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"a Gray-Scott pattern"</em> or <em>"a Turing pattern."</em> This is now a specific brief — distinct from "organic noise texture" (Arc 3 FBM). The difference: emergence from simulation on ping-pong textures versus computed-every-frame-from-scratch.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L28 (advect this pattern on top of a Stam velocity field — Karl Sims' classic), Arc 5 displacement (use V as a height map), L31 (coral patterns make great fire-bed shapes).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the simulation + display fragment shaders</span>
+    </div>
+    <pre id="code-pre"><code>// SIM PASS — reads previous-frame state from u_prev, writes new UV
+uniform sampler2D u_prev;
+uniform vec2 u_texel;   // 1.0 / resolution of the sim texture
+uniform float u_F;      // feed rate
+uniform float u_k;      // kill rate
+
+void main() {
+  vec2 uv = gl_FragCoord.xy * u_texel;
+  vec2 c = texture2D(u_prev, uv).rg;
+
+  // 9-point Laplacian — mixes neighbors into self
+  vec2 lap = -c;
+  lap += texture2D(u_prev, uv + vec2( u_texel.x, 0.0)).rg * 0.2;
+  lap += texture2D(u_prev, uv + vec2(-u_texel.x, 0.0)).rg * 0.2;
+  lap += texture2D(u_prev, uv + vec2(0.0,  u_texel.y)).rg * 0.2;
+  lap += texture2D(u_prev, uv + vec2(0.0, -u_texel.y)).rg * 0.2;
+  lap += texture2D(u_prev, uv + u_texel * vec2( 1.0,  1.0)).rg * 0.05;
+  lap += texture2D(u_prev, uv + u_texel * vec2(-1.0,  1.0)).rg * 0.05;
+  lap += texture2D(u_prev, uv + u_texel * vec2( 1.0, -1.0)).rg * 0.05;
+  lap += texture2D(u_prev, uv + u_texel * vec2(-1.0, -1.0)).rg * 0.05;
+
+  float U = c.r, V = c.g;
+  float rxn = U * V * V;
+  float dU = 1.0   * lap.r - rxn + u_F       * (1.0 - U);
+  float dV = 0.5   * lap.g + rxn - (u_F + u_k) *  V;
+
+  gl_FragColor = vec4(clamp(U + dU, 0.0, 1.0),
+                      clamp(V + dV, 0.0, 1.0), 0.0, 1.0);
+}
+</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupCodeToggle, setupArrowNav, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: false });
+renderer.setClearColor(0x000000, 1);
+
+// Simulation resolution (low-ish is fine for Gray-Scott)
+const SIM_SIZE = 320;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const quad = new THREE.PlaneGeometry(2, 2);
+
+// Ping-pong render targets — RGBA float/half-float store U, V in R and G channels.
+function makeTarget() {
+  return new THREE.WebGLRenderTarget(SIM_SIZE, SIM_SIZE, {
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.RepeatWrapping,
+    format: THREE.RGBAFormat,
+    type: THREE.HalfFloatType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+}
+let targetA = makeTarget();
+let targetB = makeTarget();
+
+// Simulation shader
+const simMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    u_prev: { value: null },
+    u_texel: { value: new THREE.Vector2(1 / SIM_SIZE, 1 / SIM_SIZE) },
+    u_F: { value: 0.037 },
+    u_k: { value: 0.06 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_prev;
+    uniform vec2 u_texel;
+    uniform float u_F;
+    uniform float u_k;
+
+    void main() {
+      vec2 uv = vUv;
+      vec2 c = texture2D(u_prev, uv).rg;
+
+      vec2 lap = -c;
+      lap += texture2D(u_prev, uv + vec2( u_texel.x, 0.0)).rg * 0.2;
+      lap += texture2D(u_prev, uv + vec2(-u_texel.x, 0.0)).rg * 0.2;
+      lap += texture2D(u_prev, uv + vec2(0.0,  u_texel.y)).rg * 0.2;
+      lap += texture2D(u_prev, uv + vec2(0.0, -u_texel.y)).rg * 0.2;
+      lap += texture2D(u_prev, uv + u_texel * vec2( 1.0,  1.0)).rg * 0.05;
+      lap += texture2D(u_prev, uv + u_texel * vec2(-1.0,  1.0)).rg * 0.05;
+      lap += texture2D(u_prev, uv + u_texel * vec2( 1.0, -1.0)).rg * 0.05;
+      lap += texture2D(u_prev, uv + u_texel * vec2(-1.0, -1.0)).rg * 0.05;
+
+      float U = c.r;
+      float V = c.g;
+      float rxn = U * V * V;
+      float dU = 1.0 * lap.r - rxn + u_F * (1.0 - U);
+      float dV = 0.5 * lap.g + rxn - (u_F + u_k) * V;
+
+      gl_FragColor = vec4(clamp(U + dU, 0.0, 1.0),
+                          clamp(V + dV, 0.0, 1.0), 0.0, 1.0);
+    }
+  `,
+});
+const simMesh = new THREE.Mesh(quad, simMaterial);
+
+// Seeding shader — paints a disc of V=1 around a given center on top of existing state.
+const seedMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    u_prev: { value: null },
+    u_center: { value: new THREE.Vector2(0.5, 0.5) },
+    u_radius: { value: 0.04 },
+    u_fresh: { value: 1.0 }, // 1 = full reset (wipe to U=1,V=0 everywhere before seeding)
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_prev;
+    uniform vec2 u_center;
+    uniform float u_radius;
+    uniform float u_fresh;
+    void main() {
+      vec2 prev = texture2D(u_prev, vUv).rg;
+      vec2 base = mix(prev, vec2(1.0, 0.0), u_fresh);
+      float d = distance(vUv, u_center);
+      float blob = smoothstep(u_radius, u_radius * 0.5, d);
+      vec2 seeded = mix(base, vec2(0.5, 0.25 + 0.75 * blob), blob);
+      gl_FragColor = vec4(seeded, 0.0, 1.0);
+    }
+  `,
+});
+const seedMesh = new THREE.Mesh(quad, seedMaterial);
+
+// Display shader — maps V channel to a palette, renders to canvas.
+const displayMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    u_state: { value: null },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_state;
+    void main() {
+      vec2 s = texture2D(u_state, vUv).rg;
+      float v = s.g;
+      // Palette: deep plum → warm paper → accent orange
+      vec3 c0 = vec3(0.08, 0.06, 0.14);
+      vec3 c1 = vec3(0.98, 0.92, 0.82);
+      vec3 c2 = vec3(0.77, 0.36, 0.26);
+      vec3 col = mix(c0, c1, smoothstep(0.05, 0.35, v));
+      col = mix(col, c2, smoothstep(0.35, 0.6, v));
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+});
+const displayMesh = new THREE.Mesh(quad, displayMaterial);
+
+// Curated F-k checkpoints sweeping dots → stripes → labyrinth → coral → mitosis.
+const CHECKPOINTS = [
+  { F: 0.022, k: 0.059 },   // fat dots
+  { F: 0.028, k: 0.060 },   // stripes
+  { F: 0.037, k: 0.060 },   // labyrinth
+  { F: 0.054, k: 0.062 },   // coral
+  { F: 0.037, k: 0.0625 },  // mitosis
+];
+function setMood(t) {
+  t = Math.max(0, Math.min(1, t));
+  const n = CHECKPOINTS.length - 1;
+  const idx = t * n;
+  const i = Math.min(Math.floor(idx), n - 1);
+  const f = idx - i;
+  const a = CHECKPOINTS[i];
+  const b = CHECKPOINTS[i + 1];
+  simMaterial.uniforms.u_F.value = a.F + (b.F - a.F) * f;
+  simMaterial.uniforms.u_k.value = a.k + (b.k - a.k) * f;
+}
+
+// Resize: the canvas buffer size only affects the display pass.
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width * dpr));
+  const h = Math.max(1, Math.floor(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    renderer.setSize(w, h, false);
+  }
+}
+
+// Seed helpers
+function seedAt(uvx, uvy, fresh) {
+  seedMaterial.uniforms.u_prev.value = targetA.texture;
+  seedMaterial.uniforms.u_center.value.set(uvx, uvy);
+  seedMaterial.uniforms.u_radius.value = fresh ? 0.06 : 0.035;
+  seedMaterial.uniforms.u_fresh.value = fresh ? 1.0 : 0.0;
+  scene.clear();
+  scene.add(seedMesh);
+  renderer.setRenderTarget(targetB);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  [targetA, targetB] = [targetB, targetA];
+}
+function reset() { seedAt(0.5, 0.5, true); }
+reset();
+
+// Simulation step
+const ITERS_PER_FRAME = 18;
+function simStep() {
+  scene.clear();
+  scene.add(simMesh);
+  for (let i = 0; i < ITERS_PER_FRAME; i++) {
+    simMaterial.uniforms.u_prev.value = targetA.texture;
+    renderer.setRenderTarget(targetB);
+    renderer.render(scene, camera);
+    [targetA, targetB] = [targetB, targetA];
+  }
+  renderer.setRenderTarget(null);
+}
+
+function render() {
+  resize();
+  simStep();
+  displayMaterial.uniforms.u_state.value = targetA.texture;
+  scene.clear();
+  scene.add(displayMesh);
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
+}
+
+// Slider + reset wiring
+const moodSlider = document.getElementById('pattern-mood');
+const moodValue = document.getElementById('pattern-mood-value');
+function updateMood() {
+  const v = parseFloat(moodSlider.value);
+  setMood(v);
+  moodValue.textContent = v.toFixed(2);
+}
+moodSlider.addEventListener('input', updateMood);
+updateMood();
+
+document.getElementById('reset-btn').addEventListener('click', reset);
+
+// Click = drop a fresh seed at that spot (no wipe).
+canvas.addEventListener('pointerdown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = 1 - (e.clientY - rect.top) / rect.height;
+  seedAt(x, y, false);
+});
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('28-fluid.html', '30-curl-particles.html');
+
+render();
+</script>
+</body>
+</html>
+</content>
+</invoke>

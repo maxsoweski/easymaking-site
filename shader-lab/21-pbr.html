@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L21: PBR (Cook-Torrance + GGX) · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">21.</span>PBR basics</span>
+  </div>
+  <nav class="prev-next">
+    <a href="20-toon.html">← prev</a>
+    <a href="22-normal-mapping.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">PBR (Cook-Torrance + GGX)</h1>
+  <div class="lesson-subtitle">Arc 4 · 3D Lighting · Lesson 21 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="metalness">metalness</label>
+      <input type="range" id="metalness" min="0" max="1" step="0.01" value="0">
+      <div class="value" id="metalness-value">0.00</div>
+    </div>
+    <div class="control">
+      <label for="roughness">roughness</label>
+      <input type="range" id="roughness" min="0" max="1" step="0.01" value="0.5">
+      <div class="value" id="roughness-value">0.50</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>PBR reduces material direction from "pick a shininess exponent and a specular color" to two knobs — <strong>metalness</strong> (is it a metal, yes or no) and <strong>roughness</strong> (smooth or micro-bumpy) — and every modern game-engine material sits on that grid.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Blinn-Phong lets an artist pick any specular color, any shininess, any specular strength — which means most tunings look wrong, because real materials don't have that many degrees of freedom. PBR fixes this by encoding physics. The big split: <strong>dielectrics</strong> (plastic, wood, skin, paint) have a dim white reflection (~4%) and show their color in the <em>diffuse</em> term. <strong>Metals</strong> have no diffuse at all and show their color in the <em>specular reflection</em> — a gold bar is gold because its reflection is gold-tinted, not because its "diffuse" is yellow.</p>
+    <p>That is the <code>metalness</code> knob: 0 for dielectric, 1 for metal, and please don't pick 0.5 (there's no such material). <code>roughness</code> replaces the shininess exponent but inverts it — 0 is a perfect mirror, 1 is unpolished chalk. Underneath, GGX shapes the highlight lobe: sharp star at low roughness, wide glow with a bright core and long tail at high roughness. Fresnel is already inside — no separate rim dial.</p>
+    <p>Drag <code>metalness</code> through its full range at <code>roughness = 0.3</code>. Watch the sphere's body go from painted plastic (body shows its base color, tiny white highlight) to raw metal (body goes dark, reflection takes the color).</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Metalness 0.5, roughness 0.</strong> The classic "wrong answer." The surface looks like shrink-wrapped plastic pretending to be metal — a pure white highlight on a colored body.</p>
+    <p><em>Teaches:</em> metalness is <em>binary</em> in the real world. 0.5 only exists at edges between metal flakes and binder (car paint, glitter), and even there it's a blend of the two extremes, not a middle substance. This is the most common material-briefing mistake.</p>
+    <p><strong>Roughness 1 on a metal</strong> (metalness = 1). The sphere becomes an unidentifiable muddy disc. <em>Teaches:</em> without a sharp reflection, metals lose the thing that makes them read as metal. Brushed steel is roughness ~0.5, not 1.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more metallic"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">metalness toward 1</span>
+
+      <span class="phrase">"more plastic"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">metalness toward 0</span>
+
+      <span class="phrase">"polished"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">roughness down</span>
+
+      <span class="phrase">"worn / matte"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">roughness up</span>
+
+      <span class="phrase">"brushed steel"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">metalness 1, roughness ~0.5</span>
+
+      <span class="phrase">"rubber / painted"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">metalness 0, roughness ~0.7</span>
+
+      <span class="phrase">"perfect mirror"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">metalness 1, roughness 0</span>
+
+      <span class="phrase">"chalky / unfinished"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">metalness 0, roughness ~0.9</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> the material world now collapses to a two-axis grid. Briefing any material becomes <em>"position on the metal/rough grid"</em> plus a base color.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L19 (Fresnel is already inside), L22 (normal map is the standard extra input), L23 (triplanar + PBR is the terrain rendering stack). Tone mapping is mandatory when PBR's HDR output needs to hit a 0–1 screen.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">Three.js material setup (the GGX + Cook-Torrance shader is built into <code>MeshStandardMaterial</code>)</span>
+    </div>
+    <pre id="code-pre"><code>// PBR is too big to hand-roll in a lesson — every modern engine ships
+// the same Cook-Torrance + GGX implementation. In Three.js it's one line:
+const material = new THREE.MeshStandardMaterial({
+  color: 0xc8846a,     // base color (acts as diffuse for dielectrics,
+                       //             as reflection tint for metals)
+  metalness: 0.0,      // 0 = dielectric (plastic/wood/paint/skin),
+                       // 1 = metal. Keep it binary.
+  roughness: 0.5,      // 0 = perfect mirror, 1 = chalk.
+});
+
+// An environment map (sky, indoor lighting, HDRI) is what metals
+// actually reflect. Without one, metals look black because there's
+// nothing around them to bounce into the camera.
+scene.environment = pmremFromGradient(renderer);
+
+// Update from sliders:
+material.metalness = metalnessSlider.value;
+material.roughness = roughnessSlider.value;</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupArrowNav, setupCodeToggle, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
+camera.position.set(0, 0.6, 5.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// Procedural environment — a warm sky over a cool floor, blurred.
+// Gives metals something to reflect without shipping an HDRI.
+function makeGradientEnv() {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size / 2;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, c.height);
+  g.addColorStop(0.0, '#f0d9b6');   // sky top — warm
+  g.addColorStop(0.45, '#c6aa84');  // horizon warm
+  g.addColorStop(0.55, '#6a7e8c');  // horizon cool
+  g.addColorStop(1.0, '#2a2f3a');   // floor — cool
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, c.width, c.height);
+  // sprinkle a few bright spots so reflections have detail to pick up
+  ctx.fillStyle = 'rgba(255, 245, 220, 0.7)';
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.arc(40 + i * 80, 60 + (i % 2) * 20, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const rt = pmrem.fromEquirectangular(tex);
+  tex.dispose();
+  pmrem.dispose();
+  return rt.texture;
+}
+scene.environment = makeGradientEnv();
+
+// Keep a direct key light so the scene has a defined light direction too
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(2.5, 3, 2.5);
+scene.add(key);
+
+const material = new THREE.MeshStandardMaterial({
+  color: new THREE.Color(0xc8846a),
+  metalness: 0.0,
+  roughness: 0.5,
+});
+
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.9, 96, 96), material);
+sphere.position.set(-1.1, 0, 0);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), material);
+cube.position.set(1.25, 0, 0);
+scene.add(cube);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w > 0 && h > 0) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+const clock = new THREE.Clock();
+function tick() {
+  const t = clock.getElapsedTime();
+  sphere.rotation.y = t * 0.25;
+  cube.rotation.y = t * 0.25;
+  cube.rotation.x = t * 0.12;
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+const mSlider = document.getElementById('metalness');
+const mValue = document.getElementById('metalness-value');
+function updateM() {
+  const v = parseFloat(mSlider.value);
+  material.metalness = v;
+  mValue.textContent = v.toFixed(2);
+}
+mSlider.addEventListener('input', updateM);
+updateM();
+
+const rSlider = document.getElementById('roughness');
+const rValue = document.getElementById('roughness-value');
+function updateR() {
+  const v = parseFloat(rSlider.value);
+  material.roughness = v;
+  rValue.textContent = v.toFixed(2);
+}
+rSlider.addEventListener('input', updateR);
+updateR();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('20-toon.html', '22-normal-mapping.html');
+</script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L12: CRT · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">12.</span>CRT</span>
+  </div>
+  <nav class="prev-next">
+    <a href="11-dithering.html">← prev</a>
+    <a href="13-marble.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">CRT <span style="font-weight:400;color:var(--muted);font-size:0.6em">(composite)</span></h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 12 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="curve">curve</label>
+      <input type="range" id="curve" min="0" max="0.3" step="0.005" value="0.12">
+      <div class="value" id="curve-value">0.12</div>
+    </div>
+    <div class="control">
+      <label for="scanlines">scanlines</label>
+      <input type="range" id="scanlines" min="0" max="1" step="0.01" value="0.5">
+      <div class="value" id="scanlines-value">0.50</div>
+    </div>
+    <div class="control">
+      <label for="fringe">fringe</label>
+      <input type="range" id="fringe" min="0" max="0.01" step="0.0001" value="0.003">
+      <div class="value" id="fringe-value">0.0030</div>
+    </div>
+    <div class="control">
+      <label for="mask">mask</label>
+      <input type="range" id="mask" min="0" max="1" step="0.01" value="0.4">
+      <div class="value" id="mask-value">0.40</div>
+    </div>
+    <div class="control">
+      <label for="glow">glow</label>
+      <input type="range" id="glow" min="0" max="1" step="0.01" value="0.5">
+      <div class="value" id="glow-value">0.50</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A complex, recognizable look like a CRT is not a new primitive — it's a stack of five or six simple operations from earlier lessons, each living in an identifiable layer. The only new skill is <em>composing</em> them in the right order with the right intensities.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Nothing in a CRT shader is mathematically new after the lessons above. <strong>Scanlines</strong> are L3's <code>sin</code> used as an intensity mask. The <strong>phosphor dot mask</strong> is L5's coordinate quantization with a color per cell. <strong>Barrel distortion</strong> is a radial UV remap (coordinate layer). <strong>Chromatic aberration</strong> is L7. The <strong>glow</strong> is a vignette in reverse (bright-at-center mask added instead of subtracted).</p>
+    <p>The lesson is the <em>ordering</em> and the <em>layered masks-times-image</em> recipe: coordinate changes happen first (so you can't sample the same pixel twice), signal-layer masks are computed from UVs, then everything is multiplied and added onto the scene in the color layer. This is the first lesson where <strong>composition itself</strong> is the skill being taught; a CRT that has its parts in the wrong order is unmistakably broken.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Zero every slider, then bring them up one at a time.</strong> <code>scanlines</code> alone looks like bad Netflix; <code>scanlines</code> + <code>mask</code> looks like an arcade; <code>scanlines</code> + <code>mask</code> + <code>curve</code> looks like a real television; adding <code>fringe</code> + <code>glow</code> gives the full nostalgia hit. <em>Teaches:</em> a CRT is not one effect — it's five effects stacked, each in its own layer, each contributing one aspect of the look. Remove any one and it's still "retro" in some way but loses a specific quality. You can now name what each quality is.</p>
+    <p><strong>Then turn <code>scanlines</code> and <code>mask</code> both to 1, <code>glow</code> to 0, and look closely.</strong> The screen becomes a grid of RGB phosphor triads with dark scanlines between them — the actual physical structure of a real CRT, now visible as data. <em>Teaches:</em> subtle retro looks are hiding this exact structure at small amplitude. The look works because your eye integrates the grid at normal viewing distance — the same mechanism that makes Lesson 11's dithering work.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"tube TV / arcade monitor"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">all five up, mask + scanlines dominant</span>
+
+      <span class="phrase">"broken old screen"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">scanlines high, fringe high, add L8 noise flicker</span>
+
+      <span class="phrase">"modern-retro / Ghostty vibe"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">scanlines medium, mask low, glow medium, fringe barely there</span>
+
+      <span class="phrase">"cheap CRT (no curve)"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">curve = 0, everything else as desired — a flat scanline filter</span>
+
+      <span class="phrase">"VHS, not CRT"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">mask = 0, raise fringe, add horizontal UV wobble (L6)</span>
+
+      <span class="phrase">"CRT only over part of the image"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">apply everything inside a luminance or region mask</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"composite look."</em> When you ask for a "CRT" or "retro screen" or "arcade monitor," you're asking for a <strong>stack</strong>, and you can now spec each layer independently. The same vocabulary applies to comic ink, VHS, ditherpunk, film — all of which are stacks of three-layer operations.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> Every earlier Arc 2 lesson feeds in here — this <em>is</em> the arc's payoff. Later arcs reuse the same composition muscle: toon + outline + halftone (Arc 4), DOF + grain + LUT (Arc 7). Once you internalize "composite = stack of layers I can enumerate," every later composite shader becomes readable.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_curve;
+uniform float u_scanlines;
+uniform float u_fringe;
+uniform float u_mask;
+uniform float u_glow;
+
+// Source scene — a sunset vaporwave with animated grid.
+vec3 scene(vec2 uv) {
+  if (uv.x &lt; 0.0 || uv.x &gt; 1.0 || uv.y &lt; 0.0 || uv.y &gt; 1.0) return vec3(0.0);
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y &lt; 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0 - u_time * 0.25) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+float hash11(float x) {
+  return fract(sin(x * 127.1) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  // COORDINATE LAYER (1) — barrel distortion. Bows UV outward from center.
+  vec2 cuv = uv - 0.5;
+  cuv *= 1.0 + dot(cuv, cuv) * u_curve;
+  vec2 warped = cuv + 0.5;
+
+  // Black border outside the bowed rectangle.
+  if (warped.x &lt; 0.0 || warped.x &gt; 1.0 || warped.y &lt; 0.0 || warped.y &gt; 1.0) {
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  // COORDINATE LAYER (2) — radial chromatic aberration. L7.
+  vec2 dir = warped - 0.5;
+  float r = scene(warped + dir * u_fringe).r;
+  float g = scene(warped).g;
+  float b = scene(warped - dir * u_fringe).b;
+  vec3 col = vec3(r, g, b);
+
+  // SIGNAL LAYER (1) — scanlines as a sine intensity mask.
+  // 220 horizontal bands regardless of canvas resolution.
+  float scan = 0.5 + 0.5 * sin(uv.y * 220.0 * 3.14159);
+  col *= mix(1.0, scan, u_scanlines);
+
+  // SIGNAL LAYER (2) — phosphor RGB triad mask (L5's quantization, one color per cell).
+  float triads = 160.0; // how many RGB triads across the screen
+  float cell = mod(uv.x * triads * 3.0, 3.0);
+  vec3 phosphor = vec3(1.0);
+  if      (cell &lt; 1.0) phosphor = vec3(1.25, 0.55, 0.55);
+  else if (cell &lt; 2.0) phosphor = vec3(0.55, 1.25, 0.55);
+  else                 phosphor = vec3(0.55, 0.55, 1.25);
+  col *= mix(vec3(1.0), phosphor, u_mask);
+
+  // COLOR LAYER — glow (vignette inverted — bright at center, added back onto col).
+  float glowMask = 1.0 - smoothstep(0.0, 0.8, length(uv - 0.5));
+  col += u_glow * glowMask * 0.35;
+
+  // COLOR LAYER — subtle edge darkening (built-in vignette).
+  float vig = 1.0 - smoothstep(0.45, 0.85, length(uv - 0.5));
+  col *= mix(1.0, vig, 0.5);
+
+  // SIGNAL LAYER (3) — tiny per-frame brightness flicker (L8's noise, low amplitude).
+  float flicker = 1.0 + 0.025 * (hash11(floor(u_time * 30.0)) - 0.5);
+  col *= flicker;
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_curve;
+uniform float u_scanlines;
+uniform float u_fringe;
+uniform float u_mask;
+uniform float u_glow;
+
+vec3 scene(vec2 uv) {
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return vec3(0.0);
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y < 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0 - u_time * 0.25) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+float hash11(float x) {
+  return fract(sin(x * 127.1) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  vec2 cuv = uv - 0.5;
+  cuv *= 1.0 + dot(cuv, cuv) * u_curve;
+  vec2 warped = cuv + 0.5;
+
+  if (warped.x < 0.0 || warped.x > 1.0 || warped.y < 0.0 || warped.y > 1.0) {
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  vec2 dir = warped - 0.5;
+  float r = scene(warped + dir * u_fringe).r;
+  float g = scene(warped).g;
+  float b = scene(warped - dir * u_fringe).b;
+  vec3 col = vec3(r, g, b);
+
+  float scan = 0.5 + 0.5 * sin(uv.y * 220.0 * 3.14159);
+  col *= mix(1.0, scan, u_scanlines);
+
+  float triads = 160.0;
+  float cell = mod(uv.x * triads * 3.0, 3.0);
+  vec3 phosphor = vec3(1.0);
+  if      (cell < 1.0) phosphor = vec3(1.25, 0.55, 0.55);
+  else if (cell < 2.0) phosphor = vec3(0.55, 1.25, 0.55);
+  else                 phosphor = vec3(0.55, 0.55, 1.25);
+  col *= mix(vec3(1.0), phosphor, u_mask);
+
+  float glowMask = 1.0 - smoothstep(0.0, 0.8, length(uv - 0.5));
+  col += u_glow * glowMask * 0.35;
+
+  float vig = 1.0 - smoothstep(0.45, 0.85, length(uv - 0.5));
+  col *= mix(1.0, vig, 0.5);
+
+  float flicker = 1.0 + 0.025 * (hash11(floor(u_time * 30.0)) - 0.5);
+  col *= flicker;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_curve: { type: '1f', value: 0.12 },
+  u_scanlines: { type: '1f', value: 0.5 },
+  u_fringe: { type: '1f', value: 0.003 },
+  u_mask: { type: '1f', value: 0.4 },
+  u_glow: { type: '1f', value: 0.5 },
+});
+if (app) {
+  bindSlider(document.getElementById('curve'), document.getElementById('curve-value'), app, 'u_curve');
+  bindSlider(document.getElementById('scanlines'), document.getElementById('scanlines-value'), app, 'u_scanlines');
+  // fringe uses 4-decimal display
+  const fringeSlider = document.getElementById('fringe');
+  const fringeValueEl = document.getElementById('fringe-value');
+  const updFringe = () => {
+    const v = parseFloat(fringeSlider.value);
+    app.setUniform('u_fringe', v);
+    fringeValueEl.textContent = v.toFixed(4);
+  };
+  fringeSlider.addEventListener('input', updFringe);
+  updFringe();
+  bindSlider(document.getElementById('mask'), document.getElementById('mask-value'), app, 'u_mask');
+  bindSlider(document.getElementById('glow'), document.getElementById('glow-value'), app, 'u_glow');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('11-dithering.html', '13-marble.html');
+</script>
+</body>
+</html>

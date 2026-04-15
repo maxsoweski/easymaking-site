@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L8: Perlin Noise · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">08.</span>Perlin noise</span>
+  </div>
+  <nav class="prev-next">
+    <a href="07-chromatic-aberration.html">← prev</a>
+    <a href="09-fbm.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Perlin noise</h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 8 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="grain">grain</label>
+      <input type="range" id="grain" min="0.5" max="32" step="0.1" value="3">
+      <div class="value" id="grain-value">3.0</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Perlin noise is a reliable way to get a number that <em>looks random but is smooth</em> for every point in space — and it's the foundational signal primitive from which clouds, terrain, marble, fire, and almost every "natural" shader are built.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>White noise (raw random) is useless for most natural effects because neighbors are unrelated — it looks like static. Perlin is a function that, given a coordinate, returns a value that's random-<em>feeling</em> but <em>continuous</em>: if two points are close, their Perlin values are close.</p>
+    <p>The underlying mechanism is a grid of hidden random gradient vectors interpolated smoothly between grid corners, but the important part for an art director is the behavior: <strong>deterministic</strong> (same input, same output — cacheable, reproducible), <strong>smooth</strong> (no popping), <strong>tunable in frequency</strong> (scale the coordinate up for tighter variation). This smoothness is what makes Perlin the raw material for everything organic.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Compare <code>grain</code> = 1 to <code>grain</code> = 25.</strong> At 1 it looks like rolling hills or soft clouds; at 25 it looks like TV static even though the underlying function is still smooth. <em>Teaches:</em> "smooth" and "noisy-looking" are scale-relative. Perlin at huge frequency has the same per-cell smoothness as Perlin at small frequency, but your pixels are no longer resolving that smoothness — you're only catching widely separated samples, which visually resembles noise again. This is why FBM (next lesson) matters: one frequency is never enough.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"soft clouds / big rolling variation"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">grain low</span>
+
+      <span class="phrase">"fine texture / closer to noise"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">grain high</span>
+
+      <span class="phrase">"same look but animated"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">pass time as a third input (3D noise with time on the Z axis)</span>
+
+      <span class="phrase">"a different random pattern"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">seed offset — add a constant to the coordinate</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"the signal is Perlin."</em> When you say this, a shader developer immediately knows to reach for gradient noise — not white noise — and that it's smooth, tileable, and scalable by frequency.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L9 (FBM layers multiple frequencies of this noise), L10 (domain warping feeds this back into itself), L12 (CRT phosphor flicker uses low-amplitude animated noise), every procedural texture lesson in Arc 3.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_grain;
+
+// Pseudo-random unit gradient at a lattice point.
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+// Classic 2D Perlin gradient noise.
+float perlin(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0); // quintic smoothing
+  float a = dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+  float b = dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+  float c = dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+  float d = dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+
+  // SIGNAL LAYER — one Perlin call. grain scales the coordinate first.
+  float n = perlin(uv * u_grain);
+  float v = 0.5 + 0.5 * n;
+
+  gl_FragColor = vec4(vec3(v), 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_grain;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float perlin(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float a = dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+  float b = dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+  float c = dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+  float d = dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  float n = perlin(uv * u_grain);
+  float v = 0.5 + 0.5 * n;
+  gl_FragColor = vec4(vec3(v), 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_grain: { type: '1f', value: 3 },
+});
+if (app) {
+  bindSlider(document.getElementById('grain'), document.getElementById('grain-value'), app, 'u_grain');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('07-chromatic-aberration.html', '09-fbm.html');
+</script>
+</body>
+</html>

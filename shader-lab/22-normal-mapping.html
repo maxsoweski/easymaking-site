@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L22: Normal Mapping · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">22.</span>Normal mapping</span>
+  </div>
+  <nav class="prev-next">
+    <a href="21-pbr.html">← prev</a>
+    <a href="23-triplanar.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Normal Mapping</h1>
+  <div class="lesson-subtitle">Arc 4 · 3D Lighting · Lesson 22 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="depth">depth</label>
+      <input type="range" id="depth" min="-2" max="2" step="0.01" value="1">
+      <div class="value" id="depth-value">1.00</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A normal map is a texture that lies to the lighting system about which way the surface is facing — the geometry stays flat, but every lit pixel behaves as if it were bumpy. That's how modern rendering fakes surface detail without modeling it.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Every 3D lighting lesson so far has asked <code>dot(normal, light)</code>. That normal came from the mesh — one per vertex, smoothly interpolated across triangles. Normal mapping replaces that interpolated normal with one read from an <em>image</em>: red channel is the X tilt, green is the Y tilt, blue is the "out" component. A small matrix called TBN rotates the stored tilt into world space so the lighting math works unchanged.</p>
+    <p>The geometry is <em>not</em> bumped — the silhouette stays smooth — but every lighting model downstream treats each pixel as if it had its own micro-orientation. This is the most important trick in real-time rendering because it decouples visual detail from polygon count.</p>
+    <p>This is where your material vocabulary becomes concrete: "feels worn," "feels smooth," "feels detailed," "feels scratched" all resolve to normal-map choices. <code>depth</code> is the continuous dial — 0 is flat, 1 is the authored relief, 2 is an exaggerated comic-book version of it.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Depth to 2 and watch the silhouette</strong> (wait for the sphere to rotate). The outer edge of the sphere stays perfectly smooth no matter what the normal map claims. <em>Teaches:</em> normal mapping is a <em>lighting lie</em>, not a geometry change. When silhouette matters, you need tessellation or displacement instead.</p>
+    <p><strong>Drag depth negative (toward -2).</strong> Bumps become pits and pits become bumps — every detail reverses because the stored tilts now flip. <em>Teaches:</em> a normal map is a sign convention, and the same file reads as a different surface if the convention flips. This is the most common bug in mixed-tool pipelines (OpenGL vs. DirectX flip Y).</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"feels detailed"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">normal map on, depth ≥ 1</span>
+
+      <span class="phrase">"feels smooth / polished"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth 0, or swap for a smooth map</span>
+
+      <span class="phrase">"feels worn"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth up with a worn map (pits, scratches)</span>
+
+      <span class="phrase">"exaggerate the surface"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth up</span>
+
+      <span class="phrase">"tone down the bumpiness"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">depth down</span>
+
+      <span class="phrase">"invert the relief"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">flip Y (or negate depth)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> material briefs now have two independent axes — <em>shape/shine</em> (PBR: metalness + roughness) and <em>texture/relief</em> (normal map + depth). A full material brief is a point on both.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L17–L21 (every lighting model reads the perturbed normal unchanged — that's the power of the trick), L23 (triplanar can project normal maps too, with a per-axis TBN fix), and it's the input that makes PBR look like anything other than a bald sphere.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">procedural normal map + Three.js material setup</span>
+    </div>
+    <pre id="code-pre"><code>// Generate a normal map on a 2D canvas at load time.
+// 1) Build a height field (here: a lattice of rounded bumps).
+// 2) For each pixel, sample the heights of its neighbors and
+//    compute the surface tilt via finite differences.
+// 3) Pack (tiltX, tiltY, 1) into RGB. Blue = 255 means "straight out."
+function buildNormalMap(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+
+  // height field — sum of two frequencies so bumps have variation
+  const h = new Float32Array(size * size);
+  for (let y = 0; y &lt; size; y++) {
+    for (let x = 0; x &lt; size; x++) {
+      const u = (x / size) * Math.PI * 16;
+      const v = (y / size) * Math.PI * 16;
+      h[y * size + x] = Math.sin(u) * Math.sin(v)
+                      + 0.4 * Math.sin(u * 2.3 + 1.0) * Math.sin(v * 2.3);
+    }
+  }
+
+  // normal from finite differences
+  const strength = 3.0;
+  for (let y = 0; y &lt; size; y++) {
+    for (let x = 0; x &lt; size; x++) {
+      const l = h[y * size + ((x + size - 1) % size)];
+      const r = h[y * size + ((x + 1) % size)];
+      const u = h[((y + size - 1) % size) * size + x];
+      const d = h[((y + 1) % size) * size + x];
+      const nx = (l - r) * strength;
+      const ny = (u - d) * strength;
+      const nz = 1.0;
+      const m = 1 / Math.hypot(nx, ny, nz);
+      const i = (y * size + x) * 4;
+      img.data[i    ] = (nx * m * 0.5 + 0.5) * 255;
+      img.data[i + 1] = (ny * m * 0.5 + 0.5) * 255;
+      img.data[i + 2] = (nz * m * 0.5 + 0.5) * 255;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return new THREE.CanvasTexture(c);
+}
+
+// Apply it to a standard material. normalScale is the depth dial.
+const material = new THREE.MeshStandardMaterial({
+  color: 0xd0c4b0,
+  metalness: 0.6,
+  roughness: 0.35,
+  normalMap: buildNormalMap(512),
+});
+material.normalScale.set(1.0, 1.0);  // depth slider writes both</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupArrowNav, setupCodeToggle, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const wrap = canvas.parentElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
+camera.position.set(0, 0.6, 5.6);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// Procedural environment — same gradient trick as L21 so the metal reads
+function makeGradientEnv() {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size / 2;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, c.height);
+  g.addColorStop(0.0, '#f0d9b6');
+  g.addColorStop(0.45, '#c6aa84');
+  g.addColorStop(0.55, '#6a7e8c');
+  g.addColorStop(1.0, '#2a2f3a');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = 'rgba(255, 245, 220, 0.7)';
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.arc(40 + i * 80, 60 + (i % 2) * 20, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const rt = pmrem.fromEquirectangular(tex);
+  tex.dispose();
+  pmrem.dispose();
+  return rt.texture;
+}
+scene.environment = makeGradientEnv();
+
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(2.5, 3, 2.5);
+scene.add(key);
+
+// Procedural normal map
+function buildNormalMap(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+
+  const h = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = (x / size) * Math.PI * 16;
+      const v = (y / size) * Math.PI * 16;
+      h[y * size + x] = Math.sin(u) * Math.sin(v)
+                      + 0.4 * Math.sin(u * 2.3 + 1.0) * Math.sin(v * 2.3);
+    }
+  }
+
+  const strength = 3.0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const l = h[y * size + ((x + size - 1) % size)];
+      const r = h[y * size + ((x + 1) % size)];
+      const u = h[((y + size - 1) % size) * size + x];
+      const d = h[((y + 1) % size) * size + x];
+      const nx = (l - r) * strength;
+      const ny = (u - d) * strength;
+      const nz = 1.0;
+      const m = 1 / Math.hypot(nx, ny, nz);
+      const i = (y * size + x) * 4;
+      img.data[i] = (nx * m * 0.5 + 0.5) * 255;
+      img.data[i + 1] = (ny * m * 0.5 + 0.5) * 255;
+      img.data[i + 2] = (nz * m * 0.5 + 0.5) * 255;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+const normalTex = buildNormalMap(512);
+
+const material = new THREE.MeshStandardMaterial({
+  color: new THREE.Color(0xd0c4b0),
+  metalness: 0.6,
+  roughness: 0.35,
+  normalMap: normalTex,
+});
+material.normalScale.set(1.0, 1.0);
+
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.9, 96, 96), material);
+sphere.position.set(-1.1, 0, 0);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), material);
+cube.position.set(1.25, 0, 0);
+scene.add(cube);
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w > 0 && h > 0) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+const clock = new THREE.Clock();
+function tick() {
+  const t = clock.getElapsedTime();
+  sphere.rotation.y = t * 0.25;
+  cube.rotation.y = t * 0.25;
+  cube.rotation.x = t * 0.12;
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+const dSlider = document.getElementById('depth');
+const dValue = document.getElementById('depth-value');
+function updateD() {
+  const v = parseFloat(dSlider.value);
+  material.normalScale.set(v, v);
+  dValue.textContent = v.toFixed(2);
+}
+dSlider.addEventListener('input', updateD);
+updateD();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('21-pbr.html', '23-triplanar.html');
+</script>
+</body>
+</html>

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L28: 2D Fluid (Stam) · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">28.</span>2D fluid (Stam)</span>
+  </div>
+  <nav class="prev-next">
+    <a href="27-raymarching.html">← prev</a>
+    <a href="29-reaction-diffusion.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">2D fluid (Stam's stable fluids)</h1>
+  <div class="lesson-subtitle">Arc 6 · Simulations · Lesson 28 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+  <p style="font-size:13px; color:var(--muted); margin:-8px 0 18px;"><em>Arc 6 extension — sim state (velocity + dye) lives in <strong>ping-pong textures</strong> read across frames. This is where L1's "no past frames" rule gets its first exception.</em></p>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+  <p style="font-size:13px; color:var(--muted); margin:-16px 0 18px;"><em>Click and drag on the canvas to push the fluid and inject dye.</em></p>
+
+  <div class="controls">
+    <div class="control">
+      <label for="viscosity">viscosity</label>
+      <input type="range" id="viscosity" min="0" max="1" step="0.01" value="0.1">
+      <div class="value" id="viscosity-value">0.10</div>
+    </div>
+    <div class="control">
+      <label for="dissipation">dissipation</label>
+      <input type="range" id="dissipation" min="0" max="0.05" step="0.0005" value="0.005">
+      <div class="value" id="dissipation-value">0.005</div>
+    </div>
+    <div class="control">
+      <label for="projection">projection</label>
+      <input type="range" id="projection" min="0" max="24" step="1" value="18">
+      <div class="value" id="projection-value">18</div>
+    </div>
+    <div class="control">
+      <button class="toggle" id="reset-btn">reset</button>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Real fluid on a GPU is four small passes per frame — <em>add force, advect, diffuse, project</em> — and the thing that makes it <em>stable</em> is reading <em>backward</em> along the velocity instead of pushing stuff forward.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Jos Stam's 1999 paper solved the problem that had kept fluid out of real-time graphics: naïvely pushing each pixel's dye forward along its velocity blows up the moment velocities get large. Stam flipped it. For each pixel, we ask <em>"where was the fluid that is now here, one step ago?"</em> — step backward along the velocity vector, sample the previous frame's texture at that location. Always stable: we're reading a value that already exists, not guessing a new one.</p>
+    <p>The full recipe is four passes:</p>
+    <p>(1) <strong>add</strong> — inject velocity and dye where the user drags.<br>
+       (2) <strong>advect</strong> — for each pixel, trace backward along the velocity and copy what's there.<br>
+       (3) <strong>diffuse</strong> — blur the velocity field slightly (that's <em>viscosity</em>).<br>
+       (4) <strong>project</strong> — Jacobi iterations solve for a pressure field that, when subtracted, leaves the velocity <em>divergence-free</em> — incompressible, like real fluid.</p>
+    <p>All of it runs in fragment shaders on ping-pong textures. The magic is the composition, not any one piece.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Drag <code>projection</code> down to 0.</strong> Keep pushing dye around. The fluid no longer acts like fluid — dye pools in pockets, drains out of others, smears in odd directions. <em>Teaches:</em> projection is the pass that enforces <em>incompressibility</em>. Without it the velocity field has sources and sinks; fluid "compresses." Projection is not a polish — it is what <em>makes it a fluid</em>.</p>
+    <p><strong>2. Crank <code>viscosity</code> to max.</strong> Now flick the canvas. The sharp vortex dissolves into slow, thick motion — every velocity averages so strongly with its neighbors that nothing stays concentrated. <em>Teaches:</em> viscosity isn't a color or a shape — it is <em>velocity-smoothing per frame</em>. This is the moment the word "viscous" becomes physically legible.</p>
+    <p><strong>3. Crank <code>dissipation</code> high.</strong> Dye fades almost as fast as you inject it. <em>Teaches:</em> dissipation is the "fade the memory" knob. Long-lived ink trails need near-zero; quick-puff smoke needs a lot.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more viscous / honey-like"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">viscosity up</span>
+
+      <span class="phrase">"thinner, more watery"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">viscosity down</span>
+
+      <span class="phrase">"more turbulent / chaotic"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">viscosity down, force strength up</span>
+
+      <span class="phrase">"calmer / more laminar"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">viscosity up, force strength down</span>
+
+      <span class="phrase">"dye lingers longer"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">dissipation down</span>
+
+      <span class="phrase">"dye fades quickly"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">dissipation up</span>
+
+      <span class="phrase">"real fluid / incompressible"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">projection 10-30 iters</span>
+
+      <span class="phrase">"break the fluid / show me compressibility"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">projection 0</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"this is a Stam fluid"</em> is now a specific brief — four-pass Navier-Stokes with ping-pong textures — not the fuzzy <em>"add fluid-looking swirls"</em> (that's L30 curl-noise, or L31 procedural fire).
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L30 (drop curl-noise particles into this velocity field so they're carried by the flow), L29 (run reaction-diffusion on top of the velocity — Karl Sims' classic), L31 (use the dye channel here as a fire-density field), Arc 7 bloom (dye + bloom is the classic magic-fluid look).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the advection + projection core</span>
+    </div>
+    <pre id="code-pre"><code>// ADVECT — for each pixel, step backward along the velocity and copy.
+// This is the shader that makes Stam fluid stable.
+uniform sampler2D u_velocity;
+uniform sampler2D u_field;   // whatever we're advecting (velocity or dye)
+uniform vec2 u_texel;
+uniform float u_dt;
+uniform float u_dissipation;
+
+void main() {
+  vec2 uv = gl_FragCoord.xy * u_texel;
+  vec2 v = texture2D(u_velocity, uv).xy;
+  vec2 past = uv - v * u_dt * u_texel;       // backward trace
+  vec4 sampled = texture2D(u_field, past);   // read what was there
+  gl_FragColor = sampled * (1.0 - u_dissipation);
+}
+
+// PROJECT (Jacobi step) — relax pressure toward divergence-free velocity.
+// Run N times; more iterations = closer to truly incompressible.
+uniform sampler2D u_pressure;
+uniform sampler2D u_divergence;
+void main() {
+  vec2 uv = gl_FragCoord.xy * u_texel;
+  float L = texture2D(u_pressure, uv - vec2(u_texel.x, 0.0)).r;
+  float R = texture2D(u_pressure, uv + vec2(u_texel.x, 0.0)).r;
+  float B = texture2D(u_pressure, uv - vec2(0.0, u_texel.y)).r;
+  float T = texture2D(u_pressure, uv + vec2(0.0, u_texel.y)).r;
+  float div = texture2D(u_divergence, uv).r;
+  gl_FragColor = vec4((L + R + B + T - div) * 0.25, 0.0, 0.0, 1.0);
+}
+</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupCodeToggle, setupArrowNav, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: false });
+renderer.setClearColor(0x000000, 1);
+
+const SIM_W = 256;
+const SIM_H = 144; // 16:9
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const quad = new THREE.PlaneGeometry(2, 2);
+
+function makeRT(w, h, format) {
+  return new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    wrapS: THREE.ClampToEdgeWrapping,
+    wrapT: THREE.ClampToEdgeWrapping,
+    format: format || THREE.RGBAFormat,
+    type: THREE.HalfFloatType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+}
+
+// Velocity ping-pong (RG = vx, vy)
+let velA = makeRT(SIM_W, SIM_H);
+let velB = makeRT(SIM_W, SIM_H);
+// Dye ping-pong (RGB = color)
+let dyeA = makeRT(SIM_W, SIM_H);
+let dyeB = makeRT(SIM_W, SIM_H);
+// Divergence + pressure (single-channel workloads, but we store in RGBA for compatibility)
+let divergenceRT = makeRT(SIM_W, SIM_H);
+let pressureA = makeRT(SIM_W, SIM_H);
+let pressureB = makeRT(SIM_W, SIM_H);
+
+const vsrc = `
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+`;
+
+// Uniforms used across shaders
+const TEXEL = new THREE.Vector2(1 / SIM_W, 1 / SIM_H);
+
+// ADVECT
+const advectMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_velocity: { value: null },
+    u_field: { value: null },
+    u_texel: { value: TEXEL },
+    u_dt: { value: 1.0 },
+    u_dissipation: { value: 0.005 },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_velocity;
+    uniform sampler2D u_field;
+    uniform vec2 u_texel;
+    uniform float u_dt;
+    uniform float u_dissipation;
+    void main() {
+      vec2 v = texture2D(u_velocity, vUv).xy;
+      vec2 past = vUv - v * u_dt * u_texel;
+      vec4 sampled = texture2D(u_field, past);
+      gl_FragColor = sampled * (1.0 - u_dissipation);
+    }
+  `,
+});
+
+// ADD FORCE / SPLAT — injects a gaussian blob of velocity + dye at mouse pos
+const splatMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_prev: { value: null },
+    u_center: { value: new THREE.Vector2(0.5, 0.5) },
+    u_radius: { value: 0.035 },
+    u_add: { value: new THREE.Vector3(0, 0, 0) }, // xy = velocity, z = dye strength
+    u_mode: { value: 0 }, // 0 = velocity splat, 1 = dye splat
+    u_aspect: { value: SIM_W / SIM_H },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_prev;
+    uniform vec2 u_center;
+    uniform float u_radius;
+    uniform vec3 u_add;
+    uniform int u_mode;
+    uniform float u_aspect;
+    void main() {
+      vec2 d = vUv - u_center;
+      d.x *= u_aspect;
+      float g = exp(-dot(d, d) / (u_radius * u_radius));
+      vec4 prev = texture2D(u_prev, vUv);
+      if (u_mode == 0) {
+        prev.xy += u_add.xy * g;
+      } else {
+        // Dye adds 3 color channels; use u_add.xyz as the color, scaled by u_add magnitude
+        prev.rgb += u_add.xyz * g;
+      }
+      gl_FragColor = prev;
+    }
+  `,
+});
+
+// DIFFUSE (viscosity) — simple Jacobi relaxation, diffuse velocity toward neighbor average
+const diffuseMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_prev: { value: null },
+    u_target: { value: null },
+    u_texel: { value: TEXEL },
+    u_alpha: { value: 1.0 },
+    u_rBeta: { value: 0.25 },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_prev;   // being iterated
+    uniform sampler2D u_target; // the b-term in Ax = b (original velocity)
+    uniform vec2 u_texel;
+    uniform float u_alpha;
+    uniform float u_rBeta;
+    void main() {
+      vec4 L = texture2D(u_prev, vUv - vec2(u_texel.x, 0.0));
+      vec4 R = texture2D(u_prev, vUv + vec2(u_texel.x, 0.0));
+      vec4 B = texture2D(u_prev, vUv - vec2(0.0, u_texel.y));
+      vec4 T = texture2D(u_prev, vUv + vec2(0.0, u_texel.y));
+      vec4 b = texture2D(u_target, vUv);
+      gl_FragColor = (L + R + B + T + u_alpha * b) * u_rBeta;
+    }
+  `,
+});
+
+// DIVERGENCE — compute div(velocity) for projection
+const divergenceMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_velocity: { value: null },
+    u_texel: { value: TEXEL },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_velocity;
+    uniform vec2 u_texel;
+    void main() {
+      float L = texture2D(u_velocity, vUv - vec2(u_texel.x, 0.0)).x;
+      float R = texture2D(u_velocity, vUv + vec2(u_texel.x, 0.0)).x;
+      float B = texture2D(u_velocity, vUv - vec2(0.0, u_texel.y)).y;
+      float T = texture2D(u_velocity, vUv + vec2(0.0, u_texel.y)).y;
+      float div = 0.5 * (R - L + T - B);
+      gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
+    }
+  `,
+});
+
+// PRESSURE Jacobi
+const pressureMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_pressure: { value: null },
+    u_divergence: { value: null },
+    u_texel: { value: TEXEL },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_pressure;
+    uniform sampler2D u_divergence;
+    uniform vec2 u_texel;
+    void main() {
+      float L = texture2D(u_pressure, vUv - vec2(u_texel.x, 0.0)).r;
+      float R = texture2D(u_pressure, vUv + vec2(u_texel.x, 0.0)).r;
+      float B = texture2D(u_pressure, vUv - vec2(0.0, u_texel.y)).r;
+      float T = texture2D(u_pressure, vUv + vec2(0.0, u_texel.y)).r;
+      float div = texture2D(u_divergence, vUv).r;
+      gl_FragColor = vec4((L + R + B + T - div) * 0.25, 0.0, 0.0, 1.0);
+    }
+  `,
+});
+
+// SUBTRACT PRESSURE GRADIENT — make velocity divergence-free
+const gradSubMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_pressure: { value: null },
+    u_velocity: { value: null },
+    u_texel: { value: TEXEL },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_pressure;
+    uniform sampler2D u_velocity;
+    uniform vec2 u_texel;
+    void main() {
+      float L = texture2D(u_pressure, vUv - vec2(u_texel.x, 0.0)).r;
+      float R = texture2D(u_pressure, vUv + vec2(u_texel.x, 0.0)).r;
+      float B = texture2D(u_pressure, vUv - vec2(0.0, u_texel.y)).r;
+      float T = texture2D(u_pressure, vUv + vec2(0.0, u_texel.y)).r;
+      vec2 v = texture2D(u_velocity, vUv).xy;
+      v -= 0.5 * vec2(R - L, T - B);
+      gl_FragColor = vec4(v, 0.0, 1.0);
+    }
+  `,
+});
+
+// DISPLAY — maps dye texture to the canvas with a bit of color shaping
+const displayMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_dye: { value: null },
+  },
+  vertexShader: vsrc,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_dye;
+    void main() {
+      vec3 dye = texture2D(u_dye, vUv).rgb;
+      vec3 bg = vec3(0.05, 0.04, 0.08);
+      vec3 col = bg + dye;
+      col = pow(col, vec3(0.92));
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+});
+
+const mesh = new THREE.Mesh(quad, advectMat);
+scene.add(mesh);
+
+function drawTo(material, target) {
+  mesh.material = material;
+  renderer.setRenderTarget(target);
+  renderer.render(scene, camera);
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width * dpr));
+  const h = Math.max(1, Math.floor(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    renderer.setSize(w, h, false);
+  }
+}
+
+// Input tracking — pointer drag injects velocity + dye
+const pointer = {
+  x: 0.5, y: 0.5,
+  prevX: 0.5, prevY: 0.5,
+  down: false, moved: false,
+  color: new THREE.Color().setHSL(Math.random(), 0.75, 0.55),
+};
+
+function pickNewColor() {
+  pointer.color.setHSL(Math.random(), 0.75, 0.55);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  pickNewColor();
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = (e.clientX - rect.left) / rect.width;
+  pointer.y = 1 - (e.clientY - rect.top) / rect.height;
+  pointer.prevX = pointer.x;
+  pointer.prevY = pointer.y;
+  pointer.down = true;
+  pointer.moved = true;
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointer.down) return;
+  const rect = canvas.getBoundingClientRect();
+  pointer.prevX = pointer.x;
+  pointer.prevY = pointer.y;
+  pointer.x = (e.clientX - rect.left) / rect.width;
+  pointer.y = 1 - (e.clientY - rect.top) / rect.height;
+  pointer.moved = true;
+});
+function endDrag() { pointer.down = false; }
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointerleave', endDrag);
+
+// Seed the sim with some auto-motion so the demo looks alive before first click.
+let autoDrift = true;
+function autoSplat(t) {
+  if (!autoDrift) return;
+  // two moving blobs that nudge the fluid
+  const cx = 0.5 + 0.35 * Math.cos(t * 0.6);
+  const cy = 0.5 + 0.3 * Math.sin(t * 0.9);
+  const vx = -Math.sin(t * 0.6) * 200;
+  const vy = Math.cos(t * 0.9) * 180;
+  splatVelocity(cx, cy, vx, vy, 0.06);
+  const col = new THREE.Color().setHSL((t * 0.05) % 1, 0.7, 0.55);
+  splatDye(cx, cy, col.r * 0.8, col.g * 0.8, col.b * 0.8, 0.05);
+}
+
+// Utility splat functions
+function splatVelocity(cx, cy, vx, vy, radius) {
+  splatMat.uniforms.u_prev.value = velA.texture;
+  splatMat.uniforms.u_center.value.set(cx, cy);
+  splatMat.uniforms.u_radius.value = radius;
+  splatMat.uniforms.u_add.value.set(vx, vy, 0);
+  splatMat.uniforms.u_mode.value = 0;
+  splatMat.uniforms.u_aspect.value = SIM_W / SIM_H;
+  drawTo(splatMat, velB);
+  [velA, velB] = [velB, velA];
+}
+function splatDye(cx, cy, r, g, b, radius) {
+  splatMat.uniforms.u_prev.value = dyeA.texture;
+  splatMat.uniforms.u_center.value.set(cx, cy);
+  splatMat.uniforms.u_radius.value = radius;
+  splatMat.uniforms.u_add.value.set(r, g, b);
+  splatMat.uniforms.u_mode.value = 1;
+  splatMat.uniforms.u_aspect.value = SIM_W / SIM_H;
+  drawTo(splatMat, dyeB);
+  [dyeA, dyeB] = [dyeB, dyeA];
+}
+
+function reset() {
+  // Clear all targets
+  const clearTargets = [velA, velB, dyeA, dyeB, divergenceRT, pressureA, pressureB];
+  for (const t of clearTargets) {
+    renderer.setRenderTarget(t);
+    renderer.clear();
+  }
+  renderer.setRenderTarget(null);
+  autoDrift = true;
+}
+reset();
+
+document.getElementById('reset-btn').addEventListener('click', reset);
+
+// Sliders
+const viscSlider = document.getElementById('viscosity');
+const viscValue = document.getElementById('viscosity-value');
+const dissSlider = document.getElementById('dissipation');
+const dissValue = document.getElementById('dissipation-value');
+const projSlider = document.getElementById('projection');
+const projValue = document.getElementById('projection-value');
+
+const state = { viscosity: 0.1, dissipation: 0.005, projectionIters: 18 };
+function updViscosity() {
+  state.viscosity = parseFloat(viscSlider.value);
+  viscValue.textContent = state.viscosity.toFixed(2);
+}
+function updDissipation() {
+  state.dissipation = parseFloat(dissSlider.value);
+  dissValue.textContent = state.dissipation.toFixed(3);
+}
+function updProjection() {
+  state.projectionIters = parseInt(projSlider.value, 10);
+  projValue.textContent = state.projectionIters;
+}
+viscSlider.addEventListener('input', updViscosity);
+dissSlider.addEventListener('input', updDissipation);
+projSlider.addEventListener('input', updProjection);
+updViscosity(); updDissipation(); updProjection();
+
+// --- Main step ---
+let lastTime = performance.now();
+function step() {
+  resize();
+  const now = performance.now();
+  const dt = Math.min(0.033, (now - lastTime) / 1000) * 60; // scaled for advection step
+  lastTime = now;
+
+  // 1) Advect velocity
+  advectMat.uniforms.u_velocity.value = velA.texture;
+  advectMat.uniforms.u_field.value = velA.texture;
+  advectMat.uniforms.u_dt.value = dt * 1.0;
+  advectMat.uniforms.u_dissipation.value = 0.001; // small velocity damping for stability
+  drawTo(advectMat, velB);
+  [velA, velB] = [velB, velA];
+
+  // 2) Diffuse velocity (viscosity) — a couple of Jacobi iterations
+  const visc = state.viscosity;
+  if (visc > 0.001) {
+    // alpha = dx^2 / (nu * dt) — in sim-cell coordinates dx=1, treat nu*dt as visc
+    const alpha = 1.0 / Math.max(0.001, visc * dt);
+    const rBeta = 1.0 / (4.0 + alpha);
+    diffuseMat.uniforms.u_target.value = velA.texture;
+    diffuseMat.uniforms.u_alpha.value = alpha;
+    diffuseMat.uniforms.u_rBeta.value = rBeta;
+    const iters = 6;
+    for (let i = 0; i < iters; i++) {
+      diffuseMat.uniforms.u_prev.value = velA.texture;
+      drawTo(diffuseMat, velB);
+      [velA, velB] = [velB, velA];
+    }
+  }
+
+  // 3) Add forces from pointer drag
+  if (pointer.down && pointer.moved) {
+    autoDrift = false;
+    const dx = (pointer.x - pointer.prevX) * 2000;
+    const dy = (pointer.y - pointer.prevY) * 2000;
+    splatVelocity(pointer.x, pointer.y, dx, dy, 0.05);
+    splatDye(pointer.x, pointer.y, pointer.color.r, pointer.color.g, pointer.color.b, 0.04);
+    pointer.prevX = pointer.x;
+    pointer.prevY = pointer.y;
+    pointer.moved = false;
+  } else {
+    autoSplat(now / 1000);
+  }
+
+  // 4) Projection — compute divergence, solve pressure, subtract gradient
+  const iters = state.projectionIters;
+  if (iters > 0) {
+    divergenceMat.uniforms.u_velocity.value = velA.texture;
+    drawTo(divergenceMat, divergenceRT);
+
+    // Clear pressure to zero
+    renderer.setRenderTarget(pressureA);
+    renderer.clear();
+    pressureMat.uniforms.u_divergence.value = divergenceRT.texture;
+    for (let i = 0; i < iters; i++) {
+      pressureMat.uniforms.u_pressure.value = pressureA.texture;
+      drawTo(pressureMat, pressureB);
+      [pressureA, pressureB] = [pressureB, pressureA];
+    }
+    gradSubMat.uniforms.u_pressure.value = pressureA.texture;
+    gradSubMat.uniforms.u_velocity.value = velA.texture;
+    drawTo(gradSubMat, velB);
+    [velA, velB] = [velB, velA];
+  }
+
+  // 5) Advect dye
+  advectMat.uniforms.u_velocity.value = velA.texture;
+  advectMat.uniforms.u_field.value = dyeA.texture;
+  advectMat.uniforms.u_dt.value = dt * 1.0;
+  advectMat.uniforms.u_dissipation.value = state.dissipation;
+  drawTo(advectMat, dyeB);
+  [dyeA, dyeB] = [dyeB, dyeA];
+
+  // Display
+  displayMat.uniforms.u_dye.value = dyeA.texture;
+  mesh.material = displayMat;
+  renderer.setRenderTarget(null);
+  renderer.render(scene, camera);
+
+  requestAnimationFrame(step);
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('27-raymarching.html', '29-reaction-diffusion.html');
+
+step();
+</script>
+</body>
+</html>
+</content>
+</invoke>

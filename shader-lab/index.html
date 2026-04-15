@@ -20,42 +20,88 @@
     <div class="arc-label">Arc 1 · Mental Model</div>
     <h2 class="arc-title">Ground the three-layer model</h2>
     <ul class="lesson-list">
-      <li><a href="01-what-is-a-shader.html">
-        <span class="num">01</span>
-        <span class="title">What a shader is</span>
-        <span class="tags">per-pixel · parallel</span>
-      </a></li>
-      <li><a href="02-three-layers.html">
-        <span class="num">02</span>
-        <span class="title">The three layers</span>
-        <span class="tags">coordinate · signal · color</span>
-      </a></li>
-      <li><a href="03-primitives.html">
-        <span class="num">03</span>
-        <span class="title">The primitives tour</span>
-        <span class="tags">step · smoothstep · mix · dot · length · fract · sin · noise</span>
-      </a></li>
+      <li><a href="01-what-is-a-shader.html"><span class="num">01</span><span class="title">What a shader is</span><span class="tags">per-pixel · parallel</span></a></li>
+      <li><a href="02-three-layers.html"><span class="num">02</span><span class="title">The three layers</span><span class="tags">coordinate · signal · color</span></a></li>
+      <li><a href="03-primitives.html"><span class="num">03</span><span class="title">The primitives tour</span><span class="tags">step · smoothstep · mix · dot · length · fract · sin · noise</span></a></li>
     </ul>
   </section>
 
-  <section class="arc-section disabled">
+  <section class="arc-section">
     <div class="arc-label">Arc 2 · 2D Screen-Space</div>
     <h2 class="arc-title">Post-FX, noise, stylization, CRT</h2>
     <ul class="lesson-list">
-      <li class="coming-soon"><a><span class="num">04–12</span><span class="title">Vignette → Pixelation → UV warp → CA → Perlin → FBM → Domain warp → Dithering → CRT</span><span class="tags">coming soon</span></a></li>
+      <li><a href="04-vignette.html"><span class="num">04</span><span class="title">Vignette</span><span class="tags">mask-and-multiply</span></a></li>
+      <li><a href="05-pixelation.html"><span class="num">05</span><span class="title">Pixelation / Downscale</span><span class="tags">quantize the UV</span></a></li>
+      <li><a href="06-uv-warp.html"><span class="num">06</span><span class="title">UV warp with sine</span><span class="tags">time-driven coordinate offset</span></a></li>
+      <li><a href="07-chromatic-aberration.html"><span class="num">07</span><span class="title">Chromatic aberration</span><span class="tags">per-channel sampling</span></a></li>
+      <li><a href="08-perlin-noise.html"><span class="num">08</span><span class="title">Perlin noise</span><span class="tags">smooth pseudo-random</span></a></li>
+      <li><a href="09-fbm.html"><span class="num">09</span><span class="title">FBM</span><span class="tags">octaves of noise</span></a></li>
+      <li><a href="10-domain-warping.html"><span class="num">10</span><span class="title">Domain warping</span><span class="tags">noise warps noise</span></a></li>
+      <li><a href="11-dithering.html"><span class="num">11</span><span class="title">Dithering (Bayer)</span><span class="tags">threshold matrix</span></a></li>
+      <li><a href="12-crt.html"><span class="num">12</span><span class="title">CRT (composite)</span><span class="tags">first composite stack</span></a></li>
     </ul>
   </section>
 
-  <section class="arc-section disabled">
-    <div class="arc-label">Arcs 3–7</div>
-    <h2 class="arc-title">Patterns · 3D Lighting · Geometry · Simulations · Post-Pipeline</h2>
+  <section class="arc-section">
+    <div class="arc-label">Arc 3 · Procedural Patterns</div>
+    <h2 class="arc-title">Real materials from primitives</h2>
     <ul class="lesson-list">
-      <li class="coming-soon"><a><span class="num">13–35</span><span class="title">Marble → PBR → Raymarching → Fluid → Bloom → SSAO</span><span class="tags">coming soon</span></a></li>
+      <li><a href="13-marble.html"><span class="num">13</span><span class="title">Procedural marble</span><span class="tags">sine + turbulence</span></a></li>
+      <li><a href="14-wood.html"><span class="num">14</span><span class="title">Procedural wood</span><span class="tags">sine of radial distance</span></a></li>
+      <li><a href="15-voronoi.html"><span class="num">15</span><span class="title">Voronoi cells</span><span class="tags">F1 · F2-F1</span></a></li>
+      <li><a href="16-truchet.html"><span class="num">16</span><span class="title">Truchet tiles</span><span class="tags">per-cell hash orientation</span></a></li>
+    </ul>
+  </section>
+
+  <section class="arc-section">
+    <div class="arc-label">Arc 4 · 3D Lighting</div>
+    <h2 class="arc-title">How a material feels</h2>
+    <ul class="lesson-list">
+      <li><a href="17-lambert.html"><span class="num">17</span><span class="title">Lambert</span><span class="tags">dot(normal, light)</span></a></li>
+      <li><a href="18-blinn-phong.html"><span class="num">18</span><span class="title">Blinn-Phong</span><span class="tags">specular exponent</span></a></li>
+      <li><a href="19-fresnel.html"><span class="num">19</span><span class="title">Fresnel / rim light</span><span class="tags">grazing-angle glow</span></a></li>
+      <li><a href="20-toon.html"><span class="num">20</span><span class="title">Toon / cel shading</span><span class="tags">quantized lighting bands</span></a></li>
+      <li><a href="21-pbr.html"><span class="num">21</span><span class="title">PBR (Cook-Torrance + GGX)</span><span class="tags">metalness × roughness</span></a></li>
+      <li><a href="22-normal-mapping.html"><span class="num">22</span><span class="title">Normal mapping</span><span class="tags">surface detail without geometry</span></a></li>
+      <li><a href="23-triplanar.html"><span class="num">23</span><span class="title">Triplanar projection</span><span class="tags">no-UV texturing</span></a></li>
+    </ul>
+  </section>
+
+  <section class="arc-section">
+    <div class="arc-label">Arc 5 · 3D Geometry</div>
+    <h2 class="arc-title">Shape from a shader</h2>
+    <ul class="lesson-list">
+      <li><a href="24-vertex-displacement.html"><span class="num">24</span><span class="title">Vertex displacement</span><span class="tags">move the mesh</span></a></li>
+      <li><a href="25-gerstner-waves.html"><span class="num">25</span><span class="title">Gerstner waves</span><span class="tags">horizontal pull to crest</span></a></li>
+      <li><a href="26-pom.html"><span class="num">26</span><span class="title">Parallax occlusion mapping</span><span class="tags">fake depth per-pixel</span></a></li>
+      <li><a href="27-raymarching.html"><span class="num">27</span><span class="title">Raymarching with SDFs</span><span class="tags">pure math geometry</span></a></li>
+    </ul>
+  </section>
+
+  <section class="arc-section">
+    <div class="arc-label">Arc 6 · Simulations</div>
+    <h2 class="arc-title">Bake, fake, or simulate</h2>
+    <ul class="lesson-list">
+      <li><a href="28-fluid.html"><span class="num">28</span><span class="title">2D fluid (Stam)</span><span class="tags">ping-pong, advect-diffuse-project</span></a></li>
+      <li><a href="29-reaction-diffusion.html"><span class="num">29</span><span class="title">Reaction-diffusion</span><span class="tags">Turing patterns</span></a></li>
+      <li><a href="30-curl-particles.html"><span class="num">30</span><span class="title">Curl-noise particles</span><span class="tags">divergence-free flow</span></a></li>
+      <li><a href="31-fire.html"><span class="num">31</span><span class="title">Fire (noise-based)</span><span class="tags">procedural, no state</span></a></li>
+    </ul>
+  </section>
+
+  <section class="arc-section">
+    <div class="arc-label">Arc 7 · Post-Pipeline</div>
+    <h2 class="arc-title">The AAA polish pass</h2>
+    <ul class="lesson-list">
+      <li><a href="32-bloom.html"><span class="num">32</span><span class="title">Bloom</span><span class="tags">threshold-blur-add</span></a></li>
+      <li><a href="33-aces.html"><span class="num">33</span><span class="title">ACES tone mapping</span><span class="tags">HDR → displayable</span></a></li>
+      <li><a href="34-lut.html"><span class="num">34</span><span class="title">LUT color grading</span><span class="tags">the "look"</span></a></li>
+      <li><a href="35-ssao.html"><span class="num">35</span><span class="title">SSAO</span><span class="tags">grounded via depth</span></a></li>
     </ul>
   </section>
 
   <div class="note">
-    <strong>Early draft.</strong> Arc 1 is live as a format proof-of-concept. Walk through it and tell me what to adjust before I commit to the remaining 32 lessons. Keyboard: <code>←</code> / <code>→</code> to navigate lessons.
+    <strong>All 35 lessons live.</strong> Walk through in order, or skip by effect. Keyboard inside a lesson: <code>←</code> / <code>→</code> to navigate.
   </div>
 </main>
 </body>

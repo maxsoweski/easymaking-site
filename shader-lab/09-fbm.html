@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L9: FBM · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">09.</span>FBM</span>
+  </div>
+  <nav class="prev-next">
+    <a href="08-perlin-noise.html">← prev</a>
+    <a href="10-domain-warping.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">FBM <span style="font-weight:400;color:var(--muted);font-size:0.6em">(fractal brownian motion)</span></h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 9 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="detail">detail</label>
+      <input type="range" id="detail" min="1" max="8" step="1" value="4">
+      <div class="value" id="detail-value">4</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Stack several copies of Perlin noise at doubling frequency and halving amplitude, add them up — and the result gains coarse shape <em>and</em> fine detail at the same time. This one trick produces virtually every "natural-looking" texture in CG.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>A single Perlin octave either has big rolling shapes <em>or</em> fine surface detail, never both — frequency is one knob. FBM sidesteps this by summing octaves: noise at frequency 1 contributes the biggest shapes, noise at frequency 2 adds smaller wrinkles, frequency 4 adds finer still, each at half the amplitude of the last.</p>
+    <p>The natural world has this same multi-scale structure (a mountain has ridges, and the ridges have bumps, and the bumps have grain), and the eye reads an FBM image as "real" because it matches that structure. Three numbers control the recipe: <strong>how many octaves</strong>, <strong>lacunarity</strong> (how much faster each octave is — usually 2), and <strong>gain</strong> (how much quieter — usually 0.5).</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Set <code>detail</code> to 1, then to 8, alternating.</strong> At 1 the image is clean and soft. At 8 it's busy and dense but the <em>overall layout</em> is the same — the same big shapes, just with increasingly fine grit painted onto them. <em>Teaches:</em> adding octaves changes the feel, not the composition. If you want different big shapes, change the first octave's coordinate or seed. If you want more grit on the same shapes, add octaves. This separation between <strong>structural noise</strong> (low octaves) and <strong>surface noise</strong> (high octaves) is a direct tool for art direction.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"grittier / more natural detail"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">detail up</span>
+
+      <span class="phrase">"cleaner / smoother"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">detail down</span>
+
+      <span class="phrase">"softer octaves"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">lower the gain (each octave contributes less)</span>
+
+      <span class="phrase">"crunchier octaves"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">raise the gain (detail competes more with the base)</span>
+
+      <span class="phrase">"tighter detail spacing"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">raise lacunarity (frequencies climb faster)</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"FBM of Perlin, N octaves."</em> A complete, executable brief. Also <em>"structural noise vs. surface noise"</em> — the vocabulary for directing where detail goes.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L10 (the coordinate you feed FBM can itself be noise-warped), L8 (FBM is just repeated L8), every procedural surface in Arc 3, L12 (a CRT's subtle phosphor hum is low-amplitude animated FBM).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform int u_detail;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float perlin(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float a = dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+  float b = dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+  float c = dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+  float d = dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+// FBM — sum perlin at doubling frequency, halving amplitude.
+float fbm(vec2 p, int octaves) {
+  float total = 0.0;
+  float amp = 0.5;
+  float freq = 1.0;
+  for (int i = 0; i &lt; 8; i++) {
+    if (i &gt;= octaves) break;
+    total += amp * perlin(p * freq);
+    freq *= 2.0;   // lacunarity
+    amp  *= 0.5;   // gain
+  }
+  return total;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+
+  // SIGNAL LAYER — FBM at a fixed base frequency so Max compares N=1..8 cleanly.
+  float n = fbm(uv * 3.0, u_detail);
+  float v = 0.5 + 0.5 * n;
+
+  gl_FragColor = vec4(vec3(v), 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform int u_detail;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float perlin(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float a = dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+  float b = dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+  float c = dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+  float d = dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbm(vec2 p, int octaves) {
+  float total = 0.0;
+  float amp = 0.5;
+  float freq = 1.0;
+  for (int i = 0; i < 8; i++) {
+    if (i >= octaves) break;
+    total += amp * perlin(p * freq);
+    freq *= 2.0;
+    amp  *= 0.5;
+  }
+  return total;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  float n = fbm(uv * 3.0, u_detail);
+  float v = 0.5 + 0.5 * n;
+  gl_FragColor = vec4(vec3(v), 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_detail: { type: '1i', value: 4 },
+});
+if (app) {
+  const slider = document.getElementById('detail');
+  const valueEl = document.getElementById('detail-value');
+  const update = () => {
+    const v = parseInt(slider.value);
+    app.setUniform('u_detail', v);
+    valueEl.textContent = v;
+  };
+  slider.addEventListener('input', update);
+  update();
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('08-perlin-noise.html', '10-domain-warping.html');
+</script>
+</body>
+</html>

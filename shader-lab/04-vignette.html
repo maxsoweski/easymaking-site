@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L4: Vignette · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">04.</span>Vignette</span>
+  </div>
+  <nav class="prev-next">
+    <a href="03-primitives.html">← prev</a>
+    <a href="05-pixelation.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Vignette</h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 4 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="darkness">darkness</label>
+      <input type="range" id="darkness" min="0" max="1" step="0.01" value="0.7">
+      <div class="value" id="darkness-value">0.70</div>
+    </div>
+    <div class="control">
+      <label for="softness">softness</label>
+      <input type="range" id="softness" min="0" max="0.5" step="0.001" value="0.3">
+      <div class="value" id="softness-value">0.30</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A post-FX effect is almost always a mask computed in the signal layer, multiplied onto a sampled image in the color layer — vignette is the smallest, cleanest instance of that pattern.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>The canvas above is already showing a rendered scene. To darken the edges, the shader does two jobs per pixel: it gets the scene's color, and separately computes a number — a <em>mask</em> — that's bright in the middle and dark near the corners. The mask comes from <code>length(uv - 0.5)</code> fed through a <code>smoothstep</code>. Then the two are multiplied.</p>
+    <p>This <strong>"sample + mask + multiply"</strong> recipe is the template for vignette, bloom, film grain, dirty-lens — every screen-darkener you'll ever direct. Everything different between them is <em>how the mask is computed</em>.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Drag <code>darkness</code> to 1 and <code>softness</code> to 0.</strong> The image becomes a crisp black frame surrounding a visible center — the mask is now rendering as a <em>shape</em> you can point at. <em>Teaches:</em> a vignette is a soft-edged shape you multiply onto the image. Soften the edge and it reads as mood; harden it and it reads as a port-hole.</p>
+    <p>Now drop <code>darkness</code> back to 0 — the scene underneath is untouched. The mask was never destructive; you were only deciding how much of it to apply.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"darker corners"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">darkness up</span>
+
+      <span class="phrase">"cinematic edges"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">darkness up, softness wide</span>
+
+      <span class="phrase">"gentler falloff"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">softness up, darkness down</span>
+
+      <span class="phrase">"port-hole"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">softness down, darkness up</span>
+
+      <span class="phrase">"keep the mood, lift the corners"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">darkness down, softness unchanged</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"mask-and-multiply."</em> The recipe name for any edge-darkener, dirt overlay, or soft-frame effect. Every shader you direct that dims or tints specific regions is an instance of this pattern with a different mask.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L7 (chromatic aberration often gets a vignette over it), L11 (dither the mask for a ditherpunk edge), L12 (a CRT's edge-darkening <em>is</em> a vignette).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_darkness;
+uniform float u_softness;
+
+// The synthetic scene we're "sampling" — a sunset gradient + mountains + grid.
+vec3 scene(vec2 uv) {
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y &lt; 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0 - u_time * 0.25) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  // COLOR LAYER — get the scene.
+  vec3 col = scene(uv);
+
+  // SIGNAL LAYER — distance from center, through a smoothstep.
+  // Hard edge at softness=0; gentle falloff at softness=0.5.
+  float d = length(uv - vec2(0.5));
+  float mask = 1.0 - smoothstep(0.35, 0.35 + u_softness + 0.001, d);
+
+  // COLOR LAYER — blend the mask in. u_darkness controls how much.
+  col *= mix(1.0, mask, u_darkness);
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_darkness;
+uniform float u_softness;
+
+vec3 scene(vec2 uv) {
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y < 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0 - u_time * 0.25) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  vec3 col = scene(uv);
+  float d = length(uv - vec2(0.5));
+  float mask = 1.0 - smoothstep(0.35, 0.35 + u_softness + 0.001, d);
+  col *= mix(1.0, mask, u_darkness);
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_darkness: { type: '1f', value: 0.7 },
+  u_softness: { type: '1f', value: 0.3 },
+});
+if (app) {
+  bindSlider(document.getElementById('darkness'), document.getElementById('darkness-value'), app, 'u_darkness');
+  bindSlider(document.getElementById('softness'), document.getElementById('softness-value'), app, 'u_softness');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('03-primitives.html', '05-pixelation.html');
+</script>
+</body>
+</html>

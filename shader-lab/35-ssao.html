@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L35: SSAO · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">35.</span>SSAO</span>
+  </div>
+  <nav class="prev-next">
+    <a href="34-lut.html">← prev</a>
+    <span>next →</span>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">SSAO — screen-space ambient occlusion</h1>
+  <div class="lesson-subtitle">Arc 7 · Post-Pipeline · Lesson 35 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord muted">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="groundedness">groundedness</label>
+      <input type="range" id="groundedness" min="0" max="1" step="0.01" value="0.65">
+      <div class="value" id="groundedness-value">0.65</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>SSAO is fake soft shadowing that uses only the depth of the scene to figure out where surfaces are buried near each other — which is why a PBR scene without it looks floaty and a PBR scene with it feels grounded.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Objects sitting on a floor, a book's spine against a shelf, the crease between a nose and a cheek — these places are darker in real life because surrounding geometry blocks some of the ambient light from reaching them. Computing real shadows for ambient light is expensive. SSAO cheats: for every pixel on screen, it samples a small hemisphere of nearby points and asks "is this sample buried inside scene geometry?" by checking the depth buffer. The fraction of samples that are buried becomes an occlusion value — darker where many samples are buried (deep creases, tight corners), lighter where few are (flat open surfaces).</p>
+    <p>Two things make this lesson conceptually distinct from every prior one. First, the shader reads from a second buffer — not color, but <strong>depth</strong> — which means the modern renderer outputs <em>multiple</em> images per pixel per frame. That collection is called the <strong>G-buffer</strong>. Second, because SSAO samples neighbors, it inherits the Lesson-1 multi-pass contract: this cannot be one-pass. Depth is rendered first, then SSAO samples from it, then the blur smooths the noisy samples, then the composite multiplies occlusion into the color.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Pull <code>groundedness</code> to 0.</strong> The sphere visibly floats — no soft contact shadow beneath it, no darkening where it kisses the plane, no crease where the cube meets the ground. The brain reads the sphere and cube as composited-on-top rather than sitting-on. Now slide up to a natural mid-value: they lock to the ground. <em>Teaches:</em> ambient occlusion is the single biggest contributor to "objects belong to each other." Without it, even perfect PBR looks like a collage. With it, even simple lighting feels physical. When a scene feels floaty, ask for "more SSAO" before adjusting any light.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more grounded"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">groundedness up</span>
+
+      <span class="phrase">"less dirty / cleaner feel"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">groundedness down</span>
+
+      <span class="phrase">"more weight / objects resting on things"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">groundedness up, larger sample radius</span>
+
+      <span class="phrase">"tighter creases / less bleed"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">smaller sample radius</span>
+
+      <span class="phrase">"softer, less noisy AO"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">wider blur on the AO buffer</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"sample the depth buffer" / "G-buffer pass."</em> SSAO is the first lesson where the brief involves more than color. Asking "what's in the G-buffer?" becomes the right question whenever you want screen-space effects that need more than just the rendered image.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L32 (bloom) — SSAO multiplies into color <em>before</em> bloom thresholds, so AO-darkened creases bloom slightly less. L33 (ACES) — AO happens pre-tone-map, which is correct; it modifies the scene's lighting energy, not the displayed pixels. L34 (LUT) — LUT runs after everything, so it grades AO-darkened crevices the same way it grades everything else. <strong>Canonical stacking order for the AAA polish pass:</strong> SSAO → bloom → ACES → LUT → vignette/grain. Modify lighting energy → bloom the brights → squash to displayable → grade the look → finish.
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the SSAO wiring running above</span>
+    </div>
+    <pre id="code-pre"><code>// SSAO needs the G-buffer: depth + normals + color.
+// Three.js's SSAOPass handles all three internally — it re-renders the scene
+// into depth + normal render targets, then samples from them.
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+// SSAOPass needs scene+camera because it renders the G-buffer itself.
+const ssao = new SSAOPass(scene, camera, width, height);
+
+// These parameters ARE the SSAO character:
+//   kernelRadius  — how far to look for occluders
+//                   (the `groundedness` slider above drives this)
+//   minDistance   — reject self-occlusion within this depth range
+//   maxDistance   — reject occluders farther than this (prevents halos)
+ssao.kernelRadius = 8.0;
+ssao.minDistance = 0.002;
+ssao.maxDistance = 0.1;
+
+composer.addPass(ssao);
+
+// Ordering rule: SSAO runs BEFORE bloom + tone-map + LUT.
+// It's modifying the scene's lighting energy — the other passes work on the
+// result of that. Try it in the other order and the AO darkening gets
+// graded twice, or bloom sees wrong brightness, or tone-map flattens the
+// contact shadow you wanted.
+
+composer.addPass(new UnrealBloomPass(...));   // L32
+composer.addPass(new OutputPass());           // L33 (ACES tone-map)
+composer.addPass(lutPass);                    // L34
+
+// Slider: `groundedness` scales kernelRadius.
+// At radius 0 the sample hemisphere collapses to a point and no occlusion
+// is detected. Slide up and the crevices show their darkening.
+function setGroundedness(v) { ssao.kernelRadius = v * 16.0; }</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/RenderPass.js';
+import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/SSAOPass.js';
+import { OutputPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/OutputPass.js';
+import { highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a12);
+
+const camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
+camera.position.set(2.4, 1.5, 4.6);
+camera.lookAt(0, 0.35, 0);
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.8);
+sun.position.set(3, 4, 2);
+scene.add(sun);
+// Strong ambient so SSAO has something to actually occlude — AO only affects
+// ambient light, not direct. A heavily direct-lit scene hides the effect.
+scene.add(new THREE.AmbientLight(0xaab0c4, 1.2));
+
+// Non-emissive scene: we want to see the contact creases, not glow
+const sphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.6, 48, 48),
+  new THREE.MeshStandardMaterial({
+    color: 0xc9b8a4,
+    roughness: 0.55,
+    metalness: 0.1,
+  })
+);
+sphere.position.set(-0.8, 0.6, 0.3);
+scene.add(sphere);
+
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({
+    color: 0xaa9a88,
+    roughness: 0.55,
+    metalness: 0.1,
+  })
+);
+cube.position.set(0.9, 0.5, -0.1);
+scene.add(cube);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(10, 10),
+  new THREE.MeshStandardMaterial({
+    color: 0x8a7f73,
+    roughness: 0.9,
+    metalness: 0.0,
+  })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+// A back wall adds another crease for the cube to cast AO into
+const wall = new THREE.Mesh(
+  new THREE.PlaneGeometry(10, 4),
+  new THREE.MeshStandardMaterial({
+    color: 0x8a7f73,
+    roughness: 0.9,
+    metalness: 0.0,
+  })
+);
+wall.position.set(0, 2, -1.5);
+scene.add(wall);
+
+function sizeOf() {
+  const rect = canvas.getBoundingClientRect();
+  return { w: Math.max(1, Math.floor(rect.width)), h: Math.max(1, Math.floor(rect.height)) };
+}
+const { w: w0, h: h0 } = sizeOf();
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+// SSAOPass re-renders depth + normal G-buffer passes internally.
+const ssao = new SSAOPass(scene, camera, w0, h0);
+ssao.kernelRadius = 10.4; // 0.65 * 16
+ssao.minDistance = 0.002;
+ssao.maxDistance = 0.1;
+composer.addPass(ssao);
+
+// Tone-map + sRGB convert for display. (Ordering: SSAO → tone-map.)
+composer.addPass(new OutputPass());
+
+function resize() {
+  const { w, h } = sizeOf();
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  ssao.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+const start = performance.now();
+function animate() {
+  const t = (performance.now() - start) / 1000;
+  sphere.position.x = -0.8 + Math.sin(t * 0.4) * 0.15;
+  cube.rotation.y = t * 0.25;
+  resize();
+  composer.render();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Slider: groundedness → kernelRadius
+// At 0, SSAO's sample hemisphere has no radius → no occluders found → no darkening.
+// Ramping up grows the sampled neighborhood, which darkens creases and contacts.
+const groundSlider = document.getElementById('groundedness');
+const groundValue = document.getElementById('groundedness-value');
+function updateGroundedness() {
+  const v = parseFloat(groundSlider.value);
+  ssao.kernelRadius = v * 16.0;
+  // At 0, also kill the min/max so no tiny residual AO slips in
+  if (v === 0) {
+    ssao.minDistance = 10;
+    ssao.maxDistance = 10;
+  } else {
+    ssao.minDistance = 0.002;
+    ssao.maxDistance = 0.1;
+  }
+  groundValue.textContent = v.toFixed(2);
+}
+groundSlider.addEventListener('input', updateGroundedness);
+updateGroundedness();
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('34-lut.html', null);
+</script>
+</body>
+</html>

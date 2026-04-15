@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L30: Curl-Noise Particles · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">30.</span>Curl-noise particles</span>
+  </div>
+  <nav class="prev-next">
+    <a href="29-reaction-diffusion.html">← prev</a>
+    <a href="31-fire.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Curl-noise particles</h1>
+  <div class="lesson-subtitle">Arc 6 · Simulations · Lesson 30 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+  <p style="font-size:13px; color:var(--muted); margin:-8px 0 18px;"><em>Sim state = particle positions in a ping-pong texture. The field they move through is a pure math identity (curl of noise), so there is no Navier-Stokes anywhere — procedural field, simulated particles.</em></p>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="swirl-scale">swirl-scale</label>
+      <input type="range" id="swirl-scale" min="0.3" max="4" step="0.01" value="1.4">
+      <div class="value" id="swirl-scale-value">1.40</div>
+    </div>
+    <div class="control">
+      <label for="breath">breath</label>
+      <input type="range" id="breath" min="0" max="1" step="0.01" value="0.4">
+      <div class="value" id="breath-value">0.40</div>
+    </div>
+    <div class="control">
+      <label for="gradient-mode">gradient-mode</label>
+      <input type="range" id="gradient-mode" min="0" max="1" step="0.01" value="0">
+      <div class="value" id="gradient-mode-value">0.00</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>You can get fluid-looking swarms without solving Navier-Stokes by driving particles through a vector field that is mathematically guaranteed to neither compress nor expand space.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>A Stam fluid (L28) is expensive because most of its cost is the projection pass enforcing incompressibility. Curl noise sidesteps all of that with a single math identity: <code>div(curl(F)) = 0</code>. If you take the <strong>curl</strong> of any scalar noise field — in 2D, that's the gradient rotated 90° — the resulting vector field is <em>automatically</em> divergence-free. Free pass, no solving.</p>
+    <p>Particles moving through this field swirl like fluid, never collecting into sinks, never dispersing into nothing — because the field itself preserves volume. This is a <em>fake</em> in the trilemma sense: nothing is being simulated hydrodynamically, just a pre-designed vector field that has one true fluid property (incompressibility) baked in by construction. The particles themselves are real — their positions persist in ping-pong textures, updated each frame. But the field they live in is procedural math, not a solved equation.</p>
+    <p>Bradley &amp; Bridson introduced this in 2007 precisely because it gives you the <em>look</em> of fluid at a fraction of the cost. It's the default choice for magic sparks, dust motes, incense smoke — anything fluid-ish that doesn't need to respond to the player.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Drag <code>gradient-mode</code> from 0 to 1.</strong> At 0 the field is <code>curl(noise)</code>. At 1 it is <code>gradient(noise)</code> — same noise, different derivative. Watch what happens: particles collect into pockets (sinks) and drain out of others (sources). Within seconds the screen has bald patches and clumps. <em>Teaches:</em> <em>curl matters.</em> The divergence-free property isn't an aesthetic choice — it is the one thing keeping particles evenly distributed. Without it you get the pooling disease.</p>
+    <p><strong>2. Pull <code>breath</code> to 0.</strong> The field freezes. Particles still flow, but along fixed streamlines that never change. <em>Teaches:</em> the "alive" look of a curl-noise swarm comes from the noise <em>slowly drifting over time</em> — not from the particles. The particles follow; the field breathes.</p>
+    <p><strong>3. Crank <code>swirl-scale</code> up</strong> (bigger noise scale → smaller eddies). The swarm gains tight little vortices everywhere. Pull it down and the flow becomes long sweeping currents. <em>Teaches:</em> the one knob a director usually needs. Eddy size tracks the slider directly.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more swirly / more eddies"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">swirl-scale up (smaller scale → more vortices)</span>
+
+      <span class="phrase">"more laminar / longer streams"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">swirl-scale down</span>
+
+      <span class="phrase">"field breathes faster"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">breath up</span>
+
+      <span class="phrase">"field frozen / sculptural"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">breath to 0</span>
+
+      <span class="phrase">"break it / show me the pooling"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">gradient-mode to 1</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"curl-noise particles"</em> is now a specific brief — distinct from <em>"Stam fluid with dye"</em> (L28) and distinct from <em>"stylized noise smoke"</em> (L31). The trilemma is visible: procedural field, simulated particles, no Navier-Stokes.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L28 (drop curl-noise particles <em>inside</em> a Stam velocity field — they're pushed by both, a common production trick), Arc 3 FBM (use FBM as the underlying potential for richer eddy distribution), Arc 7 bloom (glowing particles are where curl noise earns its magic-VFX reputation).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the curl-of-noise velocity step</span>
+    </div>
+    <pre id="code-pre"><code>// SIM PASS — each texel is one particle's XY position.
+// Each frame: read previous position, sample curl(noise) there, step forward.
+uniform sampler2D u_prev;
+uniform float u_time;
+uniform float u_scale;
+uniform float u_breath;
+uniform float u_mix;   // 0 = curl, 1 = gradient (break-it)
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float vnoise(vec2 p) { /* smooth value noise, omitted for brevity */ }
+
+// Potential field (a scalar). Animate by slowly drifting z.
+float potential(vec2 p) {
+  float t = u_time * u_breath * 0.3;
+  return vnoise(p * u_scale + vec2(0.0, t))
+       + 0.5 * vnoise(p * u_scale * 2.0 + vec2(t, 0.0));
+}
+
+void main() {
+  vec2 pos = texture2D(u_prev, gl_FragCoord.xy / textureSize).xy;
+  float eps = 0.01;
+  float pR = potential(pos + vec2(eps, 0.0));
+  float pL = potential(pos - vec2(eps, 0.0));
+  float pT = potential(pos + vec2(0.0, eps));
+  float pB = potential(pos - vec2(0.0, eps));
+  vec2 grad = vec2(pR - pL, pT - pB) / (2.0 * eps);
+  vec2 curl = vec2(grad.y, -grad.x);            // perpendicular to gradient
+  vec2 vel  = mix(curl, grad, u_mix);            // break-it lever
+  pos += vel * 0.004;
+  if (pos.x &lt; -1.0 || pos.x &gt; 1.0 || pos.y &lt; -1.0 || pos.y &gt; 1.0) {
+    pos = vec2(hash(pos + u_time) - 0.5, hash(pos - u_time) - 0.5) * 1.6;
+  }
+  gl_FragColor = vec4(pos, 0.0, 1.0);
+}
+</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { setupCodeToggle, setupArrowNav, highlightGLSL } from './shared/shader-helper.js?v=2';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setClearColor(0x0b0a12, 1);
+
+// Particle count must be a perfect square (we store one particle per texel)
+const PARTICLE_SIDE = 64; // 4096 particles — plenty
+const PARTICLE_COUNT = PARTICLE_SIDE * PARTICLE_SIDE;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); // for sim-pass
+const simQuad = new THREE.PlaneGeometry(2, 2);
+
+function makeRT() {
+  return new THREE.WebGLRenderTarget(PARTICLE_SIDE, PARTICLE_SIDE, {
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    format: THREE.RGBAFormat,
+    type: THREE.HalfFloatType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+}
+
+// Ping-pong position textures
+let posA = makeRT();
+let posB = makeRT();
+
+// Helper vertex shader used in sim pass
+const simVS = `
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+`;
+
+// Initialize particles: scattered across [-1, 1]
+const initMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_seed: { value: Math.random() * 1000 },
+  },
+  vertexShader: simVS,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform float u_seed;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    void main() {
+      vec2 s = vUv * 100.0 + u_seed;
+      vec2 p = vec2(hash(s), hash(s + 13.0)) * 2.0 - 1.0;
+      gl_FragColor = vec4(p, 0.0, 1.0);
+    }
+  `,
+});
+function initParticles() {
+  const mesh = new THREE.Mesh(simQuad, initMat);
+  scene.clear();
+  scene.add(mesh);
+  renderer.setRenderTarget(posA);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(posB);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+}
+initParticles();
+
+// SIM SHADER — reads previous position, adds curl(noise) step, writes new position
+const simMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_prev: { value: null },
+    u_time: { value: 0 },
+    u_scale: { value: 1.4 },
+    u_breath: { value: 0.4 },
+    u_mix: { value: 0 },
+    u_dt: { value: 1.0 },
+  },
+  vertexShader: simVS,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_prev;
+    uniform float u_time;
+    uniform float u_scale;
+    uniform float u_breath;
+    uniform float u_mix;
+    uniform float u_dt;
+
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float vnoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f*f*(3.0 - 2.0*f);
+      return mix(
+        mix(hash(i + vec2(0.0,0.0)), hash(i + vec2(1.0,0.0)), f.x),
+        mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), f.x),
+        f.y);
+    }
+    float potential(vec2 p) {
+      float t = u_time * u_breath * 0.3;
+      float a = vnoise(p * u_scale + vec2(0.0, t));
+      float b = vnoise(p * u_scale * 2.0 + vec2(t, 7.3));
+      return a + 0.5 * b;
+    }
+
+    void main() {
+      vec2 pos = texture2D(u_prev, vUv).xy;
+      float eps = 0.02;
+      float pR = potential(pos + vec2(eps, 0.0));
+      float pL = potential(pos - vec2(eps, 0.0));
+      float pT = potential(pos + vec2(0.0, eps));
+      float pB = potential(pos - vec2(0.0, eps));
+      vec2 grad = vec2(pR - pL, pT - pB) / (2.0 * eps);
+      vec2 curl = vec2(grad.y, -grad.x);
+      vec2 vel = mix(curl, grad, u_mix);
+      pos += vel * 0.006 * u_dt;
+      // Recycle particles that wander off-screen
+      if (pos.x < -1.1 || pos.x > 1.1 || pos.y < -1.1 || pos.y > 1.1) {
+        vec2 s = vUv * 97.3 + u_time * 0.7;
+        pos = (vec2(hash(s), hash(s + 5.7)) - 0.5) * 1.8;
+      }
+      gl_FragColor = vec4(pos, 0.0, 1.0);
+    }
+  `,
+});
+const simMesh = new THREE.Mesh(simQuad, simMat);
+
+// RENDER PASS — THREE.Points with a vertex shader that looks up each particle's position
+// from the current position texture.
+const pointGeom = new THREE.BufferGeometry();
+const refs = new Float32Array(PARTICLE_COUNT * 2);
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  const ix = i % PARTICLE_SIDE;
+  const iy = Math.floor(i / PARTICLE_SIDE);
+  refs[i * 2 + 0] = (ix + 0.5) / PARTICLE_SIDE;
+  refs[i * 2 + 1] = (iy + 0.5) / PARTICLE_SIDE;
+}
+// We still need a position attribute for Three.js to count vertices; dummy it out.
+const dummyPos = new Float32Array(PARTICLE_COUNT * 3);
+pointGeom.setAttribute('position', new THREE.BufferAttribute(dummyPos, 3));
+pointGeom.setAttribute('ref', new THREE.BufferAttribute(refs, 2));
+
+const pointMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_positions: { value: null },
+    u_pixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) },
+  },
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  vertexShader: `
+    attribute vec2 ref;
+    uniform sampler2D u_positions;
+    uniform float u_pixelRatio;
+    varying vec2 vPos;
+    void main() {
+      vec2 p = texture2D(u_positions, ref).xy;
+      vPos = p;
+      gl_Position = vec4(p, 0.0, 1.0);
+      gl_PointSize = 2.2 * u_pixelRatio;
+    }
+  `,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vPos;
+    void main() {
+      vec2 d = gl_PointCoord - 0.5;
+      float a = smoothstep(0.5, 0.05, length(d));
+      // Color shift based on position — gives the swarm internal variation
+      float hue = 0.55 + 0.35 * vPos.x + 0.15 * vPos.y;
+      vec3 col = 0.5 + 0.5 * cos(6.2831 * (hue + vec3(0.0, 0.33, 0.67)));
+      col = mix(vec3(0.95, 0.85, 0.75), col, 0.5);
+      gl_FragColor = vec4(col * a, a);
+    }
+  `,
+});
+
+const pointScene = new THREE.Scene();
+const pointCloud = new THREE.Points(pointGeom, pointMat);
+pointScene.add(pointCloud);
+
+const pointCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+// Slight trail effect — don't clear fully each frame, fade the previous output.
+const trailMat = new THREE.ShaderMaterial({
+  uniforms: {
+    u_prev: { value: null },
+    u_fade: { value: 0.92 },
+  },
+  vertexShader: simVS,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_prev;
+    uniform float u_fade;
+    void main() {
+      vec3 c = texture2D(u_prev, vUv).rgb * u_fade;
+      gl_FragColor = vec4(c, 1.0);
+    }
+  `,
+});
+const trailMesh = new THREE.Mesh(simQuad, trailMat);
+
+function makeScreenRT(w, h) {
+  return new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat,
+    type: THREE.UnsignedByteType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+}
+let screenA = makeScreenRT(1, 1);
+let screenB = makeScreenRT(1, 1);
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width * dpr));
+  const h = Math.max(1, Math.floor(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    renderer.setSize(w, h, false);
+  }
+  if (screenA.width !== w || screenA.height !== h) {
+    screenA.setSize(w, h);
+    screenB.setSize(w, h);
+  }
+  pointMat.uniforms.u_pixelRatio.value = dpr;
+}
+
+// Blit screen → canvas using a gamma'd display pass
+const displayMat = new THREE.ShaderMaterial({
+  uniforms: { u_src: { value: null } },
+  vertexShader: simVS,
+  fragmentShader: `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D u_src;
+    void main() {
+      vec3 src = texture2D(u_src, vUv).rgb;
+      vec3 bg = vec3(0.04, 0.03, 0.06);
+      vec3 col = bg + src * 1.15;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+});
+const displayQuad = new THREE.Mesh(simQuad, displayMat);
+const displayScene = new THREE.Scene();
+displayScene.add(displayQuad);
+
+// Sliders
+const swirlSlider = document.getElementById('swirl-scale');
+const swirlValue = document.getElementById('swirl-scale-value');
+const breathSlider = document.getElementById('breath');
+const breathValue = document.getElementById('breath-value');
+const gmSlider = document.getElementById('gradient-mode');
+const gmValue = document.getElementById('gradient-mode-value');
+function upd() {
+  simMat.uniforms.u_scale.value = parseFloat(swirlSlider.value);
+  simMat.uniforms.u_breath.value = parseFloat(breathSlider.value);
+  simMat.uniforms.u_mix.value = parseFloat(gmSlider.value);
+  swirlValue.textContent = parseFloat(swirlSlider.value).toFixed(2);
+  breathValue.textContent = parseFloat(breathSlider.value).toFixed(2);
+  gmValue.textContent = parseFloat(gmSlider.value).toFixed(2);
+}
+[swirlSlider, breathSlider, gmSlider].forEach(s => s.addEventListener('input', upd));
+upd();
+
+let t0 = performance.now();
+let lastT = t0;
+function frame() {
+  resize();
+  const now = performance.now();
+  const elapsed = (now - t0) / 1000;
+  const dt = Math.min(0.033, (now - lastT) / 1000) * 60;
+  lastT = now;
+
+  // Sim step
+  simMat.uniforms.u_prev.value = posA.texture;
+  simMat.uniforms.u_time.value = elapsed;
+  simMat.uniforms.u_dt.value = dt;
+  scene.clear();
+  scene.add(simMesh);
+  renderer.setRenderTarget(posB);
+  renderer.render(scene, camera);
+  [posA, posB] = [posB, posA];
+
+  // Fade the previous screen into screenB
+  trailMat.uniforms.u_prev.value = screenA.texture;
+  scene.clear();
+  scene.add(trailMesh);
+  renderer.setRenderTarget(screenB);
+  renderer.render(scene, camera);
+
+  // Draw particles ON TOP of the faded buffer (additively)
+  pointMat.uniforms.u_positions.value = posA.texture;
+  renderer.setRenderTarget(screenB);
+  renderer.autoClear = false;
+  renderer.render(pointScene, pointCamera);
+  renderer.autoClear = true;
+
+  [screenA, screenB] = [screenB, screenA];
+
+  // Display pass to canvas
+  displayMat.uniforms.u_src.value = screenA.texture;
+  renderer.setRenderTarget(null);
+  renderer.render(displayScene, pointCamera);
+
+  requestAnimationFrame(frame);
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('29-reaction-diffusion.html', '31-fire.html');
+
+frame();
+</script>
+</body>
+</html>
+</content>
+</invoke>

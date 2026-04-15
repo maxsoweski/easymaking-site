@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L5: Pixelation / Downscale · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">05.</span>Pixelation</span>
+  </div>
+  <nav class="prev-next">
+    <a href="04-vignette.html">← prev</a>
+    <a href="06-uv-warp.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Pixelation / downscale</h1>
+  <div class="lesson-subtitle">Arc 2 · 2D Screen-Space · Lesson 5 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal muted">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="chunk">chunk</label>
+      <input type="range" id="chunk" min="1" max="128" step="1" value="6">
+      <div class="value" id="chunk-value">6</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>You can change what each pixel <em>looks up</em> — snapping many neighboring pixels to the same address makes them all read the same color, producing chunky blocks. This is the first and simplest thing the coordinate layer ever does.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Every pixel is an independent function call (Lesson 1) asking the scene for a color at its UV. If you round that UV down to the nearest cell of a coarse grid before asking, every pixel inside that cell sends the same address and gets the same answer. The output looks low-resolution, but <strong>nothing about the scene itself has changed</strong> — only the address each pixel hands in.</p>
+    <p>This is the simplest lesson in the arc about the coordinate layer's power: <em>transform the address, change the result, even with the rest of the shader untouched.</em></p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Drag <code>chunk</code> slowly from 1 to 128 and back.</strong> At every point, notice that the image isn't <em>blurring</em> — it's being replaced by a grid of increasingly large solid squares. <em>Teaches:</em> pixelation isn't low-pass filtering; it's <strong>under-sampling</strong>. The colors you see at chunk = 40 are not averages of the block — they're one arbitrary pixel inside the block, read 40×40 times. This is why naive downscaling looks harsh; a production pixelation pass usually averages first.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"chunkier pixels"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">chunk up</span>
+
+      <span class="phrase">"more retro"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">chunk up</span>
+
+      <span class="phrase">"subtle pixelation"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">chunk 2–4</span>
+
+      <span class="phrase">"pixel-art resolution, ~320×240"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">chunk = screen_width / 320</span>
+
+      <span class="phrase">"average instead of point-sample"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">downscale to small framebuffer first, then upscale</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"snap the UV"</em> or <em>"quantize the UV."</em> The name for the coordinate-layer operation that underlies pixelation, halftone grids, retro filters, and anything grid-based.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L11 (pixelation + dither = the canonical ditherpunk stack), L12 (CRTs are almost always pixelated first so the phosphor mask has something to align to), L3 (<code>fract</code> is the primitive this lesson is a special case of).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_chunk;
+
+vec3 scene(vec2 uv) {
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y &lt; 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0 - u_time * 0.25) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+
+  // COORDINATE LAYER — snap the UV to a chunk-sized grid before sampling.
+  // Every pixel in the same chunk sends the same address and gets the same color.
+  float p = max(1.0, u_chunk);
+  vec2 snapped = floor(gl_FragCoord.xy / p) * p / u_resolution;
+
+  vec3 col = scene(snapped);
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_chunk;
+
+vec3 scene(vec2 uv) {
+  vec3 col = mix(vec3(0.18, 0.10, 0.28), vec3(0.95, 0.48, 0.32), uv.y);
+  col = mix(col, vec3(0.25, 0.60, 0.85), smoothstep(0.55, 0.98, uv.y));
+  float sun = 1.0 - smoothstep(0.09, 0.11, length(uv - vec2(0.5, 0.55)));
+  col = mix(col, vec3(1.0, 0.93, 0.68), sun);
+  float mntn = 0.40 + 0.05 * sin(uv.x * 18.0) + 0.08 * sin(uv.x * 5.0 + 2.0);
+  col = mix(col, vec3(0.10, 0.06, 0.20), step(uv.y, mntn) * step(uv.y, 0.5));
+  if (uv.y < 0.5) {
+    float yy = (0.5 - uv.y);
+    float hz = smoothstep(0.004, 0.0, abs(fract(pow(yy, 0.7) * 8.0 - u_time * 0.25) - 0.5));
+    float vl = smoothstep(0.004, 0.0, abs(fract((uv.x - 0.5) / max(yy, 0.02) * 4.0) - 0.5));
+    col = mix(col, vec3(0.95, 0.30, 0.75), max(hz, vl) * 0.9);
+  }
+  return col;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float p = max(1.0, u_chunk);
+  vec2 snapped = floor(gl_FragCoord.xy / p) * p / u_resolution;
+  vec3 col = scene(snapped);
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_chunk: { type: '1f', value: 6 },
+});
+if (app) {
+  bindSlider(document.getElementById('chunk'), document.getElementById('chunk-value'), app, 'u_chunk');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('04-vignette.html', '06-uv-warp.html');
+</script>
+</body>
+</html>

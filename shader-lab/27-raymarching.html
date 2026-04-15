@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L27: Raymarching with SDFs · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">27.</span>Raymarching with SDFs</span>
+  </div>
+  <nav class="prev-next">
+    <a href="26-pom.html">← prev</a>
+    <a href="28-fluid.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Raymarching with SDFs</h1>
+  <div class="lesson-subtitle">Arc 5 · 3D Geometry · Lesson 27 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="blend-softness">blend-softness</label>
+      <input type="range" id="blend-softness" min="0" max="1" step="0.005" value="0.3">
+      <div class="value" id="blend-softness-value">0.30</div>
+    </div>
+    <div class="control">
+      <label for="max-steps">max-steps</label>
+      <input type="range" id="max-steps" min="8" max="96" step="1" value="64">
+      <div class="value" id="max-steps-value">64</div>
+    </div>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>A scene doesn't have to be a pile of triangles — it can be a function that says "how far to the nearest surface from here?" — and rendering it is just: for each pixel, step forward by that distance, over and over, until you hit something.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>An <strong>SDF</strong> (signed distance function) takes a 3D point and returns a number: the distance to the nearest surface. Negative if you're inside it. A sphere's SDF is <code>length(point - center) - radius</code>. A cube's is a few lines of math. Combine shapes with <code>min</code> (union), <code>max</code> (intersection), <code>-max</code> (subtraction).</p>
+    <p>The rendering algorithm — called <em>sphere tracing</em> — is elegant. For each pixel, cast a ray from the camera. Evaluate the SDF at the ray's origin. It says "nearest surface is 2 units away." You know it's safe to jump 2 units forward. Evaluate again: "0.5 units." Jump. Evaluate: "0.02 units." Close enough — call it a hit, shade the surface, stop. If after many steps you haven't hit anything, call it a miss and draw the sky. That's the entire algorithm.</p>
+    <p>No meshes, no UVs, no triangles — just a function and a loop per pixel. The three-layer pipeline collapses: the "coordinate" is the moving 3D ray position, the "signal" is the distance the SDF returns, the "color" is computed after a hit from a normal derived from the SDF itself.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>Pull <code>max-steps</code> down to 16.</strong> Near shapes still render correctly — their rays hit fast, well under the step budget. But edges and glancing rays develop phantom halos where the march gave up too early and marked the pixel as a miss. <em>Teaches:</em> raymarching is iterative, not closed-form. Quality costs steps; complex or glancing views cost more steps. That's why raymarched scenes have a performance budget tied to scene distance and shape intersection. Crank steps back up and the phantoms vanish.</p>
+    <p><strong>Drop <code>blend-softness</code> to 0.</strong> The sphere and cube look glued together with a hard seam. Nudge up to 0.3 — a smooth neck of molten metal grows between them. Push past 0.7 and they fuse into a single lumpy blob. The <em>geometry itself</em> reshapes from a slider — not the lighting, not the color, the actual surface. That's not possible with L24 (you'd reauthor the mesh) and impossible with L26 (flat quad). This is the "why use raymarching" answer.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"smoother blob / melting shapes together"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">blend-softness up (smooth-min k)</span>
+
+      <span class="phrase">"sharp seam / hard boolean"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">blend-softness to 0 (hard min)</span>
+
+      <span class="phrase">"build the scene out of math, no mesh"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">raymarching + SDF primitives</span>
+
+      <span class="phrase">"make it rounder / softer"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">smooth-min between SDFs, or subtract a small radius</span>
+
+      <span class="phrase">"more polygonal / faceted"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">SDFs resist sharp facets; this is where mesh-based geometry wins</span>
+
+      <span class="phrase">"denser scene / more detail"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">more SDF primitives, or domain repetition with mod()</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"SDF-defined scene"</em> vs. <em>"mesh-defined scene."</em> You can now brief: <em>"this is an SDF scene — build it with primitives and smooth-mins"</em> (Shadertoy-scale effect) vs. <em>"this is a mesh scene with shader work on top"</em> (game/app effect).
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> L17+ (lighting — SDFs give you normals and soft shadows for free), all of Arc 3 (noise and domain warping — in SDF terrain, noise is added to the distance function and suddenly landscape appears), L24 and L26 by contrast (this is the third answer to "how do I make geometry in a shader" — and it's the most radical: no geometry at all, just math).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">fullscreen fragment shader — no mesh, no vertex stage</span>
+    </div>
+    <pre id="code-pre"><code>// FRAGMENT STAGE — the whole pipeline collapses into this one loop.
+// The "coordinate" is the ray position p as it marches; the "signal" is
+// the distance sdf(p) returns; the "color" is derived from the SDF normal
+// after the march hits something.
+uniform float u_blend;
+uniform float u_maxSteps;
+
+// Sphere SDF: distance to a sphere of radius r at origin.
+float sdSphere(vec3 p, float r) { return length(p) - r; }
+
+// Cube (box) SDF: Iñigo Quílez's formula for an axis-aligned box.
+float sdBox(vec3 p, vec3 b) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+// Smooth-min (Iñigo Quílez). k = blend-softness. k=0 → hard min.
+// Returns a smoothly-interpolated distance so SDF surfaces merge like clay.
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / max(k, 0.0001), 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+// Scene: a sphere and a cube, offset slightly so they overlap.
+float scene(vec3 p) {
+  float s = sdSphere(p - vec3(-0.55, 0.0, 0.0), 0.8);
+  float c = sdBox(p - vec3(0.55, 0.0, 0.0), vec3(0.6));
+  return smin(s, c, u_blend);
+}
+
+// Normal from SDF gradient — finite differences around the hit point.
+vec3 getNormal(vec3 p) {
+  vec2 e = vec2(0.001, 0.0);
+  return normalize(vec3(
+    scene(p + e.xyy) - scene(p - e.xyy),
+    scene(p + e.yxy) - scene(p - e.yxy),
+    scene(p + e.yyx) - scene(p - e.yyx)
+  ));
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+
+  // Ray setup: camera at (0, 0.4, 3.2), looking at origin.
+  vec3 ro = vec3(0.0, 0.4, 3.2);
+  vec3 rd = normalize(vec3(uv, -1.4));
+
+  // Sphere-tracing loop: jump forward by the SDF each step.
+  float t = 0.0;
+  bool hit = false;
+  int steps = int(u_maxSteps);
+  for (int i = 0; i < 96; i++) {
+    if (i >= steps) break;
+    vec3 p = ro + rd * t;
+    float d = scene(p);
+    if (d < 0.001) { hit = true; break; }
+    t += d;
+    if (t > 12.0) break;
+  }
+
+  vec3 col = vec3(0.07, 0.06, 0.10);  // miss = sky
+  if (hit) {
+    vec3 p = ro + rd * t;
+    vec3 n = getNormal(p);
+    vec3 lightDir = normalize(vec3(0.5, 0.9, 0.3));
+    float diff = max(0.0, dot(n, lightDir));
+    float rim = pow(1.0 - max(0.0, dot(n, -rd)), 2.0);
+    col = vec3(0.75, 0.55, 0.42) * (0.2 + 0.85 * diff) + vec3(0.4, 0.55, 0.9) * rim * 0.35;
+  }
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_blend;
+uniform float u_maxSteps;
+
+float sdSphere(vec3 p, float r) { return length(p) - r; }
+
+float sdBox(vec3 p, vec3 b) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / max(k, 0.0001), 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+float scene(vec3 p) {
+  float s = sdSphere(p - vec3(-0.55, 0.0, 0.0), 0.8);
+  float c = sdBox(p - vec3(0.55, 0.0, 0.0), vec3(0.6));
+  return smin(s, c, u_blend);
+}
+
+vec3 getNormal(vec3 p) {
+  vec2 e = vec2(0.001, 0.0);
+  return normalize(vec3(
+    scene(p + e.xyy) - scene(p - e.xyy),
+    scene(p + e.yxy) - scene(p - e.yxy),
+    scene(p + e.yyx) - scene(p - e.yyx)
+  ));
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
+  vec3 ro = vec3(0.0, 0.4, 3.2);
+  vec3 rd = normalize(vec3(uv, -1.4));
+
+  float t = 0.0;
+  bool hit = false;
+  int steps = int(u_maxSteps);
+  for (int i = 0; i < 96; i++) {
+    if (i >= steps) break;
+    vec3 p = ro + rd * t;
+    float d = scene(p);
+    if (d < 0.001) { hit = true; break; }
+    t += d;
+    if (t > 12.0) break;
+  }
+
+  vec3 col = vec3(0.07, 0.06, 0.10);
+  if (hit) {
+    vec3 p = ro + rd * t;
+    vec3 n = getNormal(p);
+    vec3 lightDir = normalize(vec3(0.5, 0.9, 0.3));
+    float diff = max(0.0, dot(n, lightDir));
+    float rim = pow(1.0 - max(0.0, dot(n, -rd)), 2.0);
+    col = vec3(0.75, 0.55, 0.42) * (0.2 + 0.85 * diff) + vec3(0.4, 0.55, 0.9) * rim * 0.35;
+  }
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_blend: { type: '1f', value: 0.3 },
+  u_maxSteps: { type: '1f', value: 64 },
+});
+if (app) {
+  bindSlider(document.getElementById('blend-softness'), document.getElementById('blend-softness-value'), app, 'u_blend');
+  bindSlider(document.getElementById('max-steps'), document.getElementById('max-steps-value'), app, 'u_maxSteps');
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('26-pom.html', '28-fluid.html');
+</script>
+</body>
+</html>

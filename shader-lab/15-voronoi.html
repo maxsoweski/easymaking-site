@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>L15: Voronoi / Worley Cells · Shader Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+</head>
+<body>
+
+<header class="lab-header">
+  <div class="brand"><a href="index.html">Shader Lab</a></div>
+  <div class="crumbs">
+    <span class="crumb-lesson"><span class="num">15.</span>Voronoi / Worley cells</span>
+  </div>
+  <nav class="prev-next">
+    <a href="14-wood.html">← prev</a>
+    <a href="16-truchet.html">next →</a>
+  </nav>
+</header>
+
+<main class="lesson">
+
+  <h1 class="lesson-title">Voronoi / Worley cells</h1>
+  <div class="lesson-subtitle">Arc 3 · Procedural Patterns · Lesson 15 of 35</div>
+
+  <div class="layer-stamp">
+    <span class="pill pill--coord">coordinate</span>
+    <span class="pill pill--signal">signal</span>
+    <span class="pill pill--color muted">color</span>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="cell-density">cell-density</label>
+      <input type="range" id="cell-density" min="2" max="40" step="0.5" value="10">
+      <div class="value" id="cell-density-value">10</div>
+    </div>
+    <div class="control">
+      <label for="jitter">jitter</label>
+      <input type="range" id="jitter" min="0" max="1" step="0.01" value="1">
+      <div class="value" id="jitter-value">1.00</div>
+    </div>
+    <button class="toggle" id="mode-btn" data-active="false">mode: F1 cell-fill</button>
+  </div>
+
+  <div class="block block--insight">
+    <h3>Purpose</h3>
+    <p>Scatter points in space, measure the distance from every pixel to the nearest of them, and the resulting field is cellular. Read the same field two different ways and you get both stone mosaics and their crack patterns.</p>
+  </div>
+
+  <div class="block">
+    <h3>Key insight</h3>
+    <p>Every earlier lesson measured distance to <em>one</em> thing: the origin, a center, a curve. Voronoi measures distance to the <em>nearest of many</em> things. Scatter feature points across a grid — one per cell, offset by a hash so they don't sit on a lattice — then at every pixel, find the closest feature point. The distance to it is called <strong>F1</strong>. That field alone gives a mosaic of soft domes, one per point.</p>
+    <p>Now at the same pixel also find the <em>second-closest</em> point, call its distance <strong>F2</strong>, and compute <strong>F2 − F1</strong>. That difference is near-zero exactly at the boundary between two cells (both points equidistant) and grows inside each cell. So F2 − F1 is a crack map — the lines where cells meet. Two readings of one field, two completely different materials: stone tiles vs. mud cracks vs. cell walls.</p>
+  </div>
+
+  <div class="block block--break">
+    <h3>Break it</h3>
+    <p><strong>1. Pull <code>jitter</code> to 0.</strong> A perfectly regular square grid appears. <em>Teaches:</em> Voronoi is not intrinsically organic. Its organic look comes entirely from jittering the lattice. The underlying structure is a grid with one point per cell; the randomness lives only in where inside the cell that point lands.</p>
+    <p><strong>2. Click the mode button to toggle between F1 cell-fill and F2 − F1 cracks</strong> with all other parameters identical. Same feature points, same density, same jitter — but the material goes from "cobblestones" to "dry lakebed cracks." <em>Teaches:</em> the <em>reading</em> of a distance field is a first-class choice separate from the field itself.</p>
+  </div>
+
+  <div class="block block--direct">
+    <h3>Direct Claude</h3>
+    <div class="verb-map">
+      <span class="phrase">"more organic cell shapes"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">jitter up</span>
+
+      <span class="phrase">"mechanical / grid-like cells"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">jitter down</span>
+
+      <span class="phrase">"bigger stones / fewer cells"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">cell-density down</span>
+
+      <span class="phrase">"finer cracks / smaller cells"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">cell-density up</span>
+
+      <span class="phrase">"fill the cells / stone mosaic"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">read F1, palette-map</span>
+
+      <span class="phrase">"emphasize the cracks / dry-mud"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">read F2 − F1, invert, palette-map</span>
+
+      <span class="phrase">"softer cell edges"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">smoothstep on F2 − F1, wider band</span>
+
+      <span class="phrase">"harder cell edges"</span>
+      <span class="arrow">→</span>
+      <span class="mapping">step (or narrow smoothstep) on F2 − F1</span>
+    </div>
+    <div class="meta">
+      <strong>Meta-phrase you gain here:</strong> <em>"F1 for the cells, F2 minus F1 for the cracks"</em> — when briefing anything involving Worley, specifying which read is required rules out 90% of ambiguity.
+    </div>
+  </div>
+
+  <div class="combines">
+    <strong>Combines with:</strong> Lesson 9 (FBM overlaid on F1 for rock surface roughness), Lessons 13 / 14 (swap sine-of-coordinate for Worley F1 to get cell-based materials instead of band-based), Lesson 22 (cellular signal as input to a lighting normal for stone bumps).
+  </div>
+
+  <div class="code-block">
+    <div class="toggle-row">
+      <button class="code-toggle" id="code-toggle">show code</button>
+      <span class="code-label">the fragment shader running above</span>
+    </div>
+    <pre id="code-pre"><code>uniform float u_cellDensity;  // coordinate: grid frequency
+uniform float u_jitter;       // coordinate: how far points wander inside cell
+uniform int   u_mode;         // color:      0 = F1 cell-fill, 1 = F2-F1 cracks
+
+// 2D hash — returns a point in [0,1] per integer cell
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
+}
+
+// Scan a 3x3 block of neighbor cells, track the two smallest distances.
+// F1 = nearest feature point;  F2 = second-nearest.
+void worley(vec2 p, out float F1, out float F2, out vec2 nearCell) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  F1 = 10.0;
+  F2 = 10.0;
+  nearCell = i;
+  for (int y = -1; y &lt;= 1; y++) {
+    for (int x = -1; x &lt;= 1; x++) {
+      vec2 n = vec2(float(x), float(y));
+      vec2 pt = 0.5 + u_jitter * (hash2(i + n) - 0.5);  // point inside that cell
+      float d = length(n + pt - f);
+      if (d &lt; F1) { F2 = F1; F1 = d; nearCell = i + n; }
+      else if (d &lt; F2) { F2 = d; }
+    }
+  }
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 p = vec2(uv.x * aspect, uv.y) * u_cellDensity;
+
+  float F1, F2;  vec2 nearCell;
+  worley(p, F1, F2, nearCell);
+
+  vec3 col;
+  if (u_mode == 0) {
+    // F1 CELL-FILL MODE — each cell tinted by its own hash; cracks where F2-F1 is small
+    vec3 tint = 0.5 + 0.5 * cos(
+      hash2(nearCell).x * 6.28 + vec3(0.0, 2.1, 4.2));
+    vec3 stone = mix(vec3(0.35, 0.32, 0.36), vec3(0.82, 0.76, 0.68), tint.x);
+    float crack = smoothstep(0.02, 0.08, F2 - F1);  // 1 inside cell, 0 on boundary
+    col = mix(vec3(0.08, 0.07, 0.09), stone, crack);
+  } else {
+    // F2-F1 CRACKS MODE — pure boundary map, dry-mud feel
+    float cracks = smoothstep(0.0, 0.18, F2 - F1);   // 0 on boundary, 1 inside
+    vec3 mud  = vec3(0.62, 0.45, 0.30);
+    vec3 deep = vec3(0.12, 0.08, 0.06);
+    col = mix(deep, mud, cracks);
+  }
+
+  gl_FragColor = vec4(col, 1.0);
+}</code></pre>
+  </div>
+
+</main>
+
+<script type="module">
+import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrowNav } from './shared/shader-helper.js?v=2';
+
+const fragmentSrc = `
+uniform float u_cellDensity;
+uniform float u_jitter;
+uniform int   u_mode;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float aspect = u_resolution.x / u_resolution.y;
+  vec2 p = vec2(uv.x * aspect, uv.y) * u_cellDensity;
+
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float F1 = 10.0;
+  float F2 = 10.0;
+  vec2 nearCell = i;
+
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 n = vec2(float(x), float(y));
+      vec2 pt = 0.5 + u_jitter * (hash2(i + n) - 0.5);
+      float d = length(n + pt - f);
+      if (d < F1) { F2 = F1; F1 = d; nearCell = i + n; }
+      else if (d < F2) { F2 = d; }
+    }
+  }
+
+  vec3 col;
+  if (u_mode == 0) {
+    vec3 tint = 0.5 + 0.5 * cos(hash2(nearCell).x * 6.28318 + vec3(0.0, 2.1, 4.2));
+    vec3 stone = mix(vec3(0.35, 0.32, 0.36), vec3(0.82, 0.76, 0.68), tint.x);
+    float crack = smoothstep(0.02, 0.08, F2 - F1);
+    col = mix(vec3(0.08, 0.07, 0.09), stone, crack);
+  } else {
+    float cracks = smoothstep(0.0, 0.18, F2 - F1);
+    vec3 mud  = vec3(0.62, 0.45, 0.30);
+    vec3 deep = vec3(0.12, 0.08, 0.06);
+    col = mix(deep, mud, cracks);
+  }
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const canvas = document.getElementById('canvas');
+const app = createShaderApp(canvas, fragmentSrc, {
+  u_cellDensity: { type: '1f', value: 10 },
+  u_jitter: { type: '1f', value: 1 },
+  u_mode: { type: '1i', value: 0 },
+});
+if (app) {
+  bindSlider(document.getElementById('cell-density'), document.getElementById('cell-density-value'), app, 'u_cellDensity');
+  bindSlider(document.getElementById('jitter'), document.getElementById('jitter-value'), app, 'u_jitter');
+
+  const modeBtn = document.getElementById('mode-btn');
+  let mode = 0;
+  modeBtn.addEventListener('click', () => {
+    mode = 1 - mode;
+    app.setUniform('u_mode', mode);
+    modeBtn.textContent = mode === 0 ? 'mode: F1 cell-fill' : 'mode: F2 − F1 cracks';
+    modeBtn.dataset.active = mode === 1 ? 'true' : 'false';
+  });
+
+  app.start();
+}
+
+highlightGLSL(document.querySelector('#code-pre code'));
+setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
+setupArrowNav('14-wood.html', '16-truchet.html');
+</script>
+</body>
+</html>
