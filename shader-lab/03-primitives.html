@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared/style.css?v=3">
+<link rel="stylesheet" href="shared/style.css?v=4">
 <style>
 .primitives-grid {
   display: grid;
@@ -87,7 +87,7 @@
   font-variant-numeric: tabular-nums;
 }
 </style>
-<script defer src="shared/nav.js?v=3"></script>
+<script defer src="shared/nav.js?v=4"></script>
 </head>
 <body>
 
@@ -278,7 +278,7 @@
 </main>
 
 <script type="module">
-import { createShaderApp, bindSlider } from './shared/shader-helper.js?v=2';
+import { createShaderApp, bindSlider } from './shared/shader-helper.js?v=4';
 
 const shaders = {
   step: `
@@ -390,7 +390,7 @@ document.querySelectorAll('.mini-demo').forEach(demo => {
 });
 
 // Arrow-key nav
-import { setupArrowNav } from './shared/shader-helper.js?v=2';
+import { setupArrowNav } from './shared/shader-helper.js?v=4';
 setupArrowNav('02-three-layers.html', null);
 </script>
 </body>
