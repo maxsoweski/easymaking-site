@@ -473,9 +473,16 @@ code {
    ═══════════════════════════════════════════════════════════════ */
 
 body.sl-has-sidebar { display: flex; min-height: 100vh; }
-body.sl-has-sidebar > header.lab-header,
-body.sl-has-sidebar > main.lesson,
-body.sl-has-sidebar > main { flex: 1; min-width: 0; }
+
+/* content wrapper (everything except sidebar) */
+.sl-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+  overflow-y: auto;
+}
 
 /* sidebar container */
 #sl-sidebar {

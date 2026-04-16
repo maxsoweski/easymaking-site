@@ -158,8 +158,15 @@ function build() {
     if (homeLink) homeLink.classList.add('active');
   }
 
-  // Insert sidebar
-  document.body.insertBefore(aside, document.body.firstChild);
+  // Wrap all existing body children in a content div so the sidebar
+  // and content form a clean two-column flex layout.
+  const contentWrap = document.createElement('div');
+  contentWrap.className = 'sl-content';
+  while (document.body.firstChild) {
+    contentWrap.appendChild(document.body.firstChild);
+  }
+  document.body.appendChild(aside);
+  document.body.appendChild(contentWrap);
 
   // Add body classes for layout
   document.body.classList.add('sl-has-sidebar');
