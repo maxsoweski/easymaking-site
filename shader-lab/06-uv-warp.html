@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/style.css">
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -47,6 +48,11 @@
       <label for="speed">speed</label>
       <input type="range" id="speed" min="0" max="5" step="0.05" value="1.2">
       <div class="value" id="speed-value">1.20</div>
+    </div>
+    <div class="control">
+      <label for="waves">waves</label>
+      <input type="range" id="waves" min="2" max="60" step="0.5" value="20">
+      <div class="value" id="waves-value">20.0</div>
     </div>
   </div>
 
@@ -105,6 +111,7 @@
     </div>
     <pre id="code-pre"><code>uniform float u_wobble;
 uniform float u_speed;
+uniform float u_frequency;
 
 vec3 scene(vec2 uv) {
   // Off-screen reads return flat space so the warp edges are visible.
@@ -131,7 +138,7 @@ void main() {
 
   // COORDINATE LAYER — offset x by a sine whose phase depends on y + time.
   // Rows at different y values wobble out of sync, producing the ripple.
-  float phase = uv.y * 20.0 + u_time * u_speed * 2.0;
+  float phase = uv.y * u_frequency + u_time * u_speed * 2.0;
   uv.x += sin(phase) * u_wobble;
 
   gl_FragColor = vec4(scene(uv), 1.0);
@@ -146,6 +153,7 @@ import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrow
 const fragmentSrc = `
 uniform float u_wobble;
 uniform float u_speed;
+uniform float u_frequency;
 
 vec3 scene(vec2 uv) {
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
@@ -168,7 +176,7 @@ vec3 scene(vec2 uv) {
 
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution;
-  float phase = uv.y * 20.0 + u_time * u_speed * 2.0;
+  float phase = uv.y * u_frequency + u_time * u_speed * 2.0;
   uv.x += sin(phase) * u_wobble;
   gl_FragColor = vec4(scene(uv), 1.0);
 }
@@ -178,10 +186,12 @@ const canvas = document.getElementById('canvas');
 const app = createShaderApp(canvas, fragmentSrc, {
   u_wobble: { type: '1f', value: 0.02 },
   u_speed: { type: '1f', value: 1.2 },
+  u_frequency: { type: '1f', value: 20 },
 });
 if (app) {
   bindSlider(document.getElementById('wobble'), document.getElementById('wobble-value'), app, 'u_wobble');
   bindSlider(document.getElementById('speed'), document.getElementById('speed-value'), app, 'u_speed');
+  bindSlider(document.getElementById('waves'), document.getElementById('waves-value'), app, 'u_frequency');
   app.start();
 }
 

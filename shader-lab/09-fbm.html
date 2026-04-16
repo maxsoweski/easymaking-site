@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/style.css">
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -42,6 +43,16 @@
       <label for="detail">detail</label>
       <input type="range" id="detail" min="1" max="8" step="1" value="4">
       <div class="value" id="detail-value">4</div>
+    </div>
+    <div class="control">
+      <label for="gain">gain</label>
+      <input type="range" id="gain" min="0.1" max="0.9" step="0.01" value="0.5">
+      <div class="value" id="gain-value">0.50</div>
+    </div>
+    <div class="control">
+      <label for="lacunarity">lacunarity</label>
+      <input type="range" id="lacunarity" min="1.2" max="4.0" step="0.05" value="2.0">
+      <div class="value" id="lacunarity-value">2.00</div>
     </div>
   </div>
 
@@ -99,6 +110,8 @@
       <span class="code-label">the fragment shader running above</span>
     </div>
     <pre id="code-pre"><code>uniform int u_detail;
+uniform float u_gain;
+uniform float u_lacunarity;
 
 vec2 hash2(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)),
@@ -117,7 +130,7 @@ float perlin(vec2 p) {
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-// FBM — sum perlin at doubling frequency, halving amplitude.
+// FBM — sum perlin at increasing frequency, decreasing amplitude.
 float fbm(vec2 p, int octaves) {
   float total = 0.0;
   float amp = 0.5;
@@ -125,8 +138,8 @@ float fbm(vec2 p, int octaves) {
   for (int i = 0; i &lt; 8; i++) {
     if (i &gt;= octaves) break;
     total += amp * perlin(p * freq);
-    freq *= 2.0;   // lacunarity
-    amp  *= 0.5;   // gain
+    freq *= u_lacunarity;   // lacunarity
+    amp  *= u_gain;         // gain
   }
   return total;
 }
@@ -149,6 +162,8 @@ import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrow
 
 const fragmentSrc = `
 uniform int u_detail;
+uniform float u_gain;
+uniform float u_lacunarity;
 
 vec2 hash2(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)),
@@ -174,8 +189,8 @@ float fbm(vec2 p, int octaves) {
   for (int i = 0; i < 8; i++) {
     if (i >= octaves) break;
     total += amp * perlin(p * freq);
-    freq *= 2.0;
-    amp  *= 0.5;
+    freq *= u_lacunarity;
+    amp  *= u_gain;
   }
   return total;
 }
@@ -191,6 +206,8 @@ void main() {
 const canvas = document.getElementById('canvas');
 const app = createShaderApp(canvas, fragmentSrc, {
   u_detail: { type: '1i', value: 4 },
+  u_gain: { type: '1f', value: 0.5 },
+  u_lacunarity: { type: '1f', value: 2.0 },
 });
 if (app) {
   const slider = document.getElementById('detail');
@@ -202,6 +219,8 @@ if (app) {
   };
   slider.addEventListener('input', update);
   update();
+  bindSlider(document.getElementById('gain'), document.getElementById('gain-value'), app, 'u_gain');
+  bindSlider(document.getElementById('lacunarity'), document.getElementById('lacunarity-value'), app, 'u_lacunarity');
   app.start();
 }
 

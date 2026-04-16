@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/style.css">
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -42,6 +43,11 @@
       <label for="cell-size">cell-size</label>
       <input type="range" id="cell-size" min="0.02" max="0.25" step="0.002" value="0.1">
       <div class="value" id="cell-size-value">0.10</div>
+    </div>
+    <div class="control">
+      <label for="stroke">stroke</label>
+      <input type="range" id="stroke" min="0.01" max="0.2" step="0.005" value="0.06">
+      <div class="value" id="stroke-value">0.06</div>
     </div>
     <button class="toggle" id="reseed-btn" data-active="false">re-seed</button>
   </div>
@@ -114,6 +120,7 @@
     </div>
     <pre id="code-pre"><code>uniform float u_cellSize;  // coordinate: size of one tile in canvas units
 uniform float u_seed;      // coordinate: which sample from the distribution
+uniform float u_stroke;    // signal: arc line thickness
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7)) + u_seed) * 43758.5453);
@@ -137,8 +144,8 @@ void main() {
   float arc2 = abs(length(f - vec2(1.0, 1.0)) - 0.5);
   float d = min(arc1, arc2);
 
-  // Ink width — constant in canvas units regardless of cell-size
-  float w = 0.06;
+  // Ink width — controlled by stroke slider
+  float w = u_stroke;
   float ink = 1.0 - smoothstep(w, w + 0.02, d);
 
   // COLOR LAYER — ink on paper
@@ -158,6 +165,7 @@ import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrow
 const fragmentSrc = `
 uniform float u_cellSize;
 uniform float u_seed;
+uniform float u_stroke;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7)) + u_seed) * 43758.5453);
@@ -176,7 +184,7 @@ void main() {
   float arc2 = abs(length(f - vec2(1.0, 1.0)) - 0.5);
   float d = min(arc1, arc2);
 
-  float w = 0.06;
+  float w = u_stroke;
   float ink = 1.0 - smoothstep(w, w + 0.02, d);
 
   vec3 paper = vec3(0.95, 0.92, 0.86);
@@ -191,9 +199,11 @@ const canvas = document.getElementById('canvas');
 const app = createShaderApp(canvas, fragmentSrc, {
   u_cellSize: { type: '1f', value: 0.1 },
   u_seed: { type: '1f', value: 0 },
+  u_stroke: { type: '1f', value: 0.06 },
 });
 if (app) {
   bindSlider(document.getElementById('cell-size'), document.getElementById('cell-size-value'), app, 'u_cellSize');
+  bindSlider(document.getElementById('stroke'), document.getElementById('stroke-value'), app, 'u_stroke');
 
   // Re-seed: pick a fresh random offset, nudge the button state briefly
   const reseedBtn = document.getElementById('reseed-btn');

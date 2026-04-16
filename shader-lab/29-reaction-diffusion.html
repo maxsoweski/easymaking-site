@@ -11,6 +11,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"}}
 </script>
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -46,6 +47,11 @@
       <label for="pattern-mood">pattern-mood</label>
       <input type="range" id="pattern-mood" min="0" max="1" step="0.001" value="0.5">
       <div class="value" id="pattern-mood-value">0.50</div>
+    </div>
+    <div class="control">
+      <label for="speed">speed</label>
+      <input type="range" id="speed" min="1" max="40" step="1" value="18">
+      <div class="value" id="speed-value">18</div>
     </div>
     <div class="control">
       <button class="toggle" id="reset-btn">reset seed</button>
@@ -335,7 +341,7 @@ function reset() { seedAt(0.5, 0.5, true); }
 reset();
 
 // Simulation step
-const ITERS_PER_FRAME = 18;
+let ITERS_PER_FRAME = 18;
 function simStep() {
   scene.clear();
   scene.add(simMesh);
@@ -368,6 +374,16 @@ function updateMood() {
 }
 moodSlider.addEventListener('input', updateMood);
 updateMood();
+
+const speedSlider = document.getElementById('speed');
+const speedValue = document.getElementById('speed-value');
+function updateSpeed() {
+  const v = parseInt(speedSlider.value);
+  ITERS_PER_FRAME = v;
+  speedValue.textContent = v;
+}
+speedSlider.addEventListener('input', updateSpeed);
+updateSpeed();
 
 document.getElementById('reset-btn').addEventListener('click', reset);
 

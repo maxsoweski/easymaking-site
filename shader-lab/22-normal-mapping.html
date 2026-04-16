@@ -15,6 +15,7 @@
   }
 }
 </script>
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -49,6 +50,11 @@
       <label for="depth">depth</label>
       <input type="range" id="depth" min="-2" max="2" step="0.01" value="1">
       <div class="value" id="depth-value">1.00</div>
+    </div>
+    <div class="control">
+      <label for="camera-tilt">camera-tilt</label>
+      <input type="range" id="camera-tilt" min="0" max="90" step="1" value="6">
+      <div class="value" id="camera-tilt-value">6</div>
     </div>
   </div>
 
@@ -316,6 +322,20 @@ function updateD() {
 }
 dSlider.addEventListener('input', updateD);
 updateD();
+
+// Camera tilt — orbit vertically to see silhouette stays flat
+const tiltSlider = document.getElementById('camera-tilt');
+const tiltValue = document.getElementById('camera-tilt-value');
+const CAM_DIST = Math.hypot(0.6, 5.6); // preserve distance from origin
+function updateTilt() {
+  const deg = parseFloat(tiltSlider.value);
+  const rad = (deg * Math.PI) / 180;
+  camera.position.set(0, Math.sin(rad) * CAM_DIST, Math.cos(rad) * CAM_DIST);
+  camera.lookAt(0, 0, 0);
+  tiltValue.textContent = Math.round(deg);
+}
+tiltSlider.addEventListener('input', updateTilt);
+updateTilt();
 
 highlightGLSL(document.querySelector('#code-pre code'));
 setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));

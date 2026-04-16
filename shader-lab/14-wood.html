@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/style.css">
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -52,6 +53,11 @@
       <label for="tree-center-y">tree-center y</label>
       <input type="range" id="tree-center-y" min="-3" max="3" step="0.01" value="0">
       <div class="value" id="tree-center-y-value">0.00</div>
+    </div>
+    <div class="control">
+      <label for="waviness">waviness</label>
+      <input type="range" id="waviness" min="0" max="1.5" step="0.01" value="0.35">
+      <div class="value" id="waviness-value">0.35</div>
     </div>
   </div>
 
@@ -119,6 +125,7 @@
     </div>
     <pre id="code-pre"><code>uniform float u_ringTightness;  // signal layer: sine frequency of radial dist
 uniform vec2  u_treeCenter;     // coordinate layer: where the rings converge
+uniform float u_turbulence;     // coordinate layer: noise multiplier on rings
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -148,7 +155,7 @@ void main() {
 
   // COORDINATE LAYER — marble used p.x; wood uses length(p - center)
   float turb = fbm(p * 2.0 + u_time * 0.02);
-  float r = length(p - u_treeCenter) + 0.35 * turb;
+  float r = length(p - u_treeCenter) + u_turbulence * turb;
 
   // SIGNAL LAYER — sine of the (slightly warped) radial distance
   float rings = 0.5 + 0.5 * sin(r * u_ringTightness);
@@ -175,6 +182,7 @@ import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrow
 const fragmentSrc = `
 uniform float u_ringTightness;
 uniform vec2  u_treeCenter;
+uniform float u_turbulence;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -204,7 +212,7 @@ void main() {
   vec2 p = uv * 3.0;
 
   float turb = fbm(p * 2.0 + u_time * 0.02);
-  float r = length(p - u_treeCenter) + 0.35 * turb;
+  float r = length(p - u_treeCenter) + u_turbulence * turb;
 
   float rings = 0.5 + 0.5 * sin(r * u_ringTightness);
   rings = pow(rings, 1.6);
@@ -223,6 +231,7 @@ const canvas = document.getElementById('canvas');
 const app = createShaderApp(canvas, fragmentSrc, {
   u_ringTightness: { type: '1f', value: 9 },
   u_treeCenter: { type: '2f', value: [0, 0] },
+  u_turbulence: { type: '1f', value: 0.35 },
 });
 if (app) {
   bindSlider(document.getElementById('ring-tightness'), document.getElementById('ring-tightness-value'), app, 'u_ringTightness');
@@ -242,6 +251,8 @@ if (app) {
   xSlider.addEventListener('input', updateCenter);
   ySlider.addEventListener('input', updateCenter);
   updateCenter();
+
+  bindSlider(document.getElementById('waviness'), document.getElementById('waviness-value'), app, 'u_turbulence');
 
   app.start();
 }

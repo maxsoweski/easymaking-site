@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/style.css">
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -47,6 +48,11 @@
       <label for="grain">grain</label>
       <input type="range" id="grain" min="2" max="12" step="0.1" value="5">
       <div class="value" id="grain-value">5.0</div>
+    </div>
+    <div class="control">
+      <label for="roughness">roughness</label>
+      <input type="range" id="roughness" min="1" max="8" step="1" value="4">
+      <div class="value" id="roughness-value">4</div>
     </div>
   </div>
 
@@ -114,6 +120,7 @@
     </div>
     <pre id="code-pre"><code>uniform float u_veinDistortion;  // coordinate layer: turbulence amplitude
 uniform float u_grain;           // signal layer: sine frequency
+uniform float u_octaves;         // turbulence roughness (used as int loop bound)
 
 // hash + smooth value noise + fbm (4 octaves of turbulence)
 float hash(vec2 p) {
@@ -130,7 +137,8 @@ float vnoise(vec2 p) {
 }
 float fbm(vec2 p) {
   float v = 0.0, a = 0.5;
-  for (int i = 0; i &lt; 4; i++) {
+  for (int i = 0; i &lt; 8; i++) {
+    if (float(i) &gt;= u_octaves) break;
     v += a * vnoise(p);
     p *= 2.0;
     a *= 0.5;
@@ -171,6 +179,7 @@ import { createShaderApp, bindSlider, highlightGLSL, setupCodeToggle, setupArrow
 const fragmentSrc = `
 uniform float u_veinDistortion;
 uniform float u_grain;
+uniform float u_octaves;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -187,7 +196,8 @@ float vnoise(vec2 p) {
 float fbm(vec2 p) {
   float v = 0.0;
   float a = 0.5;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 8; i++) {
+    if (float(i) >= u_octaves) break;
     v += a * vnoise(p);
     p *= 2.0;
     a *= 0.5;
@@ -219,10 +229,12 @@ const canvas = document.getElementById('canvas');
 const app = createShaderApp(canvas, fragmentSrc, {
   u_veinDistortion: { type: '1f', value: 0.7 },
   u_grain: { type: '1f', value: 5 },
+  u_octaves: { type: '1f', value: 4 },
 });
 if (app) {
   bindSlider(document.getElementById('vein-distortion'), document.getElementById('vein-distortion-value'), app, 'u_veinDistortion');
   bindSlider(document.getElementById('grain'), document.getElementById('grain-value'), app, 'u_grain');
+  bindSlider(document.getElementById('roughness'), document.getElementById('roughness-value'), app, 'u_octaves');
   app.start();
 }
 

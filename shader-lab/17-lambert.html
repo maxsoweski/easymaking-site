@@ -15,6 +15,7 @@
   }
 }
 </script>
+<script defer src="shared/nav.js"></script>
 </head>
 <body>
 
@@ -49,6 +50,11 @@
       <label for="sun-angle">sun-angle</label>
       <input type="range" id="sun-angle" min="0" max="360" step="1" value="45">
       <div class="value" id="sun-angle-value">45</div>
+    </div>
+    <div class="control">
+      <label for="camera-orbit">camera-orbit</label>
+      <input type="range" id="camera-orbit" min="-90" max="90" step="1" value="0">
+      <div class="value" id="camera-orbit-value">0</div>
     </div>
   </div>
 
@@ -217,6 +223,21 @@ function updateAngle() {
 }
 angleSlider.addEventListener('input', updateAngle);
 updateAngle();
+
+// Camera orbit slider — demonstrates that Lambert is view-independent
+const orbitSlider = document.getElementById('camera-orbit');
+const orbitValue = document.getElementById('camera-orbit-value');
+const CAM_DIST = 5.6;
+const CAM_Y = 0.6;
+function updateOrbit() {
+  const deg = parseFloat(orbitSlider.value);
+  const rad = (deg * Math.PI) / 180;
+  camera.position.set(Math.sin(rad) * CAM_DIST, CAM_Y, Math.cos(rad) * CAM_DIST);
+  camera.lookAt(0, 0, 0);
+  orbitValue.textContent = Math.round(deg);
+}
+orbitSlider.addEventListener('input', updateOrbit);
+updateOrbit();
 
 highlightGLSL(document.querySelector('#code-pre code'));
 setupCodeToggle(document.getElementById('code-toggle'), document.getElementById('code-pre'));
