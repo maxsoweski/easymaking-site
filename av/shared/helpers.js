@@ -324,6 +324,134 @@ class AVVideo extends HTMLElement {
   }
 }
 
+// ─── <av-guided-video video-id start end> ─────────────────────────────
+// Looping YouTube embed + sequenced narration (TTS or audio file).
+// Children: <step seconds="N" audio="path">instruction text</step>
+class AVGuidedVideo extends HTMLElement {
+  connectedCallback() {
+    const id = this.getAttribute('video-id');
+    const start = this.getAttribute('video-start') || '0';
+    const end = this.getAttribute('video-end');
+    const caption = this.getAttribute('caption') || '';
+    const stepEls = Array.from(this.querySelectorAll('step'));
+    const steps = stepEls.map(el => ({
+      seconds: parseInt(el.getAttribute('seconds') || '30'),
+      audio: el.getAttribute('audio') || null,
+      text: el.textContent.trim(),
+    }));
+
+    // YouTube loop trick: ?loop=1&playlist=ID makes the embed loop the segment.
+    // mute=1 + autoplay=1 enables autoplay; controls=0 hides chrome.
+    const params = new URLSearchParams({
+      autoplay: '1', mute: '1', loop: '1', playlist: id,
+      controls: '0', rel: '0', modestbranding: '1', start,
+    });
+    if (end) params.set('end', end);
+
+    this.innerHTML = `
+      <div class="widget av-guided-video">
+        <div class="gv-frame">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/${id}?${params}"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowfullscreen></iframe>
+        </div>
+        ${caption ? `<div class="av-video-caption">${caption}</div>` : ''}
+        <div class="gv-control">
+          <button class="btn primary gv-begin">Begin guided sequence</button>
+          <div class="gv-progress" style="display:none;">
+            <span class="gv-step-num"></span> of ${steps.length}
+            <span class="gv-step-text"></span>
+            <button class="btn gv-stop">Stop</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const beginBtn = this.querySelector('.gv-begin');
+    const progress = this.querySelector('.gv-progress');
+    const stepNum = this.querySelector('.gv-step-num');
+    const stepText = this.querySelector('.gv-step-text');
+    const stopBtn = this.querySelector('.gv-stop');
+
+    let currentStep = 0;
+    let stepTimer = null;
+    let utter = null;
+    let audio = null;
+    let running = false;
+
+    const stop = () => {
+      running = false;
+      clearTimeout(stepTimer);
+      if (utter) { window.speechSynthesis.cancel(); utter = null; }
+      if (audio) { audio.pause(); audio = null; }
+      progress.style.display = 'none';
+      beginBtn.style.display = '';
+      beginBtn.textContent = 'Begin again';
+      currentStep = 0;
+    };
+
+    const speakStep = (s, onDone) => {
+      // Try audio file first; fall back to Web Speech API
+      if (s.audio) {
+        audio = new Audio(s.audio);
+        audio.onended = onDone;
+        audio.onerror = () => { audio = null; speakAPI(); };
+        audio.play().catch(() => speakAPI());
+        return;
+      }
+      speakAPI();
+
+      function speakAPI() {
+        if (!('speechSynthesis' in window)) { onDone(); return; }
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v =>
+          /aria|jenny|samantha|allison|moira|karen|tessa|fiona/i.test(v.name)
+        ) || voices.find(v => v.lang.startsWith('en'));
+        utter = new SpeechSynthesisUtterance(s.text);
+        if (preferred) utter.voice = preferred;
+        utter.rate = 0.9;
+        utter.pitch = 1.0;
+        utter.onend = onDone;
+        window.speechSynthesis.speak(utter);
+      }
+    };
+
+    const runStep = () => {
+      if (!running) return;
+      if (currentStep >= steps.length) {
+        stepNum.textContent = '';
+        stepText.textContent = 'Now let it go.';
+        playBell();
+        setTimeout(stop, 4000);
+        return;
+      }
+      const s = steps[currentStep];
+      stepNum.textContent = `Step ${currentStep + 1}`;
+      stepText.textContent = s.text;
+      // Speak, then start the silence timer (after speech ends)
+      speakStep(s, () => {
+        if (!running) return;
+        stepTimer = setTimeout(() => {
+          if (!running) return;
+          playBell();
+          currentStep++;
+          setTimeout(runStep, 1200);
+        }, s.seconds * 1000);
+      });
+    };
+
+    beginBtn.addEventListener('click', () => {
+      running = true;
+      currentStep = 0;
+      beginBtn.style.display = 'none';
+      progress.style.display = '';
+      runStep();
+    });
+    stopBtn.addEventListener('click', stop);
+  }
+}
+
 // ─── <av-dial label> — vividness dial (1-10 slider with chromatic tiles) ──
 class AVDial extends HTMLElement {
   connectedCallback() {
@@ -368,6 +496,7 @@ customElements.define('av-speak', AVSpeak);
 customElements.define('av-reflect', AVReflect);
 customElements.define('av-video', AVVideo);
 customElements.define('av-dial', AVDial);
+customElements.define('av-guided-video', AVGuidedVideo);
 
 // Update nav badge once everything is ready
 document.addEventListener('DOMContentLoaded', updateJournalBadge);

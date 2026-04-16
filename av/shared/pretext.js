@@ -111,14 +111,16 @@
   function processElement(root, tier) {
     if (!root) return;
     if (root.dataset && root.dataset.pretextSplit === '1') return;
-    if (root.dataset) root.dataset.pretextSplit = '1';
-
+    // Walk text BEFORE marking root as split, so the walker doesn't reject
+    // text nodes inside root via the isExempt ancestor check.
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(n) { return isExempt(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; }
     });
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const n of nodes) splitTextNode(n, tier);
+    // Mark AFTER processing so subsequent processElement calls skip this subtree
+    if (root.dataset) root.dataset.pretextSplit = '1';
   }
 
   function setup() {

@@ -320,6 +320,50 @@ a:hover { color: var(--ink); }
   font-family: var(--serif);
 }
 
+/* guided-video widget */
+.av-guided-video .gv-frame {
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: black;
+  margin-bottom: 8px;
+}
+.av-guided-video .gv-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.av-guided-video .gv-control {
+  margin-top: 16px;
+  text-align: center;
+}
+.av-guided-video .gv-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--muted);
+}
+.av-guided-video .gv-step-num {
+  font-weight: 600;
+  color: var(--accent-deep);
+  min-width: 60px;
+}
+.av-guided-video .gv-step-text {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: var(--ink);
+  font-style: italic;
+  flex-basis: 100%;
+  text-align: center;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
 /* multi-person callout */
 .callout {
   background: var(--warn-faint);
