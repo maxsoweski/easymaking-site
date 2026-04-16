@@ -95,6 +95,10 @@
   let mouseX = -9999, mouseY = -9999;
   let needsUpdate = false;
 
+  // Words in the "vividness" semantic family — rainbow when activated.
+  // The course's heart's-desire term and its cousins.
+  const VIVID_RE = /\b(vivid(?:ly|ness)?|aliveness|alive|vibran(?:t|cy|tly)|radian(?:t|ce|tly)|luminous|luminosity|bright(?:ness|ly)?|fresh(?:ness|ly)?)\b/gi;
+
   function splitText() {
     document.querySelectorAll('[data-pretext]').forEach(el => {
       if (el.dataset.pretextSplit) return;
@@ -103,11 +107,24 @@
       el.textContent = '';
       const line = document.createElement('span');
       line.className = 'pretext-line';
-      for (const ch of text) {
+
+      // Find rainbow ranges in the original text
+      const rainbowAt = new Array(text.length).fill(-1); // -1 = not rainbow, else = index within word
+      let m;
+      VIVID_RE.lastIndex = 0;
+      while ((m = VIVID_RE.exec(text)) !== null) {
+        for (let i = 0; i < m[0].length; i++) rainbowAt[m.index + i] = i;
+      }
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
         const span = document.createElement('span');
         span.className = 'pretext-char';
-        // Use a non-breaking space for actual spaces so flex doesn't collapse
         span.textContent = ch === ' ' ? '\u00a0' : ch;
+        if (rainbowAt[i] >= 0) {
+          span.dataset.rainbow = rainbowAt[i];
+          span.classList.add('pretext-rainbow');
+        }
         line.appendChild(span);
       }
       el.appendChild(line);
@@ -133,27 +150,49 @@
 
   function update() {
     needsUpdate = false;
+    const now = performance.now();
     for (let i = 0; i < chars.length; i++) {
       const p = positions[i];
       const dx = mouseX - p.x;
       const dy = mouseY - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
+      const c = chars[i];
+      const isRainbow = c.dataset.rainbow !== undefined;
+
       if (dist > RADIUS) {
-        chars[i].style.transform = '';
+        c.style.transform = '';
+        if (isRainbow) c.style.color = '';
         continue;
       }
-      const t = 1 - dist / RADIUS;        // 0..1
-      const scale = 1 + MAX_SCALE * t * t;  // ease-in
+      const t = 1 - dist / RADIUS;          // 0..1
+      const scale = 1 + MAX_SCALE * t * t;
       const lift = -MAX_LIFT * t;
-      chars[i].style.transform = `translateY(${lift.toFixed(2)}px) scale(${scale.toFixed(3)})`;
+      c.style.transform = `translateY(${lift.toFixed(2)}px) scale(${scale.toFixed(3)})`;
+
+      if (isRainbow) {
+        const wordIdx = parseInt(c.dataset.rainbow);
+        // Hue rotates per char in the word + slow time drift; saturation/lightness
+        // ramp with proximity so the rainbow "blooms" as cursor approaches.
+        const hue = (wordIdx * 36 + now * 0.04) % 360;
+        const sat = 60 + 25 * t;
+        const light = 52 - 8 * t;
+        c.style.color = `hsl(${hue.toFixed(1)}, ${sat.toFixed(0)}%, ${light.toFixed(0)}%)`;
+      }
     }
     // Activate lines whose bbox is near the cursor
+    let anyRainbowActive = false;
     for (let i = 0; i < lines.length; i++) {
       const lp = linePositions[i];
       const cx = Math.max(lp.left, Math.min(mouseX, lp.right));
       const cy = Math.max(lp.top, Math.min(mouseY, lp.bottom));
       const d = Math.hypot(mouseX - cx, mouseY - cy);
       lines[i].classList.toggle('active', d < ACTIVE_RADIUS);
+    }
+    // Continue animating rainbow drift while cursor is on a line containing rainbow chars
+    const stillActive = chars.some(c => c.dataset.rainbow !== undefined && c.style.color);
+    if (stillActive) {
+      needsUpdate = true;
+      requestAnimationFrame(update);
     }
   }
 
