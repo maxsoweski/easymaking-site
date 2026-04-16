@@ -312,8 +312,10 @@ class AVVideo extends HTMLElement {
     const end = this.getAttribute('end');
     const caption = this.getAttribute('caption') || '';
     const sensitive = this.hasAttribute('sensitive');
+    const muted = this.hasAttribute('muted');
     const params = new URLSearchParams({ start, rel: '0', modestbranding: '1' });
     if (end) params.set('end', end);
+    if (muted) params.set('mute', '1');
     const iframeHtml = `
       <iframe
         src="https://www.youtube-nocookie.com/embed/${id}?${params}"
