@@ -301,26 +301,50 @@ class AVReflect extends HTMLElement {
   }
 }
 
-// ─── <av-video id start end caption> ───────────────────────────────────
+// ─── <av-video id start end caption sensitive> ─────────────────────────
+// If `sensitive` is set, the iframe is replaced with a click-to-load overlay
+// so the YouTube thumbnail (which may itself be the trigger) doesn't appear
+// until the user opts in.
 class AVVideo extends HTMLElement {
   connectedCallback() {
     const id = this.getAttribute('id');
     const start = this.getAttribute('start') || '0';
     const end = this.getAttribute('end');
     const caption = this.getAttribute('caption') || '';
+    const sensitive = this.hasAttribute('sensitive');
     const params = new URLSearchParams({ start, rel: '0', modestbranding: '1' });
     if (end) params.set('end', end);
-    this.innerHTML = `
-      <div class="av-video">
-        <iframe
-          src="https://www.youtube-nocookie.com/embed/${id}?${params}"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen
-          loading="lazy"
-        ></iframe>
-      </div>
-      ${caption ? `<div class="av-video-caption">${caption}</div>` : ''}
-    `;
+    const iframeHtml = `
+      <iframe
+        src="https://www.youtube-nocookie.com/embed/${id}?${params}"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        loading="lazy"
+      ></iframe>`;
+
+    if (sensitive) {
+      this.innerHTML = `
+        <div class="av-video sensitive">
+          <button class="sensitive-load">
+            <span class="sensitive-icon">⊕</span>
+            <span class="sensitive-label">Click to load video</span>
+            <span class="sensitive-hint">${caption || ''}</span>
+          </button>
+        </div>
+        ${caption ? `<div class="av-video-caption">${caption}</div>` : ''}
+      `;
+      const btn = this.querySelector('.sensitive-load');
+      const wrap = this.querySelector('.av-video');
+      btn.addEventListener('click', () => {
+        wrap.classList.remove('sensitive');
+        wrap.innerHTML = iframeHtml;
+      });
+    } else {
+      this.innerHTML = `
+        <div class="av-video">${iframeHtml}</div>
+        ${caption ? `<div class="av-video-caption">${caption}</div>` : ''}
+      `;
+    }
   }
 }
 
@@ -342,9 +366,11 @@ class AVGuidedVideo extends HTMLElement {
 
     // YouTube loop trick: ?loop=1&playlist=ID makes the embed loop the segment.
     // mute=1 + autoplay=1 enables autoplay; controls=0 hides chrome.
+    // cc_load_policy=1 forces captions on (load-bearing for the Muir Woods exercise).
     const params = new URLSearchParams({
       autoplay: '1', mute: '1', loop: '1', playlist: id,
       controls: '0', rel: '0', modestbranding: '1', start,
+      cc_load_policy: '1', cc_lang_pref: 'en',
     });
     if (end) params.set('end', end);
 

@@ -240,6 +240,42 @@ a:hover { color: var(--ink); }
   background: black;
   aspect-ratio: 16 / 9;
 }
+.av-video.sensitive {
+  background: var(--paper-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.av-video.sensitive .sensitive-load {
+  background: transparent;
+  border: 2px dashed var(--muted-soft);
+  color: var(--ink);
+  padding: 32px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 80%;
+  max-width: 400px;
+  font-family: var(--sans);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.av-video.sensitive .sensitive-load:hover {
+  border-color: var(--accent);
+  background: var(--paper);
+  color: var(--accent-deep);
+}
+.av-video.sensitive .sensitive-icon { font-size: 28px; color: var(--accent); }
+.av-video.sensitive .sensitive-label { font-weight: 600; font-size: 15px; }
+.av-video.sensitive .sensitive-hint {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--muted);
+  margin-top: 4px;
+  text-align: center;
+}
 .av-video iframe {
   width: 100%;
   height: 100%;
