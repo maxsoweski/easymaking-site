@@ -636,28 +636,30 @@ body.nav-collapsed .av-nav .nav-inner { display: none; }
 }
 .journal-entry-text.empty { color: var(--muted-soft); font-style: italic; }
 
-/* pretext text effects — every text element is alive
-   .pretext-title  — chars inside [data-pretext] elements (titles, taglines):
-                     muted by default, restored to ink when line is active
-   .pretext-body   — chars in body prose: keep natural color, only scale/lift
-   .pretext-rainbow — vivid-family chars: rainbow under cursor proximity      */
-.pretext-line {
-  position: relative;
-}
+/* pretext text effects — three tiers
+   .pretext-title  — chars inside [data-pretext] (titles): muted-soft default, ink when active
+   .pretext-link   — chars inside <a> tags in main: inherit color (links keep their own styling)
+   .pretext-vivid  — chars inside .vivid-word: muted by default, rainbow on proximity
+   .pretext-rainbow — applied to vivid chars in any tier; rainbow color set inline */
+.pretext-line { position: relative; }
 .pretext-char {
   display: inline-block;
   transition: color 0.18s ease;
   will-change: transform;
 }
-/* Title-tier: muted-soft base, restored to ink when line is active */
+.vivid-word { display: inline-flex; }
+
 [data-pretext]:not(.active) .pretext-title {
   color: var(--muted-soft);
 }
 [data-pretext].active .pretext-title {
   color: var(--ink);
 }
-/* Body-tier inherits color naturally — no override */
 .lesson-list a:hover .pretext-title { color: var(--ink); }
+
+.vivid-word:not(.active) .pretext-vivid {
+  color: var(--muted);
+}
 
 /* responsive */
 @media (max-width: 900px) {

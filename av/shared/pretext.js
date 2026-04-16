@@ -1,45 +1,38 @@
 // Approaching Vividness — pretext text effects
 //
-// Two-tier system:
-//   1. [data-pretext] elements (titles, taglines): muted-by-default;
-//      cursor proximity restores ink color + per-char scale/lift.
-//   2. ALL other text inside <main>: keeps natural color but each char
-//      still scales/lifts gently when cursor is near.
-//   In both: words in the "vividness" family rainbow under proximity.
+// Three tiers (text gets the live effect ONLY in these places):
+//   1. [data-pretext]              — titles, taglines, h1 (full muted-default treatment)
+//   2. <a> inside <main>           — links (next/prev, journal, in-text)
+//   3. words matching VIVID_RE     — vividness synonyms anywhere in body text
+//
+// Body prose outside these tiers stays as plain text (no per-char split).
 //
 // Inspired by chenglou.me/pretext (text as physical, reactive material).
-// Performance: walks text nodes once on load, skips dynamic elements
-// (timer display, dial value, form controls, etc.).
 
 (function pretextInit() {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const RADIUS = 110;
   const MAX_SCALE_TITLE = 0.28;
-  const MAX_SCALE_BODY  = 0.10;
+  const MAX_SCALE_LINK  = 0.16;
+  const MAX_SCALE_VIVID = 0.14;
   const MAX_LIFT_TITLE  = 4;
-  const MAX_LIFT_BODY   = 1.5;
+  const MAX_LIFT_LINK   = 2.5;
+  const MAX_LIFT_VIVID  = 2;
   const ACTIVE_RADIUS   = 180;
 
-  // Words in the "vividness" semantic family — rainbow under cursor proximity.
   const VIVID_RE = /\b(vivid(?:ly|ness)?|aliveness|alive|vibran(?:t|cy|tly)|radian(?:t|ce|tly)|luminous|luminosity|bright(?:ness|ly)?|fresh(?:ness|ly)?)\b/gi;
 
-  // Tags whose text should never be split
   const EXEMPT_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'BUTTON', 'IFRAME', 'OPTION', 'SELECT', 'CODE', 'PRE']);
-  // Class/selector ancestors whose text is dynamic — don't waste cycles
   const EXEMPT_CLASSES = ['no-pretext', 'display', 'dial-value', 'dial-tiles', 'tile', 'saved'];
-  // av-timer display updates every second; the .display class is on the timer's countdown
-  // .saved is the "Saved." indicator on av-reflect
-  // .dial-value is the dial's numeric readout
 
-  let chars = [];          // all .pretext-char in DOM (recomputed after split)
-  let lines = [];          // .pretext-line containers (titles + vivid-word wrappers)
+  let chars = [];
+  let lines = [];
   let positions = [];
   let linePositions = [];
   let mouseX = -9999, mouseY = -9999;
   let needsUpdate = false;
 
-  // ─── Walker that respects exemptions ────────────────────────────────
   function isExempt(node) {
     let p = node.parentElement;
     while (p) {
@@ -53,8 +46,9 @@
     return false;
   }
 
-  // Replace a text node with per-char spans; mark vivid chars for rainbow.
-  function splitTextNode(node, asTitle) {
+  // Split a single text node into per-char spans.
+  // tier: 'title' | 'link' | 'vivid-only' (vivid-only only wraps vivid words; other chars stay as text)
+  function splitTextNode(node, tier) {
     const text = node.textContent;
     if (!text || text.trim().length === 0) return;
 
@@ -66,21 +60,55 @@
     }
 
     const frag = document.createDocumentFragment();
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      const span = document.createElement('span');
-      span.className = asTitle ? 'pretext-char pretext-title' : 'pretext-char pretext-body';
-      span.textContent = ch === ' ' ? '\u00a0' : ch;
-      if (rainbowAt[i] >= 0) {
-        span.dataset.rainbow = rainbowAt[i];
-        span.classList.add('pretext-rainbow');
+
+    if (tier === 'vivid-only') {
+      // Walk the text, emitting plain TextNodes for non-vivid spans and per-char spans for vivid words.
+      let i = 0;
+      while (i < text.length) {
+        if (rainbowAt[i] >= 0) {
+          // Find end of this vivid word
+          const wordSpan = document.createElement('span');
+          wordSpan.className = 'vivid-word';
+          let j = i;
+          while (j < text.length && rainbowAt[j] >= 0) {
+            const ch = text[j];
+            const c = document.createElement('span');
+            c.className = 'pretext-char pretext-vivid pretext-rainbow';
+            c.dataset.rainbow = rainbowAt[j];
+            c.textContent = ch === ' ' ? '\u00a0' : ch;
+            wordSpan.appendChild(c);
+            j++;
+          }
+          frag.appendChild(wordSpan);
+          i = j;
+        } else {
+          // Find end of plain run
+          let j = i;
+          while (j < text.length && rainbowAt[j] < 0) j++;
+          frag.appendChild(document.createTextNode(text.slice(i, j)));
+          i = j;
+        }
       }
-      frag.appendChild(span);
+    } else {
+      // 'title' or 'link' — split every char
+      const tierClass = tier === 'title' ? 'pretext-title' : 'pretext-link';
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const span = document.createElement('span');
+        span.className = `pretext-char ${tierClass}`;
+        span.textContent = ch === ' ' ? '\u00a0' : ch;
+        if (rainbowAt[i] >= 0) {
+          span.dataset.rainbow = rainbowAt[i];
+          span.classList.add('pretext-rainbow');
+        }
+        frag.appendChild(span);
+      }
     }
+
     if (node.parentNode) node.parentNode.replaceChild(frag, node);
   }
 
-  function processElement(root, asTitle) {
+  function processElement(root, tier) {
     if (!root) return;
     if (root.dataset && root.dataset.pretextSplit === '1') return;
     if (root.dataset) root.dataset.pretextSplit = '1';
@@ -90,28 +118,42 @@
     });
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
-    for (const n of nodes) splitTextNode(n, asTitle);
+    for (const n of nodes) splitTextNode(n, tier);
   }
 
   function setup() {
-    // Title-tier: explicit data-pretext elements get muted-default treatment
-    document.querySelectorAll('[data-pretext]').forEach(el => processElement(el, true));
+    // Tier 1 — titles
+    document.querySelectorAll('[data-pretext]').forEach(el => {
+      processElement(el, 'title');
+      el.classList.add('pretext-line');
+      lines.push(el);
+    });
 
-    // Body-tier: everything else inside <main> (auto-applied)
     const main = document.querySelector('main');
     if (main) {
-      // Walk all elements in main; for each direct text-bearing element NOT
-      // already processed and NOT exempt, run processElement in body mode.
-      // Simpler: just call processElement on main itself; the walker handles
-      // skipping nested data-pretext and exempt subtrees.
-      processElement(main, false);
+      // Tier 2 — links (skip ones already inside data-pretext)
+      main.querySelectorAll('a').forEach(el => {
+        let inPretext = false;
+        let p = el.parentElement;
+        while (p && p !== main) {
+          if (p.dataset && p.dataset.pretextSplit === '1') { inPretext = true; break; }
+          p = p.parentElement;
+        }
+        if (inPretext) return;
+        processElement(el, 'link');
+        el.classList.add('pretext-line');
+        lines.push(el);
+      });
+
+      // Tier 3 — vivid words anywhere in main (skip subtrees we already processed)
+      processElement(main, 'vivid-only');
     }
 
     chars = Array.from(document.querySelectorAll('.pretext-char'));
-    // "Lines" for the active-class behavior: every [data-pretext] container
-    document.querySelectorAll('[data-pretext]').forEach(el => {
-      el.classList.add('pretext-line');
-      lines.push(el);
+    // Add vivid-word containers as lines so they activate too
+    document.querySelectorAll('.vivid-word').forEach(w => {
+      w.classList.add('pretext-line');
+      lines.push(w);
     });
     measure();
   }
@@ -127,7 +169,6 @@
     });
   }
 
-  // ─── update loop ────────────────────────────────────────────────────
   function update() {
     needsUpdate = false;
     const now = performance.now();
@@ -150,9 +191,10 @@
       const t = 1 - dist / RADIUS;
 
       if (!reduceMotion) {
-        const isTitle = c.classList.contains('pretext-title');
-        const maxScale = isTitle ? MAX_SCALE_TITLE : MAX_SCALE_BODY;
-        const maxLift  = isTitle ? MAX_LIFT_TITLE  : MAX_LIFT_BODY;
+        let maxScale, maxLift;
+        if (c.classList.contains('pretext-title'))      { maxScale = MAX_SCALE_TITLE; maxLift = MAX_LIFT_TITLE; }
+        else if (c.classList.contains('pretext-link'))   { maxScale = MAX_SCALE_LINK;  maxLift = MAX_LIFT_LINK;  }
+        else                                              { maxScale = MAX_SCALE_VIVID; maxLift = MAX_LIFT_VIVID; }
         const scale = 1 + maxScale * t * t;
         const lift = -maxLift * t;
         c.style.transform = `translateY(${lift.toFixed(2)}px) scale(${scale.toFixed(3)})`;
