@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Your Journal — Approaching Vividness</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css?v=2">
+<script defer src="shared/nav.js?v=2"></script>
+<script defer src="shared/helpers.js?v=2"></script>
+</head>
+<body>
+<main>
+  <div class="lesson-meta">Your private journal · saved on this device</div>
+  <div class="journal-header">
+    <h1>Your Journal</h1>
+    <div class="journal-actions">
+      <button id="download-md" class="btn primary">Download as Markdown</button>
+      <button id="download-txt" class="btn">As plain text</button>
+    </div>
+  </div>
+
+  <div id="journal-content"></div>
+</main>
+
+<script>
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+       + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function buildJournal() {
+  const container = document.getElementById('journal-content');
+  const journal = window.AVJournal.read();
+  const entries = Object.values(journal).filter(e => (e.text || '').trim().length > 0);
+
+  if (entries.length === 0) {
+    container.innerHTML = `
+      <div class="journal-empty">
+        Your journal is empty. As you move through the course, your reflections will appear here.<br><br>
+        <a href="00-welcome.html" class="btn">Start with the welcome →</a>
+      </div>
+    `;
+    document.getElementById('download-md').disabled = true;
+    document.getElementById('download-txt').disabled = true;
+    return;
+  }
+
+  // Group by arc using AV_ARCS as the canonical order; orphans go to "Other"
+  const groups = {};
+  const arcOrder = (window.AV_ARCS || []).map(a => a.label);
+  arcOrder.forEach(label => groups[label] = []);
+  groups['Other'] = [];
+
+  for (const e of entries) {
+    const label = e.arc || 'Other';
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(e);
+  }
+
+  // Sort entries within each arc by lesson number
+  Object.values(groups).forEach(g => g.sort((a, b) => (a.lesson || '99').localeCompare(b.lesson || '99')));
+
+  let html = '';
+  for (const label of [...arcOrder, 'Other']) {
+    const arcEntries = groups[label];
+    if (!arcEntries || arcEntries.length === 0) continue;
+    html += `<div class="journal-arc">
+      <div class="journal-arc-label">${label}</div>`;
+    for (const e of arcEntries) {
+      const lessonHref = e.lesson ? `${e.lesson === '00' ? '00-welcome' : findLessonFile(e.lesson)}.html` : null;
+      const lessonLabel = e.lessonTitle ? `Lesson ${e.lesson || ''} · ${e.lessonTitle}` : 'Reflection';
+      html += `<div class="journal-entry">
+        <div class="journal-entry-meta">
+          <span>${lessonHref ? `<a href="${lessonHref}">${lessonLabel}</a>` : lessonLabel}</span>
+          <span>${fmtDate(e.updatedAt)}</span>
+        </div>
+        <div class="journal-entry-prompt">${escapeHtml(e.prompt || '')}</div>
+        <div class="journal-entry-text">${escapeHtml(e.text)}</div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function findLessonFile(num) {
+  const arcs = window.AV_ARCS || [];
+  for (const arc of arcs) {
+    for (const l of arc.lessons) {
+      if (String(l.n).padStart(2, '0') === num) return l.file;
+    }
+  }
+  return '';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function exportMarkdown() {
+  const journal = window.AVJournal.read();
+  const entries = Object.values(journal).filter(e => (e.text || '').trim().length > 0);
+  const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+
+  let md = `# Approaching Vividness — Journal\n\n*Exported ${today}*\n\n`;
+
+  const groups = {};
+  const arcOrder = (window.AV_ARCS || []).map(a => a.label);
+  arcOrder.forEach(label => groups[label] = []);
+  groups['Other'] = [];
+  for (const e of entries) {
+    const label = e.arc || 'Other';
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(e);
+  }
+  Object.values(groups).forEach(g => g.sort((a, b) => (a.lesson || '99').localeCompare(b.lesson || '99')));
+
+  for (const label of [...arcOrder, 'Other']) {
+    const arcEntries = groups[label];
+    if (!arcEntries || arcEntries.length === 0) continue;
+    md += `## ${label}\n\n`;
+    for (const e of arcEntries) {
+      const lessonLabel = e.lessonTitle ? `Lesson ${e.lesson || ''} — ${e.lessonTitle}` : 'Reflection';
+      md += `### ${lessonLabel}\n\n`;
+      if (e.prompt) md += `> ${e.prompt}\n\n`;
+      md += `${e.text}\n\n*Last updated: ${fmtDate(e.updatedAt)}*\n\n---\n\n`;
+    }
+  }
+  return md;
+}
+
+function exportText() {
+  return exportMarkdown()
+    .replace(/^#+ /gm, '')
+    .replace(/^> /gm, '    ')
+    .replace(/^---$/gm, '');
+}
+
+function download(filename, content) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait for AV_ARCS to be defined by nav.js
+  setTimeout(() => {
+    buildJournal();
+    document.getElementById('download-md').addEventListener('click', () => {
+      const date = new Date().toISOString().slice(0, 10);
+      download(`av-journal-${date}.md`, exportMarkdown());
+    });
+    document.getElementById('download-txt').addEventListener('click', () => {
+      const date = new Date().toISOString().slice(0, 10);
+      download(`av-journal-${date}.txt`, exportText());
+    });
+  }, 50);
+});
+</script>
+</body>
+</html>

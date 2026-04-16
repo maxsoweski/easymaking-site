@@ -428,6 +428,165 @@ body.nav-collapsed .av-nav .nav-inner { display: none; }
   font-weight: 500;
 }
 
+/* sidebar — journal link */
+.av-nav .nav-journal {
+  margin-top: 32px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.av-nav .nav-journal a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 8px 14px;
+  text-decoration: none;
+  color: var(--ink);
+  border-left: 2px solid transparent;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+.av-nav .nav-journal a:hover { border-left-color: var(--accent); color: var(--accent-deep); }
+.av-nav .nav-journal a.active { color: var(--accent-deep); border-left-color: var(--accent); }
+.av-nav .nav-journal .journal-icon { color: var(--accent); font-size: 16px; }
+.av-nav .nav-journal .journal-label { flex: 1; }
+.av-nav .nav-journal .journal-badge {
+  display: none;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* reflect — journal link inside widget */
+.av-reflect .widget-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.av-reflect .journal-link {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--accent-deep);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.av-reflect .journal-link:hover { border-bottom-color: var(--accent); }
+
+/* journal page */
+.journal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.journal-header h1 { margin-bottom: 0; }
+.journal-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 18px;
+  border: 1px solid var(--line-strong);
+  background: white;
+  color: var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { background: var(--accent-faint); border-color: var(--accent); color: var(--accent-deep); }
+.btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-deep); color: white; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.journal-empty {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 19px;
+}
+.journal-arc {
+  margin-bottom: 56px;
+}
+.journal-arc-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+.journal-entry {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px 28px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(40,38,46,0.04);
+}
+.journal-entry-meta {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--muted-soft);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.journal-entry-meta a { color: var(--muted); text-decoration: none; }
+.journal-entry-meta a:hover { color: var(--accent-deep); }
+.journal-entry-prompt {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 14px;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.journal-entry-text {
+  font-family: var(--serif);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.journal-entry-text.empty { color: var(--muted-soft); font-style: italic; }
+
+/* pretext text effects — index TOC titles */
+.pretext-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  position: relative;
+}
+.pretext-char {
+  display: inline-block;
+  transition: color 0.15s ease;
+  will-change: transform;
+}
+.pretext-line:not(.active) .pretext-char {
+  color: var(--muted-soft);
+}
+.lesson-list a:hover .pretext-line .pretext-char { color: var(--ink); }
+
 /* responsive */
 @media (max-width: 900px) {
   .av-content { padding: 32px 24px 80px; }

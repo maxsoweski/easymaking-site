@@ -1,12 +1,12 @@
 // Approaching Vividness — interactive helpers
 // Custom elements: <av-timer>, <av-speak>, <av-reflect>, <av-video>
+// Plus window.AVJournal for journal storage.
 
 // ─── Bell sound (synthesized, no asset needed) ─────────────────────────
 function playBell() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const t0 = ctx.currentTime;
-    // Two harmonic tones decay together — soft singing-bowl-ish bell
     [528, 792].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -19,10 +19,108 @@ function playBell() {
       osc.start(t0);
       osc.stop(t0 + 4.5);
     });
-  } catch (e) { /* silent fail — bell is non-essential */ }
+  } catch (e) { /* silent */ }
 }
 
-// ─── <av-timer minutes="2" seconds="0" bell="true"> ─────────────────────
+// ─── Journal storage ───────────────────────────────────────────────────
+// Single JSON object at localStorage["av-journal"], keyed by entry id.
+// Each entry: { id, lesson, lessonTitle, arc, prompt, text, updatedAt }
+window.AVJournal = {
+  KEY: 'av-journal',
+
+  read() {
+    try { return JSON.parse(localStorage.getItem(this.KEY) || '{}'); }
+    catch (e) { return {}; }
+  },
+
+  write(obj) {
+    localStorage.setItem(this.KEY, JSON.stringify(obj));
+  },
+
+  set(id, entry) {
+    const journal = this.read();
+    journal[id] = { ...journal[id], ...entry, id, updatedAt: new Date().toISOString() };
+    this.write(journal);
+  },
+
+  get(id) {
+    return this.read()[id];
+  },
+
+  count() {
+    return Object.keys(this.read()).filter(k => (this.read()[k].text || '').trim().length > 0).length;
+  },
+
+  // Look up lesson context from window.AV_ARCS (set by nav.js)
+  lookupLesson(file) {
+    if (!window.AV_ARCS) return { lesson: '', lessonTitle: '', arc: '' };
+    for (const arc of window.AV_ARCS) {
+      for (const l of arc.lessons) {
+        if (l.file === file) {
+          return {
+            lesson: String(l.n).padStart(2, '0'),
+            lessonTitle: l.title,
+            arc: arc.label,
+          };
+        }
+      }
+    }
+    return { lesson: '', lessonTitle: document.title || '', arc: '' };
+  },
+
+  // One-time migration: pull pre-journal localStorage entries into the journal.
+  // Old AVReflect saved at custom keys (e.g. "01-sitting-reflection", "welcome-warmup")
+  // and at fallback keys ("av-reflect-<path>-<promptStart>"). Migrate any with content.
+  migrate() {
+    const migrated = localStorage.getItem('av-journal-migrated');
+    if (migrated === 'v1') return;
+    const journal = this.read();
+    const known = ['welcome-warmup', '01-sitting-reflection']; // legacy keys we shipped
+    for (const k of known) {
+      const v = localStorage.getItem(k);
+      if (v && !journal[k]) {
+        journal[k] = {
+          id: k,
+          text: v,
+          prompt: '(migrated from earlier version)',
+          lesson: '', lessonTitle: '', arc: '',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    }
+    // av-reflect-* fallback keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('av-reflect-')) {
+        const v = localStorage.getItem(k);
+        if (v && !journal[k]) {
+          journal[k] = {
+            id: k, text: v, prompt: '(migrated)',
+            lesson: '', lessonTitle: '', arc: '',
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      }
+    }
+    this.write(journal);
+    localStorage.setItem('av-journal-migrated', 'v1');
+  },
+};
+
+window.AVJournal.migrate();
+
+// Update the nav badge with current entry count whenever the journal changes
+window.addEventListener('storage', () => updateJournalBadge());
+function updateJournalBadge() {
+  const badge = document.querySelector('.av-nav .journal-badge');
+  if (!badge) return;
+  const n = window.AVJournal.count();
+  badge.textContent = n > 0 ? n : '';
+  badge.style.display = n > 0 ? 'inline-block' : 'none';
+}
+window.updateJournalBadge = updateJournalBadge;
+
+// ─── <av-timer minutes seconds bell label> ─────────────────────────────
 class AVTimer extends HTMLElement {
   connectedCallback() {
     const minutes = parseInt(this.getAttribute('minutes') || '0');
@@ -67,14 +165,8 @@ class AVTimer extends HTMLElement {
     };
 
     startBtn.addEventListener('click', () => {
-      if (running) {
-        stop();
-        return;
-      }
-      if (remaining === 0) {
-        remaining = totalSec;
-        wrap.classList.remove('done');
-      }
+      if (running) { stop(); return; }
+      if (remaining === 0) { remaining = totalSec; wrap.classList.remove('done'); }
       running = true;
       wrap.classList.add('running');
       startBtn.textContent = 'Pause';
@@ -101,13 +193,11 @@ class AVTimer extends HTMLElement {
   }
 }
 
-// ─── <av-speak voice="auto">text content</av-speak> ─────────────────────
-// Web Speech API placeholder. Falls back gracefully if unsupported.
-// Future: load /audio/<lesson>/<id>.mp3 if attribute `audio` is set.
+// ─── <av-speak audio="...">text content</av-speak> ─────────────────────
 class AVSpeak extends HTMLElement {
   connectedCallback() {
     const text = this.textContent.trim();
-    const audioFile = this.getAttribute('audio'); // future: real recording
+    let audioFile = this.getAttribute('audio');
     this.innerHTML = `
       <div class="av-speak">
         <button class="play" aria-label="Play narration">▶</button>
@@ -132,8 +222,6 @@ class AVSpeak extends HTMLElement {
       playing = true;
       btn.classList.add('playing');
       btn.textContent = '⏸';
-
-      // If real audio file provided, prefer it
       if (audioFile) {
         audio = new Audio(audioFile);
         audio.onended = stop;
@@ -150,12 +238,10 @@ class AVSpeak extends HTMLElement {
         playing = false;
         return;
       }
-      // Pick a calm voice if available
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find(v =>
         /aria|jenny|samantha|allison|moira|karen|tessa|fiona/i.test(v.name)
       ) || voices.find(v => v.lang.startsWith('en'));
-
       utter = new SpeechSynthesisUtterance(text);
       if (preferred) utter.voice = preferred;
       utter.rate = 0.92;
@@ -165,25 +251,28 @@ class AVSpeak extends HTMLElement {
     }
   }
 }
-
-// Trigger voices to load (some browsers populate async)
 if ('speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {};
   window.speechSynthesis.getVoices();
 }
 
-// ─── <av-reflect prompt="..." key="lesson1-q1"> ─────────────────────────
+// ─── <av-reflect prompt key> — writes through to AVJournal ─────────────
 class AVReflect extends HTMLElement {
   connectedCallback() {
     const prompt = this.getAttribute('prompt') || 'Reflect…';
-    const key = this.getAttribute('key') || `av-reflect-${location.pathname}-${prompt.slice(0,30)}`;
-    const stored = localStorage.getItem(key) || '';
+    const file = location.pathname.split('/').pop().replace('.html', '');
+    const id = this.getAttribute('key') || `${file}-${prompt.slice(0, 40).replace(/[^\w]+/g, '-')}`;
+    const ctx = window.AVJournal.lookupLesson(file);
+    const existing = window.AVJournal.get(id);
 
     this.innerHTML = `
       <div class="widget av-reflect">
-        <div class="widget-label">Reflection · saved on this device</div>
+        <div class="widget-label">
+          Reflection · saved to your journal
+          <a class="journal-link" href="journal.html">your journal →</a>
+        </div>
         <div class="prompt">${prompt}</div>
-        <textarea placeholder="Write what you noticed…">${stored}</textarea>
+        <textarea placeholder="Write what you noticed…">${existing ? existing.text : ''}</textarea>
         <div class="saved"></div>
       </div>
     `;
@@ -191,33 +280,36 @@ class AVReflect extends HTMLElement {
     const ta = this.querySelector('textarea');
     const saved = this.querySelector('.saved');
     let timeout = null;
-    if (stored) saved.textContent = 'Saved.';
+    if (existing && existing.text) saved.textContent = 'Saved.';
+
+    // Ensure journal entry has metadata even if user hasn't typed yet
+    if (!existing && (ctx.lesson || ctx.lessonTitle)) {
+      window.AVJournal.set(id, {
+        ...ctx, prompt, text: '',
+      });
+    }
 
     ta.addEventListener('input', () => {
       clearTimeout(timeout);
       saved.textContent = '…';
       timeout = setTimeout(() => {
-        localStorage.setItem(key, ta.value);
+        window.AVJournal.set(id, { ...ctx, prompt, text: ta.value });
         saved.textContent = 'Saved.';
+        updateJournalBadge();
       }, 500);
     });
   }
 }
 
-// ─── <av-video id="YouTubeID" start="55" end="172" caption="…"> ─────────
+// ─── <av-video id start end caption> ───────────────────────────────────
 class AVVideo extends HTMLElement {
   connectedCallback() {
     const id = this.getAttribute('id');
     const start = this.getAttribute('start') || '0';
     const end = this.getAttribute('end');
     const caption = this.getAttribute('caption') || '';
-    const params = new URLSearchParams({
-      start,
-      rel: '0',
-      modestbranding: '1',
-    });
+    const params = new URLSearchParams({ start, rel: '0', modestbranding: '1' });
     if (end) params.set('end', end);
-
     this.innerHTML = `
       <div class="av-video">
         <iframe
@@ -236,3 +328,6 @@ customElements.define('av-timer', AVTimer);
 customElements.define('av-speak', AVSpeak);
 customElements.define('av-reflect', AVReflect);
 customElements.define('av-video', AVVideo);
+
+// Update nav badge once everything is ready
+document.addEventListener('DOMContentLoaded', updateJournalBadge);

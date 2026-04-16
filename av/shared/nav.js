@@ -1,5 +1,5 @@
 // Approaching Vividness — sidebar navigation
-// Auto-injects into any page that loads this script.
+// Exposes window.AV_ARCS for journal lookups.
 
 const ARCS = [
   { label: 'Welcome', lessons: [
@@ -31,6 +31,7 @@ const ARCS = [
     { n: 17, file: '17-power-in-energy',             title: 'Power in energy' },
   ]},
 ];
+window.AV_ARCS = ARCS;
 
 (function buildNav() {
   if (document.body.classList.contains('toc-page')) return;
@@ -58,6 +59,13 @@ const ARCS = [
           </ul>
         </div>
       `).join('')}
+      <div class="nav-journal">
+        <a href="journal.html"${currentFile === 'journal' ? ' class="active"' : ''}>
+          <span class="journal-icon">✒</span>
+          <span class="journal-label">Your Journal</span>
+          <span class="journal-badge"></span>
+        </a>
+      </div>
     </div>
   `;
   document.body.insertBefore(nav, document.body.firstChild);
@@ -71,7 +79,6 @@ const ARCS = [
     wrap.appendChild(main);
   }
 
-  // Toggle
   nav.querySelector('.nav-toggle').addEventListener('click', () => {
     document.body.classList.toggle('nav-collapsed');
     const isCollapsed = document.body.classList.contains('nav-collapsed');
@@ -79,7 +86,6 @@ const ARCS = [
     nav.querySelector('.nav-toggle').textContent = isCollapsed ? '☰' : '×';
   });
 
-  // Arc collapse
   nav.querySelectorAll('.arc-head').forEach(head => {
     head.addEventListener('click', () => {
       const arc = head.parentElement;
