@@ -284,6 +284,22 @@ h1.lesson-title {
 .fps-readout.warn { color: var(--clay); border-color: var(--clay-dim); }
 .fps-readout.ok { color: var(--sage); border-color: rgba(111, 142, 124, 0.3); }
 
+/* Workload badge (overlay on demo stage, mirrors fps-readout) */
+.workload-badge {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(250, 247, 242, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Pane labels for split demos */
 .pane-label {
   font-family: var(--mono);

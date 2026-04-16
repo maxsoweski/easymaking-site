@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="shared/style.css?v=2">
+  <link rel="stylesheet" href="shared/style.css?v=3">
 </head>
 <body>
   <header class="lab-header">
@@ -25,20 +25,22 @@
     <h1 class="lesson-title">The two-phase dance</h1>
     <div id="stamp"></div>
 
-    <p>In the previous lesson the browser did all three things every frame: re-wrap the text (analyze), compute the line break positions (fit), and paint the result (render). Pretext splits the first two out of the browser and moves them to JavaScript, where you control when they happen.</p>
+    <p>In the previous lesson the browser handled all three things every frame: re-wrap the text (analyze), compute line breaks at the new width (fit), and paint the result (render). Pretext pulls the first two out of the browser and into JavaScript, where you control when they happen.</p>
 
-    <p>The split is simple:</p>
     <ul style="margin-left: 24px; margin-top: 4px;">
-      <li><strong>prepare(text, font)</strong> — run once. Segments the text, asks the canvas for every segment's width, caches the result. Comparatively expensive.</li>
-      <li><strong>layout(prepared, width, lineHeight)</strong> — run many times. Pure arithmetic on the cached widths. Returns <code>{ height, lineCount }</code>.</li>
+      <li><code>prepare(text, font)</code> — run once. Segments the text, asks the canvas for every segment's width, caches the result. Comparatively expensive.</li>
+      <li><code>layout(prepared, width, lineHeight)</code> — run many times. Pure arithmetic on the cached widths. Returns <code>{ height, lineCount }</code>.</li>
     </ul>
 
-    <p>Drag the <strong>width</strong> slider. Raise the <strong>paragraphs</strong> count. The FPS stays up.</p>
+    <p>Same demo, same sliders, same workload. No DOM measurement. Drag the width; crank the workload to 2000. The FPS stays at the top of the dial.</p>
 
     <div class="demo-stage" id="demo">
+      <div class="workload-badge" id="workloadBadge">workload · 200 items</div>
       <div class="fps-readout" id="fps">— fps</div>
       <div class="demo-text-region" id="textRegion" style="width: 400px;">
-        <p class="seed-p">The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.</p>
+        <p>The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.</p>
+        <p>Attention is the rarest and purest form of generosity. The mind turns toward what it values and learns by turning — the movement of attention is itself the learning.</p>
+        <p>Between the word you just read and the next one lies a small country where reading is not happening. Travelers there come back changed.</p>
       </div>
       <div id="caliperMount"></div>
     </div>
@@ -50,29 +52,29 @@
         <span class="value" id="widthValue">400</span>
       </div>
       <div class="control">
-        <label for="countSlider">paragraphs</label>
-        <input type="range" id="countSlider" min="8" max="120" value="40" step="4">
-        <span class="value" id="countValue">40</span>
+        <label for="workloadSlider">workload</label>
+        <input type="range" id="workloadSlider" min="10" max="2000" value="200" step="10">
+        <span class="value" id="workloadValue">200</span>
       </div>
     </div>
 
     <div class="block block--mechanism">
       <h3>Mechanism</h3>
-      <p>When the paragraph count changes, we call <code>prepare()</code> on each paragraph's text with a fixed font descriptor. Pretext segments the text, probes each segment's width using the browser's own canvas font engine, and stores the result in an opaque handle.</p>
-      <p>When the width changes, we call <code>layout()</code> on every prepared handle with the new width. Pretext walks the cached segments and applies its word-wrap rules entirely in arithmetic — no DOM reads. The handle is reusable across every width you'll ever ask about.</p>
-      <p>The word-wrap rules it reproduces are the browser's: Unicode line-break classes, CJK keep-all, bidirectional text, soft hyphens, emoji grapheme clusters. The canvas measurement is the ground truth, so the line breaks match what the browser would have produced.</p>
+      <p>At startup we call <code>prepare()</code> on every item's text with a fixed font descriptor. Pretext segments the text, probes each segment's width using the browser's own canvas font engine, and stores the result in an opaque handle. Handles are reusable across any width we'll ever ask about.</p>
+      <p>Inside the width handler, we iterate the workload and call <code>layout(handle, width, lineHeight)</code> on each. Pretext walks the cached segments and applies its word-wrap rules entirely in arithmetic — no DOM reads. Two thousand of those calls fit in well under a frame on any modern machine.</p>
+      <p>The word-wrap rules Pretext reproduces are the browser's: Unicode line-break classes, CJK keep-all, bidirectional reordering, soft hyphens, emoji grapheme clusters. The canvas measurements are the ground truth, so the line breaks Pretext returns match what the browser would have produced at that width.</p>
     </div>
 
     <div class="block block--application">
       <h3>Application</h3>
-      <p>Every effect the previous lesson listed as blocked becomes tractable:</p>
+      <p>Every effect the previous lesson listed as blocked becomes trivial:</p>
       <ul style="margin-left: 24px; margin-top: 6px;">
-        <li>A pull-quote whose font size breathes with the viewport — you call <code>layout()</code> on each pointermove; no reflow.</li>
-        <li>A chat bubble that knows its height before insertion — <code>prepare()</code> the message string, <code>layout()</code> at the bubble's max width, read the height, insert with it pre-set.</li>
+        <li>A pull-quote whose font size breathes with the viewport — <code>layout()</code> per pointermove; no reflow.</li>
+        <li>A chat bubble that knows its height before insertion — <code>prepare()</code> the message, <code>layout()</code> at max bubble width, read the height, mount pre-sized.</li>
         <li>A masonry grid that reflows continuously — heights are known in JS, placement is arithmetic.</li>
-        <li>Text that hugs a draggable image — <code>layoutNextLineRange()</code> with per-line width, the width being a function of the image's current y.</li>
+        <li>Text that hugs a draggable image — <code>layoutNextLineRange()</code> with a per-line width that's a function of the image's current y.</li>
       </ul>
-      <p>The shape of the unlock is the same each time. You stop asking the DOM for measurements. You do the measurement yourself, once, with a tool that knows what the browser knows.</p>
+      <p>The shape of the unlock is the same every time: you stop asking the DOM for measurements, and do the measurement yourself, once, with a tool that already knows what the DOM would have said.</p>
     </div>
 
     <div class="block block--content">
@@ -82,7 +84,6 @@
 
     <div class="block block--direct">
       <h3>Direct Claude</h3>
-      <p>These are the phrases that point at the two-phase pattern when you're briefing a build:</p>
       <div class="verb-map">
         <span class="phrase">"pre-measure the messages"</span>
         <span class="arrow">→</span>
@@ -94,13 +95,13 @@
 
         <span class="phrase">"heights known at scroll time"</span>
         <span class="arrow">→</span>
-        <span class="mapping">virtualize using the <code>height</code> Pretext returns, not DOM-measured</span>
+        <span class="mapping">virtualize using Pretext's returned <code>height</code>, not a DOM measurement</span>
 
         <span class="phrase">"make it breathe on resize"</span>
         <span class="arrow">→</span>
         <span class="mapping">bind <code>layout()</code> to the resize observer; animate the computed height</span>
       </div>
-      <div class="meta">The rest of Arc 1 was here. The rest of the course shows what this two-phase pattern unlocks — starting with the simplest question: given text and width, how tall?</div>
+      <div class="meta">The rest of Arc 1 was here. The rest of the course shows what the two-phase pattern unlocks — beginning with the simplest question: given text and width, how tall?</div>
     </div>
 
     <div class="code-block">
@@ -110,34 +111,37 @@
       </div>
       <pre><code>import { prepare, layout } from '@chenglou/pretext';
 
-// Phase 1: analyze — run once per text string.
-const handles = paragraphs.map(p =>
-  prepare(p.textContent, "400 20px 'EB Garamond', serif")
+// Phase 1: analyze — run once per string.
+const handles = items.map(text =>
+  prepare(text, "400 20px 'EB Garamond', serif")
 );
 
-// Phase 2: fit — run each frame. Pure arithmetic.
-function layoutFrame() {
-  handles.forEach((h, i) => {
-    const { height } = layout(h, currentWidth, 20 * 1.55);
-    paragraphs[i].style.height = height + 'px';
-  });
-  fps.tick();
-  requestAnimationFrame(layoutFrame);
-}</code></pre>
+// Phase 2: fit — run on every input event. Pure arithmetic.
+widthSlider.addEventListener('input', (e) => {
+  const width = parseFloat(e.target.value);
+  for (let i = 0; i < workload; i++) {
+    const h = handles[i % handles.length];
+    const { height } = layout(h, width, 20 * 1.55);
+    // height is ready for anything downstream — no DOM read.
+  }
+  textRegion.style.width = width + 'px';
+});</code></pre>
     </div>
   </main>
 
   <script type="module">
     import { importPretext, bindSlider, createStamp, fpsCounter,
              createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
-      from './shared/pretext-helper.js';
+      from './shared/pretext-helper.js?v=1';
 
     createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
 
     const fps = fpsCounter(document.getElementById('fps'));
     const textRegion = document.getElementById('textRegion');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(400);
 
-    const SOURCE_PARAGRAPHS = [
+    const SOURCE_TEXTS = [
       "The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.",
       "Attention is the rarest and purest form of generosity. The mind turns toward what it values and learns by turning — the movement of attention is itself the learning.",
       "Between the word you just read and the next one lies a small country where reading is not happening. Travelers there come back changed.",
@@ -153,52 +157,28 @@ function layoutFrame() {
     const FONT = "400 20px 'EB Garamond', serif";
     const LINE_HEIGHT_PX = 20 * 1.55;
 
-    let currentCount = 40;
     let currentWidth = 400;
-    let paragraphs = [];
-    let handles = [];
+    let workload = 200;
     let pretextLib = null;
+    let handles = [];
 
-    function buildParagraphs(count) {
-      textRegion.innerHTML = '';
-      paragraphs = [];
-      for (let i = 0; i < count; i++) {
-        const p = document.createElement('p');
-        p.textContent = SOURCE_PARAGRAPHS[i % SOURCE_PARAGRAPHS.length];
-        textRegion.appendChild(p);
-        paragraphs.push(p);
-      }
-      rebuildHandles();
-    }
-
-    function rebuildHandles() {
-      if (!pretextLib) return;
-      const { prepare } = pretextLib;
-      handles = paragraphs.map(p => prepare(p.textContent, FONT));
-    }
-
-    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
-    caliper.setWidth(currentWidth);
-
-    // Per-frame: call layout() on every handle. Pure arithmetic.
-    function layoutFrame() {
-      if (pretextLib && handles.length) {
-        const { layout } = pretextLib;
-        for (let i = 0; i < handles.length; i++) {
-          const { height } = layout(handles[i], currentWidth, LINE_HEIGHT_PX);
-          paragraphs[i].style.minHeight = height + 'px';
-        }
-      }
+    function rafLoop() {
       fps.tick();
-      requestAnimationFrame(layoutFrame);
+      requestAnimationFrame(rafLoop);
+    }
+    rafLoop();
+
+    function pretextLayoutPass(width, n) {
+      if (!pretextLib || handles.length === 0) return;
+      const { layout } = pretextLib;
+      for (let i = 0; i < n; i++) {
+        void layout(handles[i % handles.length], width, LINE_HEIGHT_PX);
+      }
     }
 
-    // Boot
-    buildParagraphs(currentCount);
     importPretext().then(lib => {
       pretextLib = lib;
-      rebuildHandles();
-      layoutFrame();
+      handles = SOURCE_TEXTS.map(t => lib.prepare(t, FONT));
     }).catch(err => {
       console.error('Pretext failed to load:', err);
       document.getElementById('demo').insertAdjacentHTML(
@@ -214,15 +194,16 @@ function layoutFrame() {
         currentWidth = val;
         textRegion.style.width = val + 'px';
         caliper.setWidth(val);
+        pretextLayoutPass(val, workload);
       }
     );
 
     bindSlider(
-      document.getElementById('countSlider'),
-      document.getElementById('countValue'),
+      document.getElementById('workloadSlider'),
+      document.getElementById('workloadValue'),
       (val) => {
-        currentCount = Math.round(val);
-        buildParagraphs(currentCount);
+        workload = Math.round(val);
+        document.getElementById('workloadBadge').textContent = `workload · ${workload} items`;
       }
     );
 

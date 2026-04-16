@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="shared/style.css?v=2">
+  <link rel="stylesheet" href="shared/style.css?v=3">
 </head>
 <body>
   <header class="lab-header">
@@ -25,14 +25,17 @@
     <h1 class="lesson-title">The invisible cost</h1>
     <div id="stamp"></div>
 
-    <p>When the browser lays out text, it does real work — and most of it is hidden. <code>getBoundingClientRect()</code> looks like a cheap read, but reading a measured value while the renderer has pending work flushes the entire pipeline. Do that sixty times a second across a few dozen paragraphs and the page starts to stutter.</p>
+    <p>Open the web app you're most reluctant to use — the one whose slider stutters, the one whose chat bubbles jump a pixel when they mount. Underneath almost every instance of that feeling is a <strong>synchronous DOM measurement</strong>: the renderer was asked, in the middle of an event handler, "how tall will this be?"</p>
 
-    <p>Drag the <strong>width</strong> slider below. Raise the <strong>paragraphs</strong> count. Watch the FPS number in the corner.</p>
+    <p>Here's the shape. Drag the <strong>width</strong> slider — the three paragraphs below reflow in real time. Then crank the <strong>workload</strong> slider, which controls how many items the handler <em>pretends</em> to need to measure on every drag event. Watch the FPS number in the top-right corner.</p>
 
     <div class="demo-stage" id="demo">
+      <div class="workload-badge" id="workloadBadge">workload · 200 items</div>
       <div class="fps-readout" id="fps">— fps</div>
       <div class="demo-text-region" id="textRegion" style="width: 400px;">
-        <p class="seed-p">The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.</p>
+        <p>The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.</p>
+        <p>Attention is the rarest and purest form of generosity. The mind turns toward what it values and learns by turning — the movement of attention is itself the learning.</p>
+        <p>Between the word you just read and the next one lies a small country where reading is not happening. Travelers there come back changed.</p>
       </div>
       <div id="caliperMount"></div>
     </div>
@@ -44,29 +47,29 @@
         <span class="value" id="widthValue">400</span>
       </div>
       <div class="control">
-        <label for="countSlider">paragraphs</label>
-        <input type="range" id="countSlider" min="8" max="120" value="40" step="4">
-        <span class="value" id="countValue">40</span>
+        <label for="workloadSlider">workload</label>
+        <input type="range" id="workloadSlider" min="10" max="2000" value="200" step="10">
+        <span class="value" id="workloadValue">200</span>
       </div>
     </div>
 
     <div class="block block--mechanism">
       <h3>Mechanism</h3>
-      <p>Whenever the width changes, every paragraph must be re-wrapped. The browser already knows how to do this — it's what the renderer does all day. The problem is when <em>your JavaScript</em> also wants to know the result.</p>
-      <p>Calling <code>element.getBoundingClientRect()</code> is the canonical way to ask the browser "how tall did that end up?" But to give you a correct answer, the browser must finish any pending layout first. That's a synchronous flush. Inside a loop that both writes style and reads a measured value, each iteration triggers its own layout. The cost is per-iteration, not amortized.</p>
-      <p>This is called <em>layout thrashing</em>. It's the number-one cause of sluggish sliders, flickering pull-quotes, and chat bubbles that jump a pixel on mount.</p>
+      <p>When you drag a slider, the browser fires an <code>input</code> event on every tiny movement — often more than a hundred times a second. A naive handler does its downstream work right there, synchronously. If that work includes reading measurements from the DOM — <code>getBoundingClientRect</code>, <code>offsetHeight</code>, <code>getComputedStyle</code> — each read forces the browser to flush any pending layout first.</p>
+      <p>Do two thousand of those reads inside one handler and the handler runs longer than a frame takes. The frame is missed. Another input arrives. Its handler also misses a frame. The slider starts to lag your cursor. This is <em>layout thrashing</em>, and it is the number-one reason rich web UIs feel sluggish.</p>
+      <p>Try it: set the workload to 2000 and drag the width. On any machine the cursor pulls ahead of the slider, and FPS falls toward the single digits.</p>
     </div>
 
     <div class="block block--application">
       <h3>Application</h3>
-      <p>Most of what makes a text-heavy page feel alive is downstream of this cost. Consider the effects that <em>should</em> be possible but rarely are:</p>
+      <p>Much of what makes a page feel alive is blocked by this cost. Consider the designs that <em>should</em> be ordinary but rarely are:</p>
       <ul style="margin-left: 24px; margin-top: 6px;">
-        <li>A pull-quote whose font size breathes with the viewport, with no reflow flash.</li>
-        <li>A chat bubble that knows its height before it is inserted, so nothing else on screen moves when it arrives.</li>
-        <li>A masonry grid where text cards reflow to fill gaps as the window resizes, continuously, without a jank frame.</li>
-        <li>Text that hugs a draggable image — the text stays pinned while the image moves, re-routing around the new obstacle at 60 fps.</li>
+        <li>A pull-quote whose font size breathes with the viewport, no reflow flash.</li>
+        <li>A chat bubble that knows its height before insertion, so nothing else shifts.</li>
+        <li>A masonry grid that reflows continuously as the window resizes.</li>
+        <li>Text that wraps around a draggable image — text pinned, image moved, text re-routing around the obstacle at 60&nbsp;fps.</li>
       </ul>
-      <p>The browser's text engine is capable of all of this. It's the <em>measurement step</em> — reading what the engine decided — that blocks us.</p>
+      <p>The browser's text engine is fully capable of each of these. It's the <em>measurement step</em> — reading back what the engine decided — that blocks them.</p>
     </div>
 
     <div class="block block--content">
@@ -76,11 +79,11 @@
 
     <div class="block block--direct">
       <h3>Direct Claude</h3>
-      <p>If you want any of the effects from the Application list, naming the problem clearly helps. These are phrasings that point at the fix the next lesson introduces:</p>
+      <p>These are phrasings that point at the fix introduced in the next lesson:</p>
       <div class="verb-map">
-        <span class="phrase">"make the slider settle instantly on release"</span>
+        <span class="phrase">"make the slider feel instant at the high end"</span>
         <span class="arrow">→</span>
-        <span class="mapping">stop reading back from the DOM inside the input handler</span>
+        <span class="mapping">stop reading from the DOM inside the input handler</span>
 
         <span class="phrase">"no flash when the card mounts"</span>
         <span class="arrow">→</span>
@@ -88,46 +91,49 @@
 
         <span class="phrase">"live drag should feel like moving paper"</span>
         <span class="arrow">→</span>
-        <span class="mapping">avoid <code>getBoundingClientRect</code> in pointermove</span>
+        <span class="mapping">avoid <code>getBoundingClientRect</code> in <code>pointermove</code></span>
 
         <span class="phrase">"responsive sweep with no stutter"</span>
         <span class="arrow">→</span>
-        <span class="mapping">pre-measure once, then lay out by arithmetic</span>
+        <span class="mapping">pre-measure once, then answer all widths by arithmetic</span>
       </div>
-      <div class="meta">Lesson 02 introduces the two-phase pattern that makes these cheap.</div>
+      <div class="meta">Lesson 02 introduces the two-phase pattern that makes every one of these cheap.</div>
     </div>
 
     <div class="code-block">
       <div class="toggle-row">
         <button class="code-toggle">show code</button>
-        <span class="code-label">the slow path this demo runs</span>
+        <span class="code-label">the anti-pattern this demo runs</span>
       </div>
-      <pre><code>// Per-frame layout thrash: write a style, then read a measured value.
-// Each iteration forces the browser to flush layout.
-function thrashFrame() {
-  const paragraphs = textRegion.querySelectorAll('p');
-  paragraphs.forEach((p, i) => {
-    p.style.paddingLeft = (i % 2) + 'px';     // write
-    void p.getBoundingClientRect().height;    // read — forces layout
-  });
-  fps.tick();
-  requestAnimationFrame(thrashFrame);
-}</code></pre>
+      <pre><code>// Probe-based DOM measurement, synchronously, inside an input handler.
+// Each iteration forces a layout flush. At high workload, the handler
+// runs longer than a frame takes.
+widthSlider.addEventListener('input', (e) => {
+  const width = parseFloat(e.target.value);
+  for (let i = 0; i < workload; i++) {
+    probe.textContent = items[i % items.length];
+    probe.style.width = width + 'px';
+    void probe.getBoundingClientRect().height;  // forces layout
+  }
+  textRegion.style.width = width + 'px';
+});</code></pre>
     </div>
   </main>
 
   <script type="module">
     import { bindSlider, createStamp, fpsCounter, createWidthCaliper,
              setupCodeToggle, highlightJS, setupArrowNav }
-      from './shared/pretext-helper.js';
+      from './shared/pretext-helper.js?v=1';
 
     createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
 
     const fps = fpsCounter(document.getElementById('fps'));
     const textRegion = document.getElementById('textRegion');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(400);
 
-    // Public-domain contemplative fragments. (Composed in that register — generic.)
-    const SOURCE_PARAGRAPHS = [
+    // Pool of short contemplative texts to measure (cycled through workload loop).
+    const SOURCE_TEXTS = [
       "The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.",
       "Attention is the rarest and purest form of generosity. The mind turns toward what it values and learns by turning — the movement of attention is itself the learning.",
       "Between the word you just read and the next one lies a small country where reading is not happening. Travelers there come back changed.",
@@ -140,36 +146,31 @@ function thrashFrame() {
       "The space between two letters is not empty. It is the place the letters have agreed not to be.",
     ];
 
-    let currentCount = 40;
     let currentWidth = 400;
+    let workload = 200;
 
-    function buildParagraphs(count) {
-      textRegion.innerHTML = '';
-      for (let i = 0; i < count; i++) {
-        const p = document.createElement('p');
-        p.textContent = SOURCE_PARAGRAPHS[i % SOURCE_PARAGRAPHS.length];
-        textRegion.appendChild(p);
+    // Continuous rAF tick so the FPS counter updates every frame, even when idle.
+    function rafLoop() {
+      fps.tick();
+      requestAnimationFrame(rafLoop);
+    }
+    rafLoop();
+
+    // Reusable off-screen probe for DOM measurement.
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;top:-9999px;left:-9999px;font:20px "EB Garamond",serif;line-height:1.55;white-space:normal;word-wrap:break-word;';
+    document.body.appendChild(probe);
+
+    // The anti-pattern: synchronous DOM measurement N times per input event.
+    function synchronousDOMMeasurePass(width, n) {
+      for (let i = 0; i < n; i++) {
+        probe.textContent = SOURCE_TEXTS[i % SOURCE_TEXTS.length];
+        probe.style.width = (width + (i % 7)) + 'px';
+        probe.style.fontSize = (20 + (i % 3) * 0.1) + 'px';
+        void probe.getBoundingClientRect().height;
+        void probe.offsetWidth;
       }
     }
-    buildParagraphs(currentCount);
-
-    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
-    caliper.setWidth(currentWidth);
-
-    // The slow loop. Each frame, for every paragraph, write then read — forcing
-    // the browser to flush layout on every iteration.
-    let i = 0;
-    function thrashFrame() {
-      const paragraphs = textRegion.querySelectorAll('p');
-      paragraphs.forEach((p) => {
-        p.style.paddingLeft = (i % 2) + 'px';
-        void p.getBoundingClientRect().height;
-      });
-      i++;
-      fps.tick();
-      requestAnimationFrame(thrashFrame);
-    }
-    thrashFrame();
 
     bindSlider(
       document.getElementById('widthSlider'),
@@ -178,15 +179,16 @@ function thrashFrame() {
         currentWidth = val;
         textRegion.style.width = val + 'px';
         caliper.setWidth(val);
+        synchronousDOMMeasurePass(val, workload);
       }
     );
 
     bindSlider(
-      document.getElementById('countSlider'),
-      document.getElementById('countValue'),
+      document.getElementById('workloadSlider'),
+      document.getElementById('workloadValue'),
       (val) => {
-        currentCount = Math.round(val);
-        buildParagraphs(currentCount);
+        workload = Math.round(val);
+        document.getElementById('workloadBadge').textContent = `workload · ${workload} items`;
       }
     );
 
