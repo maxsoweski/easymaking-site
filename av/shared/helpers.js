@@ -324,10 +324,50 @@ class AVVideo extends HTMLElement {
   }
 }
 
+// ─── <av-dial label> — vividness dial (1-10 slider with chromatic tiles) ──
+class AVDial extends HTMLElement {
+  connectedCallback() {
+    const label = this.getAttribute('label') || 'How vivid is this moment?';
+    const initial = parseInt(this.getAttribute('default') || '5');
+    this.innerHTML = `
+      <div class="widget av-dial">
+        <div class="widget-label">${label}</div>
+        <div class="dial-row">
+          <input type="range" min="1" max="10" value="${initial}" class="dial-slider">
+          <span class="dial-value">${initial}</span>
+        </div>
+        <div class="dial-tiles">
+          ${Array.from({length: 10}, (_, i) => `<div class="tile" data-i="${i+1}"></div>`).join('')}
+        </div>
+        <div class="dial-hint">Move the dial as you look around the room. Notice what lets it move up, and what holds it back.</div>
+      </div>
+    `;
+    const slider = this.querySelector('.dial-slider');
+    const valEl = this.querySelector('.dial-value');
+    const tiles = this.querySelectorAll('.tile');
+
+    const render = (v) => {
+      valEl.textContent = v;
+      tiles.forEach((t, i) => {
+        const idx = i + 1;
+        const active = idx <= v;
+        const hue = (i / 10) * 300;
+        const sat = active ? 70 : 0;
+        const light = active ? 55 : 88;
+        t.style.background = `hsl(${hue}, ${sat}%, ${light}%)`;
+        t.classList.toggle('active', active);
+      });
+    };
+    render(initial);
+    slider.addEventListener('input', () => render(parseInt(slider.value)));
+  }
+}
+
 customElements.define('av-timer', AVTimer);
 customElements.define('av-speak', AVSpeak);
 customElements.define('av-reflect', AVReflect);
 customElements.define('av-video', AVVideo);
+customElements.define('av-dial', AVDial);
 
 // Update nav badge once everything is ready
 document.addEventListener('DOMContentLoaded', updateJournalBadge);

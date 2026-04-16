@@ -255,6 +255,71 @@ a:hover { color: var(--ink); }
   font-style: italic;
 }
 
+/* dial widget */
+.av-dial .dial-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+.av-dial .dial-slider {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--paper-deep);
+  border-radius: 999px;
+  outline: none;
+}
+.av-dial .dial-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  transition: transform 0.1s;
+}
+.av-dial .dial-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.av-dial .dial-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+.av-dial .dial-value {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-deep);
+  min-width: 32px;
+  text-align: center;
+}
+.av-dial .dial-tiles {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.av-dial .tile {
+  height: 28px;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+.av-dial .dial-hint {
+  font-style: italic;
+  color: var(--muted);
+  font-size: 14px;
+  font-family: var(--serif);
+}
+
 /* multi-person callout */
 .callout {
   background: var(--warn-faint);
@@ -571,21 +636,28 @@ body.nav-collapsed .av-nav .nav-inner { display: none; }
 }
 .journal-entry-text.empty { color: var(--muted-soft); font-style: italic; }
 
-/* pretext text effects — index TOC titles */
+/* pretext text effects — every text element is alive
+   .pretext-title  — chars inside [data-pretext] elements (titles, taglines):
+                     muted by default, restored to ink when line is active
+   .pretext-body   — chars in body prose: keep natural color, only scale/lift
+   .pretext-rainbow — vivid-family chars: rainbow under cursor proximity      */
 .pretext-line {
-  display: inline-flex;
-  flex-wrap: wrap;
   position: relative;
 }
 .pretext-char {
   display: inline-block;
-  transition: color 0.15s ease;
+  transition: color 0.18s ease;
   will-change: transform;
 }
-.pretext-line:not(.active) .pretext-char {
+/* Title-tier: muted-soft base, restored to ink when line is active */
+[data-pretext]:not(.active) .pretext-title {
   color: var(--muted-soft);
 }
-.lesson-list a:hover .pretext-line .pretext-char { color: var(--ink); }
+[data-pretext].active .pretext-title {
+  color: var(--ink);
+}
+/* Body-tier inherits color naturally — no override */
+.lesson-list a:hover .pretext-title { color: var(--ink); }
 
 /* responsive */
 @media (max-width: 900px) {
