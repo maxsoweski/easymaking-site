@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>01 · The invisible cost — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=1">
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">01</span>The invisible cost</span>
+      <nav class="prev-next">
+        <span>←</span>
+        <a href="02-two-phase.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 1 · Mental Model</div>
+    <h1 class="lesson-title">The invisible cost</h1>
+    <div id="stamp"></div>
+
+    <p>When the browser lays out text, it does real work — and most of it is hidden. <code>getBoundingClientRect()</code> looks like a cheap read, but reading a measured value while the renderer has pending work flushes the entire pipeline. Do that sixty times a second across a few dozen paragraphs and the page starts to stutter.</p>
+
+    <p>Drag the <strong>width</strong> slider below. Raise the <strong>paragraphs</strong> count. Watch the FPS number in the corner.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="fps-readout" id="fps">— fps</div>
+      <div class="demo-text-region" id="textRegion" style="width: 400px;">
+        <p class="seed-p">The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.</p>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="160" max="640" value="400" step="1">
+        <span class="value" id="widthValue">400</span>
+      </div>
+      <div class="control">
+        <label for="countSlider">paragraphs</label>
+        <input type="range" id="countSlider" min="8" max="120" value="40" step="4">
+        <span class="value" id="countValue">40</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Whenever the width changes, every paragraph must be re-wrapped. The browser already knows how to do this — it's what the renderer does all day. The problem is when <em>your JavaScript</em> also wants to know the result.</p>
+      <p>Calling <code>element.getBoundingClientRect()</code> is the canonical way to ask the browser "how tall did that end up?" But to give you a correct answer, the browser must finish any pending layout first. That's a synchronous flush. Inside a loop that both writes style and reads a measured value, each iteration triggers its own layout. The cost is per-iteration, not amortized.</p>
+      <p>This is called <em>layout thrashing</em>. It's the number-one cause of sluggish sliders, flickering pull-quotes, and chat bubbles that jump a pixel on mount.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Most of what makes a text-heavy page feel alive is downstream of this cost. Consider the effects that <em>should</em> be possible but rarely are:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A pull-quote whose font size breathes with the viewport, with no reflow flash.</li>
+        <li>A chat bubble that knows its height before it is inserted, so nothing else on screen moves when it arrives.</li>
+        <li>A masonry grid where text cards reflow to fill gaps as the window resizes, continuously, without a jank frame.</li>
+        <li>Text that hugs a draggable image — the text stays pinned while the image moves, re-routing around the new obstacle at 60 fps.</li>
+      </ul>
+      <p>The browser's text engine is capable of all of this. It's the <em>measurement step</em> — reading what the engine decided — that blocks us.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"Time is but the stream I go a-fishing in. I drink at it; but while I drink I see the sandy bottom and detect how shallow it is. Its thin current slides away, but eternity remains."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <p>If you want any of the effects from the Application list, naming the problem clearly helps. These are phrasings that point at the fix the next lesson introduces:</p>
+      <div class="verb-map">
+        <span class="phrase">"make the slider settle instantly on release"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">stop reading back from the DOM inside the input handler</span>
+
+        <span class="phrase">"no flash when the card mounts"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">know the card's height <em>before</em> you insert it</span>
+
+        <span class="phrase">"live drag should feel like moving paper"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">avoid <code>getBoundingClientRect</code> in pointermove</span>
+
+        <span class="phrase">"responsive sweep with no stutter"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pre-measure once, then lay out by arithmetic</span>
+      </div>
+      <div class="meta">Lesson 02 introduces the two-phase pattern that makes these cheap.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">the slow path this demo runs</span>
+      </div>
+      <pre><code>// Per-frame layout thrash: write a style, then read a measured value.
+// Each iteration forces the browser to flush layout.
+function thrashFrame() {
+  const paragraphs = textRegion.querySelectorAll('p');
+  paragraphs.forEach((p, i) => {
+    p.style.paddingLeft = (i % 2) + 'px';     // write
+    void p.getBoundingClientRect().height;    // read — forces layout
+  });
+  fps.tick();
+  requestAnimationFrame(thrashFrame);
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { bindSlider, createStamp, fpsCounter, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    const fps = fpsCounter(document.getElementById('fps'));
+    const textRegion = document.getElementById('textRegion');
+
+    // Public-domain contemplative fragments. (Composed in that register — generic.)
+    const SOURCE_PARAGRAPHS = [
+      "The letter rests on the line. The line rests on the page. The page rests on the table. Nothing, so far, is busy.",
+      "Attention is the rarest and purest form of generosity. The mind turns toward what it values and learns by turning — the movement of attention is itself the learning.",
+      "Between the word you just read and the next one lies a small country where reading is not happening. Travelers there come back changed.",
+      "What we call a page is a negotiation between a surface and a measure. The paper does not know it is a paper until something has been written on it, and even then, it only knows what the ink has asked.",
+      "The breath arrives, one more time, without being asked. There is a pause at the top and a pause at the bottom. In those pauses, nothing is being made, and yet the body does not fall apart.",
+      "Mountains walk, wrote Dogen. Not because mountains have legs but because the mountain you see is itself a noticing, and noticing is the only kind of walking there is.",
+      "Reading is a slow seeing. Where the eye goes, the breath follows, and something below both arranges itself to be arranged.",
+      "If you wish to know the mind, stop asking it questions and let it ask its own. What you find will be older than your asking.",
+      "A sentence, well set, ends by giving back what it was given. The ear that reads it is also the ear that wrote it, a long time ago, before either of you had a name.",
+      "The space between two letters is not empty. It is the place the letters have agreed not to be.",
+    ];
+
+    let currentCount = 40;
+    let currentWidth = 400;
+
+    function buildParagraphs(count) {
+      textRegion.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('p');
+        p.textContent = SOURCE_PARAGRAPHS[i % SOURCE_PARAGRAPHS.length];
+        textRegion.appendChild(p);
+      }
+    }
+    buildParagraphs(currentCount);
+
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(currentWidth);
+
+    // The slow loop. Each frame, for every paragraph, write then read — forcing
+    // the browser to flush layout on every iteration.
+    let i = 0;
+    function thrashFrame() {
+      const paragraphs = textRegion.querySelectorAll('p');
+      paragraphs.forEach((p) => {
+        p.style.paddingLeft = (i % 2) + 'px';
+        void p.getBoundingClientRect().height;
+      });
+      i++;
+      fps.tick();
+      requestAnimationFrame(thrashFrame);
+    }
+    thrashFrame();
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        currentWidth = val;
+        textRegion.style.width = val + 'px';
+        caliper.setWidth(val);
+      }
+    );
+
+    bindSlider(
+      document.getElementById('countSlider'),
+      document.getElementById('countValue'),
+      (val) => {
+        currentCount = Math.round(val);
+        buildParagraphs(currentCount);
+      }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav(null, '02-two-phase.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>
