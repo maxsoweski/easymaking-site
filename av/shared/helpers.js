@@ -348,6 +348,122 @@ class AVVideo extends HTMLElement {
   }
 }
 
+// ─── <av-card-shuffle> — the not-knowing exercise (Arc 2 L6) ──────────
+// Two cards, one with a dot. Shown face-up, flipped, shuffled, then user picks.
+// Never reveals the answer — the not-knowing IS the exercise.
+class AVCardShuffle extends HTMLElement {
+  connectedCallback() {
+    this.innerHTML = `
+      <div class="widget av-cards">
+        <div class="widget-label">Two cards · one has a dot</div>
+        <div class="cards-stage">
+          <div class="card" data-pos="0">
+            <div class="card-face face-up"><div class="dot"></div></div>
+            <div class="card-face face-down"></div>
+          </div>
+          <div class="card" data-pos="1">
+            <div class="card-face face-up"></div>
+            <div class="card-face face-down"></div>
+          </div>
+        </div>
+        <div class="cards-prompt">Which card has the dot?</div>
+        <div class="cards-controls">
+          <button class="btn primary cards-begin">Begin</button>
+        </div>
+      </div>
+    `;
+
+    const cards = this.querySelectorAll('.card');
+    const stage = this.querySelector('.cards-stage');
+    const prompt = this.querySelector('.cards-prompt');
+    const beginBtn = this.querySelector('.cards-begin');
+    const controls = this.querySelector('.cards-controls');
+
+    let phase = 'idle'; // idle → shown → flipping → shuffling → pickable → picked → done
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    const reset = () => {
+      cards.forEach(c => {
+        c.classList.remove('flipped', 'picked', 'shaking');
+        c.style.transform = '';
+        c.dataset.pos = c === cards[0] ? '0' : '1';
+      });
+      prompt.textContent = 'Which card has the dot?';
+      prompt.classList.remove('reveal-prompt');
+      phase = 'idle';
+      controls.innerHTML = '<button class="btn primary cards-begin">Begin</button>';
+      controls.querySelector('.cards-begin').addEventListener('click', begin);
+    };
+
+    const begin = async () => {
+      if (phase !== 'idle') return;
+      phase = 'shown';
+      controls.innerHTML = '';
+      prompt.textContent = 'Look at the two cards. One has a dot.';
+
+      await sleep(2500);
+      // Flip both face-down
+      prompt.textContent = 'Now turning them over...';
+      cards.forEach(c => c.classList.add('flipped'));
+      phase = 'flipping';
+
+      await sleep(900);
+      // Shuffle visually — swap positions a few times
+      prompt.textContent = 'And shuffling...';
+      phase = 'shuffling';
+      const swaps = 7;
+      for (let i = 0; i < swaps; i++) {
+        await swapCards();
+      }
+
+      // Done shuffling, settle
+      phase = 'pickable';
+      prompt.textContent = 'Which card do you think has the dot? Consider this for yourself.';
+    };
+
+    const swapCards = async () => {
+      // Move card at pos 0 to right, card at pos 1 to left
+      const c0 = Array.from(cards).find(c => c.dataset.pos === '0');
+      const c1 = Array.from(cards).find(c => c.dataset.pos === '1');
+      const dx = stage.offsetWidth / 2 + 8;
+      c0.style.transform = `translateX(${dx}px)`;
+      c1.style.transform = `translateX(${-dx}px)`;
+      await sleep(180);
+      c0.dataset.pos = '1';
+      c1.dataset.pos = '0';
+      // Reorder visually so subsequent swaps work from new "positions"
+      c0.style.transform = '';
+      c1.style.transform = '';
+      // Use flexbox order to reflect new positions
+      c0.style.order = '1';
+      c1.style.order = '0';
+      await sleep(60);
+    };
+
+    const onPick = (e) => {
+      if (phase !== 'pickable') return;
+      const card = e.currentTarget;
+      phase = 'picked';
+      card.classList.add('picked', 'shaking');
+      prompt.textContent = "I'm not going to tell you which one has the dot.";
+      prompt.classList.add('reveal-prompt');
+
+      setTimeout(() => {
+        prompt.innerHTML = "I'm not going to tell you which one has the dot.<br><span style='font-size:14px; font-style:italic; color:var(--muted); display:block; margin-top:8px;'>What does that experience of not knowing feel like?</span>";
+        controls.innerHTML = '<button class="btn cards-reset">Try it again</button>';
+        controls.querySelector('.cards-reset').addEventListener('click', reset);
+        phase = 'done';
+      }, 1500);
+
+      setTimeout(() => card.classList.remove('shaking'), 600);
+    };
+
+    cards.forEach(c => c.addEventListener('click', onPick));
+    beginBtn.addEventListener('click', begin);
+  }
+}
+
 // ─── <av-guided-video video-id start end> ─────────────────────────────
 // Looping YouTube embed + sequenced narration (TTS or audio file).
 // Children: <step seconds="N" audio="path">instruction text</step>
@@ -523,6 +639,7 @@ customElements.define('av-reflect', AVReflect);
 customElements.define('av-video', AVVideo);
 customElements.define('av-dial', AVDial);
 customElements.define('av-guided-video', AVGuidedVideo);
+customElements.define('av-card-shuffle', AVCardShuffle);
 
 // Update nav badge once everything is ready
 document.addEventListener('DOMContentLoaded', updateJournalBadge);
