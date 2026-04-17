@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>26 · Pagination — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    .pagination-controls { display: flex; gap: 12px; align-items: center; margin: 16px 0 0; font-family: var(--mono); font-size: 12px; justify-content: center; }
+    .pagination-controls button { padding: 6px 14px; font-family: var(--mono); font-size: 12px; background: var(--paper-warm); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
+    .pagination-controls button:hover { background: var(--clay-dim); border-color: var(--clay); }
+    .pagination-controls button:disabled { opacity: 0.4; cursor: default; }
+    .page-indicator { color: var(--muted); min-width: 110px; text-align: center; }
+    .block--credit { padding: 14px 20px; border-top: 1px dotted var(--line); font-size: 13px; font-style: italic; color: var(--muted); font-family: var(--serif); }
+    .block--credit a { color: var(--clay); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">26</span>Pagination — the book view</span>
+      <nav class="prev-next">
+        <a href="25-shape-aware.html">←</a>
+        <a href="27-text-on-curve.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 9 · Kinetic & Organic</div>
+    <h1 class="lesson-title">Pagination — the book view</h1>
+    <div id="stamp"></div>
+
+    <p>Most of the web is infinite scroll. A book is not. A book is a sequence of fixed frames. When you know the height of every line before painting, you can cut the text into pages by arithmetic — and then turning a page is free.</p>
+
+    <div class="demo-stage" id="demo" style="padding: 32px 40px;">
+      <div class="demo-text-region" id="page" style="width: 520px; height: 380px; font-size: 18px; line-height: 1.58; margin: 0 auto;"></div>
+      <div class="pagination-controls">
+        <button id="prev">‹ prev</button>
+        <span class="page-indicator" id="indicator">page — of —</span>
+        <button id="next">next ›</button>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p><code>prepareWithSegments</code> runs once on the full passage. We then loop <code>layoutNextLine(prepared, cursor, pageWidth)</code>, accumulating each line's height into a page budget. When the budget is exceeded we close the current page and open the next from the current cursor. The result is an array of page descriptors, all precomputed.</p>
+      <p>Page-turning is then a swap of which page's lines are in the DOM. Zero re-measurement during navigation.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Long-form essays as turnable pages. Fixed page counts for deep reading. Scroll-free interfaces on mobile. Annotation surfaces with stable page numbers across sessions.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"Our life is frittered away by detail. Simplify, simplify."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"paginate this passage"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">walk <code>layoutNextLine</code>, cut pages at a height budget</span>
+
+        <span class="phrase">"turn the page without reflow"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">swap visible line range; heights are already known</span>
+
+        <span class="phrase">"known page count"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">precompute pages once per width</span>
+      </div>
+    </div>
+
+    <p class="block--credit">Inspired by the community full-novel pagination demos referenced in the <a href="https://news.ycombinator.com/item?id=47556290">Hacker News Pretext discussion</a>.</p>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">walk and cut into pages</span>
+      </div>
+      <pre><code>function paginate(prepared, layoutNextLine, pageWidth, pageHeight, lineHeightPx) {
+  const pages = [];
+  let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+  while (true) {
+    const lines = [];
+    let budget = pageHeight;
+    while (budget >= lineHeightPx) {
+      const line = layoutNextLine(prepared, cursor, pageWidth);
+      if (!line) break;
+      lines.push(line);
+      cursor = line.end;
+      budget -= lineHeightPx;
+    }
+    if (lines.length === 0) break;
+    pages.push({ lines });
+  }
+  return pages;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, createStamp, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    const PASSAGE = `I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived.
+
+I did not wish to live what was not life, living is so dear; nor did I wish to practise resignation, unless it was quite necessary. I wanted to live deep and suck out all the marrow of life, to live so sturdily and Spartan-like as to put to rout all that was not life, to cut a broad swath and shave close, to drive life into a corner, and reduce it to its lowest terms.
+
+Our life is frittered away by detail. An honest man has hardly need to count more than his ten fingers, or in extreme cases he may add his ten toes, and lump the rest.
+
+Simplicity, simplicity, simplicity! I say, let your affairs be as two or three, and not a hundred or a thousand; instead of a million count half a dozen, and keep your accounts on your thumb nail.
+
+Why should we live with such hurry and waste of life? We are determined to be starved before we are hungry. Men say that a stitch in time saves nine, and so they take a thousand stitches today to save nine tomorrow.
+
+Still we live meanly, like ants; though the fable tells us that we were long ago changed into men. It is error upon error, and clout upon clout.
+
+Simplify, simplify. Instead of three meals a day, if it be necessary eat but one; instead of a hundred dishes, five; and reduce other things in proportion.`;
+
+    const FONT = "400 18px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 18 * 1.58;
+    const PAGE_WIDTH = 520;
+    const PAGE_HEIGHT = 380;
+
+    const pageEl = document.getElementById('page');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const indicator = document.getElementById('indicator');
+
+    let pages = [];
+    let currentIdx = 0;
+
+    function renderPage(i) {
+      pageEl.innerHTML = '';
+      const page = pages[i];
+      if (!page) return;
+      for (const line of page.lines) {
+        const span = document.createElement('span');
+        span.style.display = 'block';
+        span.textContent = line.text;
+        pageEl.appendChild(span);
+      }
+      indicator.textContent = `page ${i + 1} of ${pages.length}`;
+      prevBtn.disabled = i === 0;
+      nextBtn.disabled = i >= pages.length - 1;
+    }
+
+    prevBtn.addEventListener('click', () => {
+      if (currentIdx > 0) { currentIdx--; renderPage(currentIdx); }
+    });
+    nextBtn.addEventListener('click', () => {
+      if (currentIdx < pages.length - 1) { currentIdx++; renderPage(currentIdx); }
+    });
+
+    importPretext().then(lib => {
+      const prepared = lib.prepareWithSegments(PASSAGE, FONT);
+      pages = [];
+      let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+      let guard = 0;
+      while (guard++ < 200) {
+        const lines = [];
+        let budget = PAGE_HEIGHT;
+        while (budget >= LINE_HEIGHT_PX) {
+          const line = lib.layoutNextLine(prepared, cursor, PAGE_WIDTH);
+          if (!line) break;
+          lines.push(line);
+          cursor = line.end;
+          budget -= LINE_HEIGHT_PX;
+        }
+        if (lines.length === 0) break;
+        pages.push({ lines });
+      }
+      renderPage(0);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      pageEl.innerHTML = '<div style="color:var(--clay);font-family:var(--mono);font-size:13px;padding:20px;">Pretext failed to load from CDN.</div>';
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('25-shape-aware.html', '27-text-on-curve.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

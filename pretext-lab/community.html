@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Community & Frontier — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    .community-page main { max-width: 980px; margin: 0 auto; padding: 56px 32px 120px; }
+    .community-page h1 { font-family: var(--display); font-size: 44px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 10px; }
+    .community-page .tagline { font-size: 17px; color: var(--muted); margin-bottom: 44px; max-width: 700px; line-height: 1.55; font-family: var(--serif); font-style: italic; }
+    .community-section { margin-bottom: 48px; }
+    .community-section > h2 { font-family: var(--display); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; }
+    .community-section > .section-sub { font-size: 14px; color: var(--muted); font-family: var(--serif); font-style: italic; margin-bottom: 20px; }
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .gallery-card { padding: 18px 20px; background: white; border: 1px solid var(--paper-edge); border-radius: 8px; display: flex; flex-direction: column; }
+    .gallery-card h3 { font-family: var(--display); font-size: 17px; font-weight: 600; margin-bottom: 2px; color: var(--ink); }
+    .gallery-card .creator { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-bottom: 10px; letter-spacing: 0.04em; }
+    .gallery-card .creator a { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--muted-soft); }
+    .gallery-card .creator a:hover { color: var(--clay); border-bottom-color: var(--clay); }
+    .gallery-card .desc { font-family: var(--serif); font-size: 14.5px; color: var(--ink); line-height: 1.55; flex: 1; margin-bottom: 12px; }
+    .gallery-card .feature { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+    .gallery-card .links { display: flex; flex-wrap: wrap; gap: 10px; font-family: var(--mono); font-size: 12px; margin-top: auto; }
+    .gallery-card .links a { color: var(--clay); text-decoration: none; }
+    .gallery-card .links a:hover { text-decoration: underline; }
+    .credits-list { font-family: var(--serif); font-size: 15px; line-height: 1.9; columns: 2; column-gap: 40px; }
+    .credits-list a { color: var(--clay); }
+    .community-back { display: inline-block; margin-top: 20px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--ink); text-decoration: none; background: var(--paper-warm); }
+    .community-back:hover { background: var(--clay-dim); border-color: var(--clay); text-decoration: none; }
+    @media (max-width: 720px) {
+      .credits-list { columns: 1; }
+    }
+  </style>
+</head>
+<body class="community-page">
+  <main>
+    <h1>Community &amp; Frontier</h1>
+    <p class="tagline">The fifteen kilobytes that lit a fire. In three weeks the community has built games, editorial engines, kinetic typography, 3D-in-characters, and a handful of arguments about what the library is actually for. Everyone named below made this course possible — credit to them, all links below.</p>
+
+    <section class="community-section">
+      <h2>The author</h2>
+      <p class="section-sub">The library and its original nine demos.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>@chenglou/pretext</h3>
+          <div class="creator">by <a href="https://github.com/chenglou">Cheng Lou</a></div>
+          <div class="feature">library · 15KB · zero deps</div>
+          <div class="desc">The original. A TypeScript library for multiline text measurement and layout that sidesteps the DOM entirely. Canvas-based measurement + pure arithmetic layout. Shipped March 27, 2026.</div>
+          <div class="links">
+            <a href="https://github.com/chenglou/pretext">source</a>
+            <a href="https://chenglou.me/pretext/">demos</a>
+            <a href="https://www.npmjs.com/package/@chenglou/pretext">npm</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>chenglou.me/pretext — the original 9</h3>
+          <div class="creator">by <a href="https://github.com/chenglou">Cheng Lou</a></div>
+          <div class="feature">reference demos</div>
+          <div class="desc">Accordion · Bubbles · Dynamic Layout (obstacle-aware title routing) · Variable Typographic ASCII · Editorial Engine · Justification Comparison (CSS / greedy / Knuth-Plass) · Rich Text · Markdown Chat · Masonry.</div>
+          <div class="links">
+            <a href="https://chenglou.me/pretext/">live demos</a>
+            <a href="https://chenglou.me/pretext/editorial-engine/">editorial engine</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Interactive demos &amp; games</h2>
+      <p class="section-sub">Where the community took Pretext past typography into physics, games, and play.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>Dragon that parts text like water</h3>
+          <div class="creator">by <a href="https://github.com/qtakmalay">Azamat Takmalayev</a></div>
+          <div class="feature">physics · shape reflow</div>
+          <div class="desc">An 80-segment dragon follows your cursor across a two-column magazine spread. Text reflows around its moving body line-by-line at 60fps. Click to breathe fire. Practically a thesis on shape-aware variable-width layout.</div>
+          <div class="links">
+            <a href="https://github.com/qtakmalay/PreTextExperiments">source</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Anime walk</h3>
+          <div class="creator">by <a href="https://github.com/qtakmalay">Azamat Takmalayev</a></div>
+          <div class="feature">animated obstacle · magazine layout</div>
+          <div class="desc">A character walks a figure-8 path across an editorial spread. Text continuously wraps around her in both columns. Demonstrates rectangle-based obstacle handling and multi-column overflow.</div>
+          <div class="links">
+            <a href="https://github.com/qtakmalay/PreTextExperiments">source</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>typexperiments</h3>
+          <div class="creator">by <a href="https://github.com/pablostanley">Pablo Stanley</a></div>
+          <div class="feature">kinetic typography engine</div>
+          <div class="desc">A reusable canvas-based kinetic typography engine built on Pretext. Six effects: morph, explode, pour, wave, typewriter, vortex. Per-character animations with adjustable duration, stagger, and easing.</div>
+          <div class="links">
+            <a href="https://github.com/pablostanley/typexperiments">source</a>
+            <a href="https://typexperiments.vercel.app">live</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>pretext-demo</h3>
+          <div class="creator">by <a href="https://github.com/cppmeandee">cppmeandee</a></div>
+          <div class="feature">community demo</div>
+          <div class="desc">A community demo repo showing patterns on top of the Pretext API. Worth a source read for implementation ideas.</div>
+          <div class="links">
+            <a href="https://github.com/cppmeandee/pretext-demo">source</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Novel Pretext demos by Cheng Lou</h2>
+      <p class="section-sub">Outside the basic nine — the more exotic official demos referenced across the community.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>ASCII raycaster</h3>
+          <div class="creator">by <a href="https://github.com/chenglou">Cheng Lou</a></div>
+          <div class="feature">3D · ascii</div>
+          <div class="desc">DOOM-style first-person raycasting rendered entirely through Pretext glyph math. 3D in characters. Moves smoothly because Pretext's measurement is cheap enough for per-frame glyph positioning.</div>
+          <div class="links">
+            <a href="https://chenglou.me/pretext/">demos index</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Editorial Engine</h3>
+          <div class="creator">by <a href="https://github.com/chenglou">Cheng Lou</a></div>
+          <div class="feature">editorial · multi-column</div>
+          <div class="desc">The most ambitious of Lou's showcases. Pull quotes, animated orbs that displace text, multi-column flow, live reflow — all with zero DOM measurements.</div>
+          <div class="links">
+            <a href="https://chenglou.me/pretext/editorial-engine/">live</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Justification comparison</h3>
+          <div class="creator">by <a href="https://github.com/chenglou">Cheng Lou</a></div>
+          <div class="feature">knuth-plass · rivers</div>
+          <div class="desc">Three paragraph-layout approaches side by side: CSS default, greedy with hyphenation, and Knuth-Plass. Rivers visible in the first two, gone in the third. A crash course in why justification is hard.</div>
+          <div class="links">
+            <a href="https://chenglou.me/pretext/">demos index</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Ecosystem &amp; frameworks</h2>
+      <p class="section-sub">Libraries and tools built on top of Pretext.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>Textura</h3>
+          <div class="creator">by <a href="https://github.com/razroo">Charlie Greenman / Razroo</a></div>
+          <div class="feature">pretext × yoga · flexbox</div>
+          <div class="desc">DOM-free layout engine combining Pretext (text measurement) with Yoga (flexbox) to give exact pixel geometry for any flex tree. Ships with an MCP server so AI coding agents can "see" layouts without a browser.</div>
+          <div class="links">
+            <a href="https://github.com/razroo/textura">source</a>
+            <a href="https://razroo.github.io/textura/">site</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Essays &amp; analysis</h2>
+      <p class="section-sub">The conversation around what Pretext is actually for.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>You're Looking at the Wrong Pretext Demo</h3>
+          <div class="creator">by <a href="https://denodell.com">Den Odell</a></div>
+          <div class="feature">critique</div>
+          <div class="desc">The sharpest counter to the viral canvas demos. Argues Pretext's real breakthrough is DOM-preserving text measurement — accessibility, screen readers, Cmd+F — and that the pixel stunts obscure it. The argument our Lesson 30 is built on.</div>
+          <div class="links">
+            <a href="https://dev.to/denodell/youre-looking-at-the-wrong-pretext-demo-4960">read</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Pretext — a first look</h3>
+          <div class="creator">by <a href="https://simonwillison.net">Simon Willison</a></div>
+          <div class="feature">summary</div>
+          <div class="desc">Willison's summary of the library's value — the prepare/layout two-phase split, the canvas-as-ground-truth approach, and notes on Cheng Lou's LLM-assisted development process. Widely-cited.</div>
+          <div class="links">
+            <a href="https://simonwillison.net/2026/Mar/29/pretext/">read</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Pretext notes</h3>
+          <div class="creator">by <a href="https://reidburke.com">Reid Burke</a></div>
+          <div class="feature">summary</div>
+          <div class="desc">Short but pointed — frames Pretext as foundational UI engineering infrastructure, quoting Lou on why DOM measurement costs what it costs.</div>
+          <div class="links">
+            <a href="https://reidburke.com/updates/2026/03/pretext/">read</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Accessible Pretext demo</h3>
+          <div class="creator">by <a href="https://dev.to/micaavigliano">Micaela Avigliano</a></div>
+          <div class="feature">a11y · demo</div>
+          <div class="desc">A practical walkthrough of using Pretext measurement while keeping the DOM rendering path — selection, screen readers, keyboard nav. Pair with Odell's essay.</div>
+          <div class="links">
+            <a href="https://dev.to/micaavigliano/accessible-pretext-demo-1492">read</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Alternatives &amp; where this lands natively</h2>
+      <p class="section-sub">Adjacent libraries and the standards the field is inching toward.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>uWrap.js</h3>
+          <div class="creator">by <a href="https://github.com/leeoniya">@leeoniya</a></div>
+          <div class="feature">ascii-only · lighter</div>
+          <div class="desc">A simpler, smaller text-wrapping library from before Pretext. ASCII-only, 27× faster than Pretext on plain text — but without emoji, RTL, CJK, or hyphenation support. Good choice when you know the input is ASCII.</div>
+          <div class="links">
+            <a href="https://github.com/leeoniya/uWrap">source</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>FontMetrics API (draft)</h3>
+          <div class="creator">by <a href="https://www.w3.org/community/houdini/">CSS Houdini WG</a></div>
+          <div class="feature">web standard · draft</div>
+          <div class="desc">A CSS-Houdini draft that would expose structured font metrics (cap height, x-height, ascent/descent, break opportunities) directly to scripts. What Pretext currently has to derive from canvas, the browser might eventually provide natively.</div>
+          <div class="links">
+            <a href="https://drafts.css-houdini.org/font-metrics-api-1/">spec draft</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Community hubs</h2>
+      <p class="section-sub">Sites collecting Pretext work in one place.</p>
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <h3>pretextwall.xyz</h3>
+          <div class="creator">by <a href="https://x.com/yuusuf_khaan">Yuusuf Khan (@yuusuf_khaan)</a></div>
+          <div class="feature">community wall</div>
+          <div class="desc">A fan-curated showcase wall: shrink-wrap bubbles, obstacle flow, line-by-line layout, reading-speed checkers, dragon reflow, typographic ASCII. Unaffiliated with the official project but the most sincere aggregator.</div>
+          <div class="links">
+            <a href="https://pretextwall.xyz/">visit</a>
+          </div>
+        </div>
+        <div class="gallery-card">
+          <h3>Hacker News discussion</h3>
+          <div class="creator">HN community</div>
+          <div class="feature">thread · 3k+ points</div>
+          <div class="desc">The definitive thread — simonw, leeoniya, and others weighing in. References several demos and alternatives (pretext.lol, kevinho's experiments, somnai-dreams). Good first-stop for people trying to situate Pretext in the landscape.</div>
+          <div class="links">
+            <a href="https://news.ycombinator.com/item?id=47556290">thread</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="community-section">
+      <h2>Credits</h2>
+      <p class="section-sub">Everyone above, one place, linked.</p>
+      <div class="credits-list">
+        <p>— <strong>Cheng Lou</strong> (<a href="https://github.com/chenglou">@chenglou</a>) · the library and its original demos</p>
+        <p>— <strong>Azamat Takmalayev</strong> (<a href="https://github.com/qtakmalay">@qtakmalay</a>) · Dragon, Anime Walk</p>
+        <p>— <strong>Pablo Stanley</strong> (<a href="https://github.com/pablostanley">@pablostanley</a>) · typexperiments</p>
+        <p>— <strong>Charlie Greenman / Razroo</strong> (<a href="https://github.com/razroo">@razroo</a>) · Textura (Pretext × Yoga)</p>
+        <p>— <strong>cppmeandee</strong> (<a href="https://github.com/cppmeandee">@cppmeandee</a>) · community demo</p>
+        <p>— <strong>Den Odell</strong> (<a href="https://denodell.com">denodell.com</a>) · critique essay</p>
+        <p>— <strong>Simon Willison</strong> (<a href="https://simonwillison.net">simonwillison.net</a>) · first-look summary</p>
+        <p>— <strong>Reid Burke</strong> (<a href="https://reidburke.com">reidburke.com</a>) · Pretext notes</p>
+        <p>— <strong>Micaela Avigliano</strong> (<a href="https://dev.to/micaavigliano">@micaavigliano</a>) · accessible demo walkthrough</p>
+        <p>— <strong>@leeoniya</strong> (<a href="https://github.com/leeoniya">github.com/leeoniya</a>) · uWrap.js (adjacent library)</p>
+        <p>— <strong>Yuusuf Khan</strong> (<a href="https://x.com/yuusuf_khaan">@yuusuf_khaan</a>) · pretextwall.xyz</p>
+        <p>— <strong>CSS Houdini WG</strong> (<a href="https://drafts.css-houdini.org/font-metrics-api-1/">drafts.css-houdini.org</a>) · FontMetrics API draft</p>
+        <p>— <strong>Hacker News commenters</strong> · the conversation that gave the library its context</p>
+        <p>— and the many unnamed posters, demo-builders, and readers who moved this forward in the three weeks between Pretext's release and this page</p>
+      </div>
+      <p style="margin-top: 24px; font-size: 13.5px; color: var(--muted); font-family: var(--serif); font-style: italic;">If you're one of the people above and want a correction or a link change, open an issue at the easymaking-site repo. If you made something on Pretext that should be listed here, open a PR.</p>
+    </section>
+
+    <a href="index.html" class="community-back">← back to lessons</a>
+  </main>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

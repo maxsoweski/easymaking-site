@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>31 · Where this lands natively — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    /* Credit block (per arc-10 spec — inline so we don't touch shared/style.css). */
+    .block--credit {
+      padding: 14px 20px;
+      background: transparent;
+      border-top: 1px dotted var(--line);
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+      font-family: var(--serif);
+    }
+    .block--credit a { color: var(--clay); }
+
+    /* Two conceptual panels — now (Pretext approach) and future (hypothetical
+       FontMetrics API). They sit side by side and cross-fade every few seconds
+       so the trajectory reads at a glance without a slider to distract. */
+    .demo-stage.futures { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 0; }
+    @media (max-width: 680px) {
+      .demo-stage.futures { grid-template-columns: 1fr; }
+    }
+    .future-pane {
+      position: relative;
+      padding: 32px 28px 28px;
+      min-height: 340px;
+      border-right: 1px solid var(--paper-edge);
+      transition: opacity 1200ms ease;
+    }
+    .future-pane:last-child { border-right: none; }
+    .future-pane.dim { opacity: 0.28; }
+
+    .future-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .future-title {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.005em;
+      margin-bottom: 14px;
+      color: var(--ink);
+    }
+    .future-title .kb { color: var(--clay); font-family: var(--mono); font-size: 13px; font-weight: 500; }
+
+    /* API surface rendered as a stylized object literal. Shared between panes
+       for visual parity; each pane fills its own version. */
+    .api-surface {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--ink-2);
+      background: rgba(250, 247, 242, 0.75);
+      border: 1px solid var(--paper-edge);
+      border-radius: 6px;
+      padding: 14px 16px;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .api-surface .k  { color: var(--indigo); }    /* key */
+    .api-surface .s  { color: var(--sage); }      /* string */
+    .api-surface .n  { color: var(--clay); }      /* number */
+    .api-surface .c  { color: var(--muted); font-style: italic; }  /* comment */
+
+    .future-note {
+      margin-top: 14px;
+      font-family: var(--serif);
+      font-size: 13.5px;
+      font-style: italic;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .future-pane.future--now::before {
+      content: 'today';
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--clay);
+      padding: 3px 8px;
+      border: 1px solid rgba(184, 101, 61, 0.35);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.9);
+    }
+    .future-pane.future--next::before {
+      content: 'proposed';
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--indigo);
+      padding: 3px 8px;
+      border: 1px solid rgba(77, 91, 126, 0.35);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.9);
+    }
+
+    .arrow-between {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--serif);
+      font-size: 28px;
+      color: var(--muted-soft);
+      pointer-events: none;
+      z-index: 2;
+    }
+    @media (max-width: 680px) {
+      .arrow-between { display: none; }
+    }
+
+    .closing-link {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-family: var(--serif);
+      font-size: 15.5px;
+      color: var(--ink-2);
+      line-height: 1.6;
+    }
+    .closing-link a { color: var(--clay); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">31</span>Where this lands natively</span>
+      <nav class="prev-next">
+        <a href="30-accessibility-argument.html">←</a>
+        <a href="community.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 10 · Ecosystem &amp; Future</div>
+    <h1 class="lesson-title">Where this lands natively</h1>
+    <div id="stamp"></div>
+
+    <p>Pretext is a 15KB library that re-implements, in JavaScript, a pair of operations the browser already knows how to do internally: measure a run of text in a given font, and break it across lines at a given width. The reason it's a userland library at all is that the browser doesn't expose those operations. Pretext's whole existence is a patch over a missing primitive.</p>
+
+    <p>Below, the trajectory. On the left — what Pretext does today, with canvas <code>measureText</code> as its only real foothold into the font engine. On the right — what the proposed <strong>FontMetrics API</strong> (CSS Houdini drafts) would give us directly: structured metrics, not a library that reconstructs them. The right panel is illustrative, a mock of where the standards conversation is going.</p>
+
+    <div class="demo-stage futures" id="demo">
+      <div class="future-pane future--now" id="paneNow">
+        <div class="future-label">what we do now</div>
+        <div class="future-title">Pretext (<span class="kb">~15KB</span>)</div>
+        <div class="api-surface"><span class="c">// The only browser-exposed primitive we have.</span>
+<span class="k">ctx</span>.measureText(<span class="s">"hello"</span>)
+<span class="c">// → { width: 28.4 }  (one number.)</span>
+
+<span class="c">// Pretext turns that into a whole layout engine:</span>
+<span class="k">prepare</span>(text, font)       <span class="c">// analyze + measure</span>
+<span class="k">layout</span>(h, width, lh)     <span class="c">// pure arithmetic</span>
+<span class="k">layoutWithLines</span>(...)    <span class="c">// rich line data</span>
+<span class="k">walkLineRanges</span>(...)     <span class="c">// streaming geometry</span>
+
+<span class="c">// 15KB of JS for what should be a primitive.</span></div>
+        <div class="future-note">Canvas <code>measureText</code> is what you get from the browser. Everything else — segmentation, glue rules, bidi, CJK keep-all, emoji graphemes, soft hyphens — Pretext rebuilds in JavaScript using the canvas widths as ground truth.</div>
+      </div>
+
+      <div class="arrow-between" aria-hidden="true">&rarr;</div>
+
+      <div class="future-pane future--next" id="paneNext">
+        <div class="future-label">what native could give us</div>
+        <div class="future-title">FontMetrics API (CSS Houdini draft)</div>
+        <div class="api-surface"><span class="c">// Structured metrics, native, no library.</span>
+<span class="k">font</span>.getMetrics() <span class="c">// →</span>
+{
+  <span class="k">capHeight</span>:   <span class="n">0.71</span>,
+  <span class="k">xHeight</span>:     <span class="n">0.48</span>,
+  <span class="k">ascent</span>:      <span class="n">0.82</span>,
+  <span class="k">descent</span>:     <span class="n">0.22</span>,
+  <span class="k">lineGap</span>:     <span class="n">0.12</span>,
+  <span class="k">unitsPerEm</span>:  <span class="n">1000</span>,
+}
+
+<span class="c">// Break a text run natively.</span>
+<span class="k">font</span>.shape(text, {
+  <span class="k">width</span>:     <span class="n">320</span>,
+  <span class="k">whiteSpace</span>: <span class="s">"normal"</span>,
+  <span class="k">locale</span>:    <span class="s">"ja-JP"</span>,
+}) <span class="c">// → { lines: [...] }</span></div>
+        <div class="future-note">A mock — the exact shape is still in draft. But the <em>category</em> is settled: browsers will eventually expose structured metrics and line-break APIs. When they do, Pretext becomes a polyfill.</div>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Today the browser's text engine lives entirely behind the rendering pipeline. You can ask it to <em>paint</em> text (and you'll see what you get) but you can't ask it what the engine <em>decided</em> — not the cap height of the font, not the set widths of a segment, not where it will break a line at 320 pixels. Canvas's <code>measureText(str)</code> is the one narrow opening. It returns <code>{ width, actualBoundingBoxAscent, actualBoundingBoxDescent, ... }</code> for a single run. That's enough for Pretext, because all of layout reduces to "what's the width of each segment?" — once you know that, line-breaking is arithmetic.</p>
+      <p>The <strong>FontMetrics API</strong> (a CSS Houdini draft) proposes exposing what the engine already knows. Font-level metrics (<code>capHeight</code>, <code>xHeight</code>, <code>ascent</code>, <code>descent</code>) would come back as structured objects. Paired proposals in the line-breaking space would let you ask the engine itself for wrapped lines — no canvas probe, no re-implementation of Unicode break classes in JS.</p>
+      <p>When those land — and "when" is the right word, not "if" — Pretext's 15KB shrinks to whatever polyfill glue is needed to round out browser coverage. The library doesn't become obsolete so much as reclassified: from "essential custom layout engine" to "pre-standards compatibility layer."</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>The practical takeaway is about how you spend your budget today:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li><strong>Learn Pretext's API surface, not its implementation.</strong> <code>prepare</code> + <code>layout</code> is the shape the native API will eventually take, give or take the verb names. Understanding that shape is what transfers.</li>
+        <li><strong>Ship Pretext now.</strong> The workarounds it provides — selectable DOM text with correct line breaks, canvas text that doesn't thrash, masonry grids without DOM reads — are worth shipping today, not "once browsers catch up." Browsers take years.</li>
+        <li><strong>Don't marry one library.</strong> If you've abstracted "ask for a paragraph's height at width W" behind an interface in your codebase, you can swap Pretext for a native call the day it ships. If you've inlined <code>prepare</code>/<code>layout</code> calls everywhere, that's a migration.</li>
+      </ul>
+      <p class="block--credit">References: <a href="https://drafts.css-houdini.org/font-metrics-api-1/">FontMetrics Level 1 draft (CSS Houdini WG)</a>. Also note <a href="https://github.com/leeoniya/uWrap">uWrap.js by @leeoniya</a> — an ASCII-only alternative to Pretext, much simpler scope, mentioned in the <a href="https://news.ycombinator.com/item?id=47556290">HN discussion</a>.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"The things which are impossible are not absolutely impossible, but only impossible to the degree that we do not yet know how to do them. What is hereafter standard was once the private invention of an unusual mind."</p>
+      <cite>Contemplative paraphrase, after Ralph Waldo Emerson, <em>Essays</em> (1841)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"future-proof your layout thinking"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">use Pretext-like primitives today; the browser will commoditize them tomorrow</span>
+
+        <span class="phrase">"skate where the puck is going"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">the API surface matters more than the specific library — abstract the call</span>
+
+        <span class="phrase">"ship the workaround; watch the standards"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">Pretext is a polyfill-in-waiting for CSS Houdini FontMetrics + line-break APIs</span>
+      </div>
+      <div class="meta">
+        <div class="closing-link">
+          The course ends here. For more, see the <a href="community.html">Community &amp; Frontier gallery</a> — the demos, makers, and writers who made Pretext what it is.
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one interface, two implementations — the migration shape</span>
+      </div>
+      <pre><code>// Write to this shape today, regardless of implementation.
+// Tomorrow, swap Pretext for a native call behind the same interface.
+interface Measurer {
+  prepare(text: string, font: string): Handle;
+  layout(h: Handle, width: number, lh: number): { height: number; lineCount: number };
+}
+
+// Today: Pretext.
+import { prepare, layout } from '@chenglou/pretext';
+const pretextMeasurer: Measurer = { prepare, layout };
+
+// Future (illustrative — API not final):
+//   const nativeMeasurer: Measurer = {
+//     prepare: (text, font) =&gt; new CSS.FontFace(font).shape(text),
+//     layout:  (h, w, lh)  =&gt; h.breakLines({ width: w, lineHeight: lh }),
+//   };
+
+// Your app talks to the interface, not the library.
+export function paragraphHeight(m: Measurer, text: string, font: string, w: number, lh: number) {
+  const h = m.prepare(text, font);
+  return m.layout(h, w, lh).height;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, createStamp, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    // Analyze-only: this lesson is about the API surface itself.
+    // There's no live Pretext computation on screen — the demo is illustrative.
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    // Gentle cross-fade between the two panes on a slow loop. The lesson isn't
+    // "play a demo"; it's "watch the trajectory." A slow visual rhythm
+    // reinforces the "today → tomorrow" axis without demanding interaction.
+    const paneNow = document.getElementById('paneNow');
+    const paneNext = document.getElementById('paneNext');
+    let activeIsNext = false;
+
+    function cycleHighlight() {
+      activeIsNext = !activeIsNext;
+      paneNow.classList.toggle('dim', activeIsNext);
+      paneNext.classList.toggle('dim', !activeIsNext);
+    }
+
+    // Start both at full opacity, then begin cycling after a short beat so the
+    // page doesn't immediately dim something. 3.5s per phase is slow enough
+    // that the eye can read each panel fully before attention shifts.
+    setTimeout(() => {
+      paneNext.classList.add('dim');
+      setInterval(cycleHighlight, 3500);
+    }, 1200);
+
+    // Still import Pretext — the point of this lesson is the migration shape,
+    // so a working install confirms the "today" arm actually works.
+    importPretext().catch(err => {
+      console.error('Pretext failed to load (non-fatal for this lesson):', err);
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('30-accessibility-argument.html', 'community.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

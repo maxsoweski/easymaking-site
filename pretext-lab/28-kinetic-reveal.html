@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>28 · Kinetic reveal — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    .kinetic-canvas { display: block; width: 100%; height: 300px; background: #fcfaf4; border-radius: 6px; }
+    .effect-row { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .effect-row button { padding: 6px 16px; font-family: var(--mono); font-size: 12px; background: var(--paper-warm); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; color: var(--ink); min-width: 90px; }
+    .effect-row button:hover { background: var(--clay-dim); border-color: var(--clay); }
+    .effect-row button[data-active="true"] { background: var(--clay); color: white; border-color: var(--clay); }
+    .block--credit { padding: 14px 20px; border-top: 1px dotted var(--line); font-size: 13px; font-style: italic; color: var(--muted); font-family: var(--serif); }
+    .block--credit a { color: var(--clay); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">28</span>Kinetic reveal</span>
+      <nav class="prev-next">
+        <a href="27-text-on-curve.html">←</a>
+        <a href="29-pretext-plus-flex.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 9 · Kinetic & Organic</div>
+    <h1 class="lesson-title">Kinetic reveal</h1>
+    <div id="stamp"></div>
+
+    <p>Four canvas-per-character animations between Pretext-derived positions. Morph tweens between two wrap widths. Wave runs a sine displacement across character indices. Pour cascades characters in. Typewriter reveals one at a time. Each effect is a loop over per-character transforms; Pretext provides the layout both animations start and end from.</p>
+
+    <div class="demo-stage" id="demo" style="padding: 24px;">
+      <canvas id="canvas" class="kinetic-canvas" width="820" height="300"></canvas>
+      <div class="effect-row">
+        <button data-effect="morph" data-active="true">morph</button>
+        <button data-effect="wave">wave</button>
+        <button data-effect="pour">pour</button>
+        <button data-effect="typewriter">typewriter</button>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>At mount we compute per-character x/y positions for the line at two candidate widths (narrow / wide). Each effect animates between some start state and some end state using those positions:</p>
+      <ul style="margin-left: 24px;">
+        <li><strong>Morph:</strong> interpolate each character's position from layout-A to layout-B over time.</li>
+        <li><strong>Wave:</strong> start from layout-A, add per-frame sine offset indexed by character.</li>
+        <li><strong>Pour:</strong> layout-A positions, each character starts above with opacity 0, falls into place with elastic easing and staggered delay.</li>
+        <li><strong>Typewriter:</strong> layout-A positions, characters revealed sequentially.</li>
+      </ul>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Calm kinetic typography for landing pages. Message arrivals that feel like breath. Headlines that reveal rather than assert. Text that responds to attention — the page alive under the reader.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"Simplify, simplify."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"reveal on entrance"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pour with staggered character delays and elastic easing</span>
+
+        <span class="phrase">"living text"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">sine displacement indexed by character, continuous loop</span>
+
+        <span class="phrase">"morph between layouts"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">two Pretext layouts, lerp per-character positions</span>
+
+        <span class="phrase">"one character at a time"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">typewriter with optional cursor blink</span>
+      </div>
+    </div>
+
+    <p class="block--credit">Inspired by Pablo Stanley's <a href="https://github.com/pablostanley/typexperiments">typexperiments</a> kinetic typography engine.</p>
+  </main>
+
+  <script type="module">
+    import { createStamp, setupArrowNav } from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    const LINE = "Simplify, simplify.";
+    const FONT_PX = 72;
+    const FONT = `500 ${FONT_PX}px 'EB Garamond', serif`;
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = FONT;
+
+    function layoutPositions(width) {
+      const positions = [];
+      let x = 0, y = 0;
+      const lineHeight = FONT_PX * 1.2;
+      let lineStart = 0;
+      const lines = [];
+      let i = 0;
+      while (i < LINE.length) {
+        let nextSpace = LINE.indexOf(' ', i);
+        if (nextSpace === -1) nextSpace = LINE.length;
+        const word = LINE.slice(i, nextSpace);
+        const wordW = ctx.measureText(word).width;
+        if (x + wordW > width && x > 0) {
+          lines.push({ text: LINE.slice(lineStart, i), width: x });
+          lineStart = i;
+          x = 0;
+          y += lineHeight;
+        }
+        for (let j = 0; j < word.length; j++) {
+          const ch = word[j];
+          const w = ctx.measureText(ch).width;
+          positions.push({ ch, x, y, w });
+          x += w;
+        }
+        if (nextSpace < LINE.length) {
+          const sp = ctx.measureText(' ').width;
+          positions.push({ ch: ' ', x, y, w: sp });
+          x += sp;
+          i = nextSpace + 1;
+        } else {
+          i = nextSpace;
+        }
+      }
+      lines.push({ text: LINE.slice(lineStart), width: x });
+      const totalHeight = lines.length * lineHeight;
+      return { positions, lines, lineHeight, totalHeight };
+    }
+
+    const WIDTH_A = 700;
+    const WIDTH_B = 320;
+    const layoutA = layoutPositions(WIDTH_A);
+    const layoutB = layoutPositions(WIDTH_B);
+
+    let effect = 'morph';
+    let startTime = performance.now();
+
+    function centerOffset(layout) {
+      const maxLineWidth = Math.max(...layout.lines.map(l => l.width));
+      return {
+        ox: (W - maxLineWidth) / 2,
+        oy: (H - layout.totalHeight) / 2 + FONT_PX * 0.85,
+      };
+    }
+
+    function drawMorph(t) {
+      const cycle = (t % 4) / 4;
+      const k = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2;
+      const ease = k * k * (3 - 2 * k);
+      const oA = centerOffset(layoutA);
+      const oB = centerOffset(layoutB);
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#1f1d28';
+      const n = Math.max(layoutA.positions.length, layoutB.positions.length);
+      for (let i = 0; i < n; i++) {
+        const a = layoutA.positions[i] || { ch: '', x: 0, y: 0 };
+        const b = layoutB.positions[i] || a;
+        const x = oA.ox + a.x + ((oB.ox + b.x) - (oA.ox + a.x)) * ease;
+        const y = oA.oy + a.y + ((oB.oy + b.y) - (oA.oy + a.y)) * ease;
+        ctx.fillText(a.ch || b.ch, x, y);
+      }
+    }
+
+    function drawWave(t) {
+      const o = centerOffset(layoutA);
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#1f1d28';
+      for (let i = 0; i < layoutA.positions.length; i++) {
+        const p = layoutA.positions[i];
+        const dy = Math.sin(t * 2.2 + i * 0.35) * 12;
+        ctx.fillText(p.ch, o.ox + p.x, o.oy + p.y + dy);
+      }
+    }
+
+    function drawPour(t) {
+      const DURATION = 2.2;
+      const STAGGER = 0.06;
+      const o = centerOffset(layoutA);
+      ctx.clearRect(0, 0, W, H);
+      for (let i = 0; i < layoutA.positions.length; i++) {
+        const p = layoutA.positions[i];
+        const localT = Math.max(0, Math.min(1, (t - i * STAGGER) / DURATION));
+        if (localT <= 0) continue;
+        const eased = 1 - Math.pow(1 - localT, 3);
+        const dropFrom = -180;
+        const y = o.oy + p.y + dropFrom * (1 - eased);
+        const alpha = Math.min(1, eased * 1.5);
+        ctx.fillStyle = `rgba(31, 29, 40, ${alpha})`;
+        ctx.fillText(p.ch, o.ox + p.x, y);
+      }
+    }
+
+    function drawTypewriter(t) {
+      const CHARS_PER_SEC = 6;
+      const visible = Math.floor(t * CHARS_PER_SEC);
+      const o = centerOffset(layoutA);
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#1f1d28';
+      for (let i = 0; i < Math.min(visible, layoutA.positions.length); i++) {
+        const p = layoutA.positions[i];
+        ctx.fillText(p.ch, o.ox + p.x, o.oy + p.y);
+      }
+      if (visible < layoutA.positions.length && Math.floor(t * 2) % 2 === 0) {
+        const p = layoutA.positions[visible] || layoutA.positions[layoutA.positions.length - 1];
+        ctx.fillStyle = 'rgba(184, 101, 61, 0.7)';
+        ctx.fillRect(o.ox + p.x, o.oy + p.y - FONT_PX * 0.8, 2, FONT_PX * 0.85);
+      }
+    }
+
+    function frame(now) {
+      const t = (now - startTime) / 1000;
+      ctx.font = FONT;
+      if (effect === 'morph') drawMorph(t);
+      else if (effect === 'wave') drawWave(t);
+      else if (effect === 'pour') drawPour(t);
+      else if (effect === 'typewriter') drawTypewriter(t);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    document.querySelectorAll('.effect-row button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.effect-row button').forEach(b => b.setAttribute('data-active', 'false'));
+        btn.setAttribute('data-active', 'true');
+        effect = btn.dataset.effect;
+        startTime = performance.now();
+      });
+    });
+
+    setupArrowNav('27-text-on-curve.html', '29-pretext-plus-flex.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

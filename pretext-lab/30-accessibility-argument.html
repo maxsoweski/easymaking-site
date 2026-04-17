@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>30 · The accessibility argument — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    /* Credit block (per arc-10 spec — inline so we don't touch shared/style.css). */
+    .block--credit {
+      padding: 14px 20px;
+      background: transparent;
+      border-top: 1px dotted var(--line);
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+      font-family: var(--serif);
+    }
+    .block--credit a { color: var(--clay); }
+
+    /* Side-by-side panes: identical line breaks, identical visual output —
+       one pane renders to DOM spans, the other to a canvas. The point of the
+       lesson is that only the left pane behaves like text. */
+    .demo-stage.split { display: grid; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 680px) {
+      .demo-stage.split { grid-template-columns: 1fr; }
+    }
+    .pane { position: relative; }
+
+    /* DOM pane: per-line spans, normal flow, selectable text. */
+    .pane--dom .demo-text-region {
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+    .pane--dom #lineStack { position: relative; z-index: 1; }
+    .pane--dom #lineStack span.pt-line {
+      display: block;
+      white-space: nowrap;  /* line already broken by Pretext; don't let the browser re-break. */
+    }
+    .pane--dom #lineStack span.pt-line::selection {
+      background: rgba(184, 101, 61, 0.28); color: var(--ink);
+    }
+
+    /* Canvas pane: same box size, but the text is painted pixels. */
+    .pane--canvas .demo-text-region {
+      height: 340px;
+      overflow: hidden;
+      background: #fcfaf4;
+      padding: 0;
+    }
+    .pane--canvas canvas { display: block; width: 100%; height: 100%; }
+
+    /* Annotation badges per pane. Green check for the DOM pane,
+       clay X for the canvas pane — the visual argument of the lesson. */
+    .pane-badge {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.9);
+      font-variant-numeric: tabular-nums;
+    }
+    .pane-badge.ok   { color: var(--sage); border-color: rgba(111, 142, 124, 0.35); }
+    .pane-badge.bad  { color: var(--clay); border-color: rgba(184, 101, 61, 0.35); }
+
+    /* Try-it hint that runs below the split — a nudge to actually press Cmd+F. */
+    .try-it {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--paper-warm);
+      border: 1px dashed var(--line-strong);
+      border-radius: 4px;
+      font-family: var(--serif);
+      font-size: 14px;
+      color: var(--ink-2);
+      font-style: italic;
+    }
+    .try-it kbd {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 1px 6px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      color: var(--ink);
+      font-style: normal;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">30</span>The accessibility argument</span>
+      <nav class="prev-next">
+        <a href="29-pretext-plus-flex.html">←</a>
+        <a href="31-native-future.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 10 · Ecosystem &amp; Future</div>
+    <h1 class="lesson-title">The accessibility argument</h1>
+    <div id="stamp"></div>
+
+    <p>Most viral Pretext demos render to canvas — text woven through particles, text that morphs with a scroll, text that behaves like a physical object. The visual flex is real. But every one of those demos has quietly traded something away: the text stops being <em>text</em>. You can't select it, the browser's Find command can't see it, and a screen reader reads nothing at all.</p>
+
+    <p>Two panes below. Identical line breaks, identical look. Left pane renders Pretext's lines into DOM spans. Right pane paints the same lines onto a canvas. Drag the shared width slider to prove the output matches. Then press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd> and search for the word <em>attention</em>. Only one pane has it.</p>
+
+    <div class="demo-stage split" id="demo">
+      <div class="pane pane--dom">
+        <div class="pane-label">Pretext → DOM (per-line spans)</div>
+        <div class="pane-badge ok">Cmd+F works &#10003;</div>
+        <div class="demo-text-region" id="domRegion" style="width: 340px;">
+          <div id="lineStack"></div>
+        </div>
+      </div>
+      <div class="pane pane--canvas">
+        <div class="pane-label">Pretext → Canvas (painted pixels)</div>
+        <div class="pane-badge bad">Cmd+F finds nothing &#10007;</div>
+        <div class="demo-text-region" id="canvasRegion" style="width: 340px;">
+          <canvas id="canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="try-it">
+      Try it: press <kbd>Cmd</kbd>+<kbd>F</kbd> (or <kbd>Ctrl</kbd>+<kbd>F</kbd>) and type <em>attention</em>. The left pane highlights the match. The right pane — same word, same pixels — is invisible to Find.
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">shared width</label>
+        <input type="range" id="widthSlider" min="220" max="520" value="340" step="1">
+        <span class="value" id="widthValue">340</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Both panes start from the same <code>prepareWithSegments(text, font)</code> handle and the same <code>layoutWithLines(prepared, width, lineHeightPx)</code> call. The <code>lines</code> array they receive is identical, character for character, pixel for pixel. The divergence is <em>only</em> in the render step.</p>
+      <p>The DOM pane iterates <code>lines</code> and stamps one <code>&lt;span style="display:block"&gt;</code> per line with the line's <code>.text</code> as its <code>textContent</code>. The browser now owns these strings as real Text nodes — indexed by the selection engine, exposed to the accessibility tree, walked by search crawlers, read by screen readers in source order.</p>
+      <p>The canvas pane takes the same <code>lines</code> array and calls <code>ctx.fillText(line.text, paddingX, baselineY)</code> per line. The glyphs become pixels. There is no text in the DOM under those pixels — just a single <code>&lt;canvas&gt;</code> element that, to the browser's accessibility tree, is an opaque image.</p>
+      <p>Visually the two panes are indistinguishable when the font and line-height are mirrored correctly. Semantically they are not the same document at all.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Default to DOM target for any paragraph a human is meant to <em>read</em>. That means:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li><strong>Article bodies, documentation, blog posts.</strong> Selection, copy-paste, Find, screen readers, translation tools, print — all of these work for free, because the DOM still holds real text.</li>
+        <li><strong>Chat messages, comments, any user-generated prose.</strong> Users expect to copy quotes. Search crawlers expect to find substrings. A canvas breaks both.</li>
+        <li><strong>Form labels, error messages, nav text.</strong> Accessibility isn't optional here; canvas text is effectively invisible to assistive tech unless you duplicate every word into an offscreen DOM element.</li>
+      </ul>
+      <p>Canvas earns its place when motion <em>is</em> the point — games, data-viz, kinetic typography, text-that-acts-like-a-particle. For those, keep the hidden DOM fallback or accept the accessibility cost openly. But don't reach for canvas just because the Pretext demo on Twitter did.</p>
+      <p class="block--credit">The argument of this lesson was sharpened by Den Odell's essay <a href="https://dev.to/denodell/youre-looking-at-the-wrong-pretext-demo-4960">You're Looking at the Wrong Pretext Demo</a> (dev.to, April 2026). Also see <a href="https://dev.to/micaavigliano/accessible-pretext-demo-1492">Micaela Avigliano's accessible Pretext demo</a>.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I went to the woods because I wished to live deliberately. What lies before us and what lies behind us are small matters compared to what lies within us — and what you see is always less than what holds you up."</p>
+      <cite>After Henry David Thoreau &amp; Ralph Waldo Emerson (public-domain paraphrase)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"looks beautiful and stays accessible"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">Pretext measurement + DOM render; per-line spans, not <code>fillText</code></span>
+
+        <span class="phrase">"canvas only when the visual demands it"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">default to DOM target; reach for canvas when motion <em>is</em> the point</span>
+
+        <span class="phrase">"same Pretext handle, two renderers"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">one <code>prepareWithSegments</code>, split into DOM spans or <code>ctx.fillText</code></span>
+
+        <span class="phrase">"don't break Cmd+F"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">if prose lives in a canvas, mirror it into an offscreen DOM fallback</span>
+      </div>
+      <div class="meta">Next: the closing lesson — where this whole library lands once browsers catch up.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one handle, two renderers — DOM keeps the text real</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
+
+const FONT = "500 17px 'EB Garamond', serif";
+const LINE_HEIGHT_PX = 17 * 1.55;
+const prepared = prepareWithSegments(SOURCE_TEXT, FONT);
+
+// Shared layout — identical line breaks drive both panes.
+function relayout(width) {
+  const { lines, height } = layoutWithLines(prepared, width, LINE_HEIGHT_PX);
+  renderDom(lines, height);
+  renderCanvas(lines);
+}
+
+// DOM pane: per-line spans. The browser treats these as real text.
+function renderDom(lines, height) {
+  domRegion.style.minHeight = height + 'px';
+  lineStack.textContent = '';
+  for (const line of lines) {
+    const span = document.createElement('span');
+    span.className = 'pt-line';
+    span.textContent = line.text;   // Find works. Selection works. a11y works.
+    lineStack.appendChild(span);
+  }
+}
+
+// Canvas pane: same lines, painted pixels. Beautiful — but opaque to a11y tools.
+function renderCanvas(lines) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i &lt; lines.length; i++) {
+    const baselineY = i * LINE_HEIGHT_PX + LINE_HEIGHT_PX * 0.78;
+    ctx.fillText(lines[i].text, PADDING_X, PADDING_Y + baselineY);
+  }
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    // Contemplative paragraph — contains the word "attention" for the Cmd+F try-it.
+    const SOURCE_TEXT =
+      "Attention is the rarest and purest form of generosity. The mind turns toward what it values and learns by turning — the movement of attention is itself the learning. Between the word you just read and the next one lies a small country where reading is not happening; travelers there come back changed.";
+
+    const FONT_PX = 17;
+    const FONT_FAMILY = "'EB Garamond', Georgia, serif";
+    const FONT = `500 ${FONT_PX}px ${FONT_FAMILY}`;
+    const LINE_HEIGHT_PX = FONT_PX * 1.55;
+    const ASCENT_RATIO = 0.78;  // canvas baseline offset
+    const PADDING_X = 12;
+    const PADDING_Y = 12;
+
+    const domRegion = document.getElementById('domRegion');
+    const canvasRegion = document.getElementById('canvasRegion');
+    const lineStack = document.getElementById('lineStack');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let pretextLib = null;
+    let prepared = null;
+    let lastWidth = -1;
+
+    // Size the canvas for device pixel ratio so text stays crisp. Called on
+    // every width change because the canvas box resizes with the pane.
+    function sizeCanvas() {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const cssW = canvasRegion.clientWidth;
+      const cssH = canvasRegion.clientHeight;
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Reapply ctx state — it resets on canvas resize.
+      ctx.font = FONT;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#1f1d28';
+    }
+
+    function renderDom(lines, height) {
+      domRegion.style.minHeight = height + 'px';
+      const children = lineStack.children;
+      for (let i = 0; i < lines.length; i++) {
+        let span = children[i];
+        if (!span) {
+          span = document.createElement('span');
+          span.className = 'pt-line';
+          lineStack.appendChild(span);
+        }
+        if (span.textContent !== lines[i].text) span.textContent = lines[i].text;
+      }
+      while (children.length > lines.length) lineStack.removeChild(lineStack.lastChild);
+    }
+
+    function renderCanvas(lines) {
+      const w = canvasRegion.clientWidth;
+      const h = canvasRegion.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+      for (let i = 0; i < lines.length; i++) {
+        const baselineY = i * LINE_HEIGHT_PX + LINE_HEIGHT_PX * ASCENT_RATIO;
+        ctx.fillText(lines[i].text, PADDING_X, PADDING_Y + baselineY);
+      }
+    }
+
+    function relayout(width) {
+      if (!pretextLib || !prepared) return;
+      // Shared content width — both panes wrap at the same inner width.
+      const wrapWidth = Math.max(40, width - PADDING_X * 2);
+      const { lines, height } = pretextLib.layoutWithLines(
+        prepared, wrapWidth, LINE_HEIGHT_PX
+      );
+      renderDom(lines, height);
+      renderCanvas(lines);
+      lastWidth = width;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(SOURCE_TEXT, FONT);
+      sizeCanvas();
+      relayout(340);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        domRegion.style.width = val + 'px';
+        canvasRegion.style.width = val + 'px';
+        sizeCanvas();
+        relayout(val);
+      }
+    );
+
+    // Keep the canvas crisp if the pixel ratio or browser zoom changes.
+    window.addEventListener('resize', () => {
+      sizeCanvas();
+      relayout(lastWidth);
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('29-pretext-plus-flex.html', '31-native-future.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

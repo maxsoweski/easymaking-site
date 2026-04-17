@@ -43,6 +43,17 @@ const ARCS = [
     { n: 23, file: '23-chat-bubble',        title: 'Chat bubble pre-sizing' },
     { n: 24, file: '24-perf-bench',         title: 'Perf bench' },
   ]},
+  { label: 'Arc 9 · Kinetic & Organic', lessons: [
+    { n: 25, file: '25-shape-aware',        title: 'Shape-aware width' },
+    { n: 26, file: '26-pagination',         title: 'Pagination — the book view' },
+    { n: 27, file: '27-text-on-curve',      title: 'Text along a curve' },
+    { n: 28, file: '28-kinetic-reveal',     title: 'Kinetic reveal' },
+  ]},
+  { label: 'Arc 10 · Frontier & Standards', lessons: [
+    { n: 29, file: '29-pretext-plus-flex',  title: 'Pretext + flexbox' },
+    { n: 30, file: '30-accessibility-argument', title: 'The accessibility argument' },
+    { n: 31, file: '31-native-future',      title: 'Where this lands natively' },
+  ]},
 ];
 
 const LS_KEY = 'pretextlab-sidebar';
@@ -136,6 +147,14 @@ function build() {
     arcDiv.appendChild(list);
     nav.appendChild(arcDiv);
   });
+
+  // Community & Frontier link — separate from the numbered arcs
+  const communityLink = document.createElement('a');
+  communityLink.href = 'community.html';
+  communityLink.className = 'pl-lesson-link pl-community-link';
+  if (current === 'community') communityLink.classList.add('active');
+  communityLink.innerHTML = '<span class="pl-lesson-num">◉</span>Community &amp; Frontier';
+  nav.appendChild(communityLink);
 
   aside.appendChild(nav);
 

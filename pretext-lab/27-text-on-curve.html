@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>27 · Text along a curve — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    .curve-canvas { display: block; width: 100%; height: 420px; background: #fcfaf4; border-radius: 6px; }
+    .curve-mode-row { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+    .curve-mode-row button { padding: 6px 14px; font-family: var(--mono); font-size: 12px; background: var(--paper-warm); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; color: var(--ink); }
+    .curve-mode-row button:hover { background: var(--clay-dim); border-color: var(--clay); }
+    .curve-mode-row button[data-active="true"] { background: var(--clay); color: white; border-color: var(--clay); }
+    .block--credit { padding: 14px 20px; border-top: 1px dotted var(--line); font-size: 13px; font-style: italic; color: var(--muted); font-family: var(--serif); }
+    .block--credit a { color: var(--clay); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">27</span>Text along a curve</span>
+      <nav class="prev-next">
+        <a href="26-pagination.html">←</a>
+        <a href="28-kinetic-reveal.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 9 · Kinetic & Organic</div>
+    <h1 class="lesson-title">Text along a curve</h1>
+    <div id="stamp"></div>
+
+    <p>Reading is a path the eye walks. The path does not have to be a straight horizontal line. Pretext gives exact character widths; a parametric curve gives a position and a tangent at each arc-length. Put them together and text follows any shape you want.</p>
+
+    <div class="demo-stage" id="demo" style="padding: 24px;">
+      <canvas id="canvas" class="curve-canvas" width="820" height="420"></canvas>
+      <div class="curve-mode-row">
+        <button data-mode="bezier" data-active="true">bezier</button>
+        <button data-mode="spiral">spiral</button>
+        <button data-mode="wave">wave</button>
+        <button data-mode="arch">arch</button>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>We define a parametric path <code>p(t) → (x, y)</code> where <code>t ∈ [0, 1]</code>. For each character we compute its cumulative width via canvas <code>measureText</code>, map that width to an arc-length fraction along the path, look up the point, and compute the tangent angle. Then <code>ctx.translate</code>, <code>ctx.rotate</code>, <code>ctx.fillText(char)</code>, restore.</p>
+      <p>Pretext's role here is to make it <em>cheap</em> to re-lay-out if the path changes — no DOM, no reflow.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Spirals of text. Calligraphic flourishes where the line turns. Text that follows a signature, a breath waveform, a skyline. Headlines that arch. Anywhere the reading path itself is a design element.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"The universe is wider than our views of it."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"text on a curve"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">per-char canvas render with rotation tangent to a parametric path</span>
+
+        <span class="phrase">"spiral of text"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">polar path <code>r(θ) = r₀ + kθ</code>, place each char at <code>(r cos θ, r sin θ)</code></span>
+
+        <span class="phrase">"headline that arches"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">quadratic bezier, arc-length sample</span>
+      </div>
+    </div>
+
+    <p class="block--credit">Novel extension — <a href="https://news.ycombinator.com/item?id=47556290">HN commenters</a> referenced torus and curved-text layouts as a Pretext frontier.</p>
+  </main>
+
+  <script type="module">
+    import { createStamp, setupArrowNav } from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['fit', 'render']);
+
+    const LINE = "The universe is wider than our views of it.";
+    const FONT_PX = 30;
+    const FONT = `500 ${FONT_PX}px 'EB Garamond', serif`;
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = FONT;
+
+    let mode = 'bezier';
+
+    function pathPoint(t) {
+      if (mode === 'bezier') {
+        const p0 = [60, 340], p1 = [260, 40], p2 = [560, 40], p3 = [760, 340];
+        const u = 1 - t;
+        const x = u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0];
+        const y = u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1];
+        const dx = 3*u*u*(p1[0]-p0[0]) + 6*u*t*(p2[0]-p1[0]) + 3*t*t*(p3[0]-p2[0]);
+        const dy = 3*u*u*(p1[1]-p0[1]) + 6*u*t*(p2[1]-p1[1]) + 3*t*t*(p3[1]-p2[1]);
+        return { x, y, angle: Math.atan2(dy, dx) };
+      }
+      if (mode === 'spiral') {
+        const cx = W/2, cy = H/2;
+        const theta = t * Math.PI * 4;
+        const r = 40 + theta * 22;
+        const x = cx + r * Math.cos(theta);
+        const y = cy + r * Math.sin(theta);
+        const drdt = 22 * Math.PI * 4;
+        const dxdt = drdt * Math.cos(theta) - r * Math.PI * 4 * Math.sin(theta);
+        const dydt = drdt * Math.sin(theta) + r * Math.PI * 4 * Math.cos(theta);
+        return { x, y, angle: Math.atan2(dydt, dxdt) };
+      }
+      if (mode === 'wave') {
+        const x = 40 + t * (W - 80);
+        const y = H/2 + Math.sin(t * Math.PI * 3) * 90;
+        const dx = W - 80;
+        const dy = Math.cos(t * Math.PI * 3) * Math.PI * 3 * 90;
+        return { x, y, angle: Math.atan2(dy, dx) };
+      }
+      // arch
+      const x = 40 + t * (W - 80);
+      const a = (t - 0.5) * 2;
+      const y = 120 + a * a * 220;
+      const dx = W - 80;
+      const dy = 2 * a * 220 * 2;
+      return { x, y, angle: Math.atan2(dy, dx) };
+    }
+
+    function sampleArcLengths(samples) {
+      const pts = [];
+      let total = 0;
+      let prev = pathPoint(0);
+      pts.push({ t: 0, len: 0, x: prev.x, y: prev.y });
+      for (let i = 1; i <= samples; i++) {
+        const t = i / samples;
+        const p = pathPoint(t);
+        total += Math.hypot(p.x - prev.x, p.y - prev.y);
+        pts.push({ t, len: total, x: p.x, y: p.y });
+        prev = p;
+      }
+      return { pts, total };
+    }
+
+    function tForArcLength(arc, target) {
+      const { pts } = arc;
+      let lo = 0, hi = pts.length - 1;
+      while (lo < hi - 1) {
+        const mid = (lo + hi) >> 1;
+        if (pts[mid].len < target) lo = mid; else hi = mid;
+      }
+      const a = pts[lo], b = pts[hi];
+      const span = b.len - a.len;
+      const k = span === 0 ? 0 : (target - a.len) / span;
+      return a.t + (b.t - a.t) * k;
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.font = FONT;
+      ctx.fillStyle = 'rgba(184, 101, 61, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(77, 91, 126, 0.25)';
+      ctx.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const { x, y } = pathPoint(i / 200);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const arc = sampleArcLengths(200);
+      const totalTextWidth = ctx.measureText(LINE).width;
+      const startOffset = Math.max(0, (arc.total - totalTextWidth) / 2);
+
+      ctx.fillStyle = '#1f1d28';
+      let cumulative = 0;
+      for (let i = 0; i < LINE.length; i++) {
+        const ch = LINE[i];
+        const w = ctx.measureText(ch).width;
+        const targetArc = startOffset + cumulative + w / 2;
+        if (targetArc > arc.total) break;
+        const t = tForArcLength(arc, targetArc);
+        const p = pathPoint(t);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillText(ch, -w / 2, FONT_PX * 0.35);
+        ctx.restore();
+        cumulative += w;
+      }
+    }
+
+    document.querySelectorAll('.curve-mode-row button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.curve-mode-row button').forEach(b => b.setAttribute('data-active', 'false'));
+        btn.setAttribute('data-active', 'true');
+        mode = btn.dataset.mode;
+        render();
+      });
+    });
+
+    render();
+
+    setupArrowNav('26-pagination.html', '28-kinetic-reveal.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

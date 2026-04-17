@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>25 · Shape-aware width — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    /* Lesson-local: the stage is an SVG+text composite. The silhouette drifts
+       along a figure-8 path; text is painted into a text layer whose per-line
+       width is derived from the silhouette's horizontal profile at that y. */
+    #shapeStage {
+      position: relative;
+      width: 620px;
+      height: 420px;
+      margin: 0 auto;
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 4px;
+      overflow: hidden;
+      font-family: var(--serif);
+      color: var(--ink-2);
+      user-select: none;
+    }
+    #shapeSvg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #shapeSilhouette {
+      fill: rgba(184, 101, 61, 0.78);
+      filter: drop-shadow(0 4px 10px rgba(31, 29, 40, 0.22));
+    }
+    #shapeText {
+      position: absolute;
+      inset: 24px 28px;
+      font-size: 18px;
+      line-height: 1.55;
+      pointer-events: none;
+    }
+    #shapeText .pt-line {
+      position: absolute;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #shapeHint {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.06em;
+      color: var(--muted-soft);
+      pointer-events: none;
+    }
+    .block--credit {
+      padding: 14px 20px;
+      background: transparent;
+      border-top: 1px dotted var(--line);
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+      font-family: var(--serif);
+    }
+    .block--credit a { color: var(--clay); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">25</span>Shape-aware width</span>
+      <nav class="prev-next">
+        <a href="24-perf-bench.html">&larr;</a>
+        <a href="26-pagination.html">&rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 9 · Kinetic &amp; Organic</div>
+    <h1 class="lesson-title">Shape-aware width</h1>
+    <div id="stamp"></div>
+
+    <p>The last lesson of Arc 6 showed text re-routing around a rectangle. Real editorial layouts almost never have rectangles; they have <em>silhouettes</em> &mdash; a bird in flight, a cut-out portrait, a curled flourish of ink. The mechanism is the same. The shape predicate is not.</p>
+
+    <p>Below: a paragraph of Zhuangzi hugs a bird that drifts across the page on a slow figure-eight. Where the bird is wide, the text is narrow. Where the bird is narrow, the text widens. Every line's width is computed, fresh, from the bird's silhouette at that line's y.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="shapeStage">
+        <div id="shapeHint">text hugs the silhouette &middot; bird drifts on a figure-8</div>
+        <svg id="shapeSvg" viewBox="0 0 620 420" preserveAspectRatio="none">
+          <!-- A stylized bird silhouette. The path is drawn at a canonical size
+               (180w × 120h), centered at (0, 0). We transform it into place via
+               the outer <g>. Keeping the shape in its own coordinate space lets
+               us recompute the x-profile once and re-use it per frame. -->
+          <g id="shapeTransform" transform="translate(310, 210)">
+            <path id="shapeSilhouette" d="
+              M -90 0
+              C -72 -30, -48 -54, -16 -54
+              C 6 -54, 18 -44, 28 -30
+              C 40 -44, 58 -52, 78 -48
+              C 90 -44, 86 -28, 74 -18
+              C 86 -10, 92 2, 86 14
+              C 78 30, 58 36, 34 32
+              C 18 44, -4 50, -26 42
+              C -50 50, -78 38, -90 18
+              C -96 10, -96 6, -90 0 Z" />
+          </g>
+        </svg>
+        <div id="shapeText"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="driftSpeed">drift</label>
+        <input type="range" id="driftSpeed" min="0" max="100" value="42" step="1">
+        <span class="value" id="driftSpeedVal">42</span>
+      </div>
+      <div class="control">
+        <label for="shapeScale">scale</label>
+        <input type="range" id="shapeScale" min="60" max="150" value="100" step="1">
+        <span class="value" id="shapeScaleVal">100</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>At startup we sample the SVG path's horizontal profile. For each y in the shape's canonical coordinate space, we ask: what is the leftmost and rightmost x the shape occupies here? <code>SVGGeometryElement.isPointInFill()</code> is the tool &mdash; walk x values at a given y, find the fill's left and right edges, cache them as <code>{ left, right }</code> tuples in a dense array keyed by y. One pass, done.</p>
+      <p>Each animation frame we update the shape's translate transform along a figure-8 parametric curve. Then, for each line of text, we convert the line's baseline y from <em>text coordinates</em> to <em>shape coordinates</em> by subtracting the current translate. We look up the profile at that shape-y, translate it back into text-column x's, and compute the available width: the column's right minus the shape's <code>right</code>, or the shape's <code>left</code> minus the column's left &mdash; whichever gives text-safe space on the flowing side.</p>
+      <p>That number is what we pass to <code>layoutNextLine(prepared, cursor, maxWidth)</code>. The returned <code>LayoutLine</code> holds the line text Pretext would have chosen at that exact width. Advance the cursor to <code>line.end</code>, step y forward by line height, ask for the next width, ask for the next line. When <code>layoutNextLine</code> returns <code>null</code> the paragraph is done.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Editorial layouts the web has never been good at:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>Text that hugs a cut-out illustration &mdash; a figure, an animal, a curled initial capital.</li>
+        <li>A pull-quote wrapping around a calligraphic flourish, exactly where the flourish is thinnest.</li>
+        <li>A caption that follows the curve of a moving element in a scroll-driven scene.</li>
+        <li>Two columns of text separating around a shared cut-out, reunified below it.</li>
+      </ul>
+      <p>The CSS <code>shape-outside</code> property can do some of this for static images, but it can't react to drift, drag, or scroll velocity. The shape-predicate loop can.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>&ldquo;The wings of Peng, the great bird, were like clouds hanging from the sky. When the sea moved, he rose on the whirlwind and flew ninety thousand li to the south.&rdquo;</p>
+      <cite>Zhuangzi (c. 4th century BCE), tr. James Legge (1891)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">&ldquo;text that wraps around the shape&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">per-line <code>maxWidth</code> from <code>shapeProfile(y)</code>; one <code>layoutNextLine</code> per row</span>
+
+        <span class="phrase">&ldquo;hug the silhouette, not a bounding box&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping"><code>isPointInFill</code> sweep at startup; lookup table by y-row</span>
+
+        <span class="phrase">&ldquo;shape moves, text re-routes&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">translate profile by current shape-y each frame; relayout</span>
+
+        <span class="phrase">&ldquo;organic flow&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">sample every ~4 px of y; smooth width changes between lines</span>
+      </div>
+      <div class="meta">Next: taking the same prepare handle and cutting it into book pages.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">shape profile → per-line width → <code>layoutNextLine</code></span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
+
+// Phase 0: one-time shape profile. For each y in the shape's local space,
+// find leftmost and rightmost x the fill occupies.
+function sampleShapeProfile(pathEl, yMin, yMax, step = 2) {
+  const svgPt = pathEl.ownerSVGElement.createSVGPoint();
+  const profile = [];
+  for (let y = yMin; y &lt;= yMax; y += step) {
+    let left = null, right = null;
+    for (let x = -120; x &lt;= 120; x += 2) {
+      svgPt.x = x; svgPt.y = y;
+      if (pathEl.isPointInFill(svgPt)) {
+        if (left === null) left = x;
+        right = x;
+      }
+    }
+    profile.push({ y, left, right });  // null/null means "no shape here"
+  }
+  return profile;
+}
+
+// Phase 1 + 2: per-frame relayout with per-line width.
+function relayout(prepared, profile, shapeCenterX, shapeCenterY, columnW) {
+  let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+  let y = 0;
+  const lines = [];
+
+  while (true) {
+    // Convert text-space y to shape-space y, then look up the profile row.
+    const shapeY = (y + LINE_HEIGHT / 2) - shapeCenterY;
+    const row = profile.find(r =&gt; Math.abs(r.y - shapeY) &lt; PROFILE_STEP);
+
+    let width = columnW;
+    if (row &amp;&amp; row.left !== null) {
+      // Shape's rightmost x in text coords:
+      const shapeRightInText = shapeCenterX + row.right;
+      const shapeLeftInText  = shapeCenterX + row.left;
+      // Flow text on whichever side leaves more room.
+      const leftRoom  = shapeLeftInText;
+      const rightRoom = columnW - shapeRightInText;
+      width = Math.max(60, Math.max(leftRoom, rightRoom));
+    }
+
+    const line = layoutNextLine(prepared, cursor, width);
+    if (line === null) break;
+    lines.push({ text: line.text, y, width });
+    cursor = line.end;
+    y += LINE_HEIGHT;
+  }
+  return lines;
+}</code></pre>
+    </div>
+
+    <div class="block block--credit">
+      <p>Inspired by Azamat Takmalayev's <a href="https://github.com/qtakmalay/PreTextExperiments" target="_blank" rel="noopener">Dragon + Anime Walk</a> demos and Cheng Lou's umbrella-flow demo at <a href="https://chenglou.me/pretext/" target="_blank" rel="noopener">chenglou.me/pretext</a>.</p>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['fit']);
+
+    // Zhuangzi, Chapter 1 (Xiaoyaoyou), PD translation by James Legge.
+    const TEXT =
+      "In the Northern Ocean there is a fish, the name of which is Kun. The Kun " +
+      "is so large, I do not know how many li in size. It changes into a bird " +
+      "called the Peng, whose back is I do not know how many li in breadth. When " +
+      "it rises and flies, its wings are like clouds hanging from the sky. When " +
+      "the sea moves, this bird betakes itself to the Southern Ocean, which is " +
+      "the Pool of Heaven. There is the book called Qi Xie, a record of marvels. " +
+      "We have in it these words: \u201CWhen the Peng is removing to the Southern " +
+      "Ocean it flaps along the water for three thousand li. Then it ascends on " +
+      "a whirlwind through the thin air ninety thousand li, and it rests only at " +
+      "the end of six months.\u201D Look at the small motes that float in the " +
+      "sunbeam; the breath of creatures blowing one against another; and we know " +
+      "not if the azure of the sky is its proper color, or only the result of " +
+      "its infinite depth. When the Peng looks down from above, it sees just " +
+      "these appearances, and nothing more.";
+
+    const FONT_SIZE = 18;
+    const LINE_HEIGHT_PX = FONT_SIZE * 1.55;
+    const FONT = `400 ${FONT_SIZE}px 'EB Garamond', serif`;
+
+    const stage = document.getElementById('shapeStage');
+    const textLayer = document.getElementById('shapeText');
+    const svg = document.getElementById('shapeSvg');
+    const shapeTransform = document.getElementById('shapeTransform');
+    const silhouette = document.getElementById('shapeSilhouette');
+
+    // Text layer geometry (matches CSS inset 24 28 inside 620x420).
+    const STAGE_W = 620;
+    const STAGE_H = 420;
+    const PAD_X = 28;
+    const PAD_Y = 24;
+    const COLUMN_WIDTH = STAGE_W - PAD_X * 2;   // 564
+    const COLUMN_HEIGHT = STAGE_H - PAD_Y * 2;  // 372
+
+    let pretextLib = null;
+    let prepared = null;
+
+    // ---- Phase 0: sample the shape's horizontal profile once. --------------
+    // The path in SVG coords spans roughly x in [-96, 96], y in [-56, 52].
+    // We sample every 2px of y and scan x in 1px steps.
+    const SHAPE_Y_MIN = -60;
+    const SHAPE_Y_MAX = 56;
+    const SHAPE_X_MIN = -110;
+    const SHAPE_X_MAX = 110;
+    const PROFILE_STEP = 2;
+
+    function sampleShapeProfile() {
+      const pt = svg.createSVGPoint();
+      // Save transform; sample the raw path at identity.
+      const savedTransform = shapeTransform.getAttribute('transform');
+      shapeTransform.setAttribute('transform', 'translate(0, 0)');
+      const profile = [];
+      for (let y = SHAPE_Y_MIN; y <= SHAPE_Y_MAX; y += PROFILE_STEP) {
+        let left = null, right = null;
+        for (let x = SHAPE_X_MIN; x <= SHAPE_X_MAX; x += 1) {
+          pt.x = x; pt.y = y;
+          if (silhouette.isPointInFill(pt)) {
+            if (left === null) left = x;
+            right = x;
+          }
+        }
+        profile.push({ y, left, right });
+      }
+      shapeTransform.setAttribute('transform', savedTransform);
+      return profile;
+    }
+
+    // Will be populated once the SVG is laid out.
+    let shapeProfile = null;
+
+    function profileAt(shapeY) {
+      if (!shapeProfile) return null;
+      if (shapeY < SHAPE_Y_MIN || shapeY > SHAPE_Y_MAX) return null;
+      const idx = Math.round((shapeY - SHAPE_Y_MIN) / PROFILE_STEP);
+      return shapeProfile[idx] || null;
+    }
+
+    // ---- Per-frame: compute shape center, then relayout text. --------------
+    // Shape position follows a figure-8 (Lissajous) through the stage.
+    let t0 = performance.now();
+    let driftSpeed = 42;
+    let shapeScale = 1.0;
+
+    function shapePositionAt(tMs) {
+      // Normalize so speed 100 ~ one full loop per 8s; speed 0 = still.
+      const omega = (driftSpeed / 100) * (2 * Math.PI / 8000);
+      const cx = STAGE_W / 2 + 180 * Math.sin(omega * tMs);
+      const cy = STAGE_H / 2 + 90  * Math.sin(omega * tMs * 2);
+      return { cx, cy };
+    }
+
+    function renderLines(cx, cy) {
+      if (!prepared || !pretextLib || !shapeProfile) return;
+
+      const { layoutNextLine } = pretextLib;
+      // Shape's center in *text-layer coords* = (cx - PAD_X, cy - PAD_Y).
+      const shapeCxInText = cx - PAD_X;
+      const shapeCyInText = cy - PAD_Y;
+
+      let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+      let y = 0;
+      const out = [];
+
+      for (let i = 0; i < 200; i++) {
+        if (y + LINE_HEIGHT_PX > COLUMN_HEIGHT) break;
+
+        // Pretext "x" is painted from the column's left edge.
+        // For each of a few y-samples through this line's band, look up
+        // the shape's horizontal extent and shrink the available width.
+        const band = [y + LINE_HEIGHT_PX * 0.25, y + LINE_HEIGHT_PX * 0.5, y + LINE_HEIGHT_PX * 0.75];
+        let lineX = 0;
+        let width = COLUMN_WIDTH;
+
+        for (const yMid of band) {
+          const shapeY = (yMid - shapeCyInText) / shapeScale;
+          const row = profileAt(shapeY);
+          if (!row || row.left === null) continue;
+
+          // Shape extents in text-layer coords (scaled, then translated).
+          const shapeLeft  = shapeCxInText + row.left  * shapeScale;
+          const shapeRight = shapeCxInText + row.right * shapeScale;
+          // Clip to the column.
+          const lClip = Math.max(0, shapeLeft);
+          const rClip = Math.min(COLUMN_WIDTH, shapeRight);
+          if (rClip <= 0 || lClip >= COLUMN_WIDTH) continue;
+
+          const leftRoom  = lClip;                   // room from column-left to shape-left
+          const rightRoom = COLUMN_WIDTH - rClip;    // room from shape-right to column-right
+          // Flow on whichever side is wider; if both are wide, prefer the wider one.
+          if (leftRoom >= rightRoom) {
+            width = Math.min(width, leftRoom - 6);   // 6px gutter
+            // x stays at 0 (column-left)
+          } else {
+            width = Math.min(width, rightRoom - 6);
+            lineX = Math.max(lineX, rClip + 6);
+          }
+        }
+
+        width = Math.max(60, width);
+
+        const line = layoutNextLine(prepared, cursor, width);
+        if (line === null) break;
+        out.push({ text: line.text, y, x: lineX });
+        cursor = line.end;
+        y += LINE_HEIGHT_PX;
+      }
+
+      textLayer.innerHTML = out.map(l =>
+        `<span class="pt-line" style="left:${l.x}px;top:${l.y}px">${escapeHtml(l.text)}</span>`
+      ).join('');
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+    }
+
+    // ---- RAF: drift + relayout. -------------------------------------------
+    let running = true;
+
+    function frame() {
+      if (!running) return;
+      const now = performance.now();
+      const { cx, cy } = shapePositionAt(now - t0);
+      // Update the silhouette's position + scale.
+      shapeTransform.setAttribute('transform', `translate(${cx}, ${cy}) scale(${shapeScale})`);
+      renderLines(cx, cy);
+      requestAnimationFrame(frame);
+    }
+
+    // ---- Boot. ------------------------------------------------------------
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(TEXT, FONT);
+      // SVG must be in the DOM before isPointInFill works; it already is.
+      shapeProfile = sampleShapeProfile();
+      requestAnimationFrame(frame);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('driftSpeed'),
+      document.getElementById('driftSpeedVal'),
+      (val) => { driftSpeed = val; }
+    );
+
+    bindSlider(
+      document.getElementById('shapeScale'),
+      document.getElementById('shapeScaleVal'),
+      (val) => { shapeScale = val / 100; }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('24-perf-bench.html', '26-pagination.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>

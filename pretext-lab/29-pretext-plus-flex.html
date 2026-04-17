@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>29 · Pretext + flexbox — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=4">
+  <style>
+    /* Credit block (per arc-10 spec — inline so we don't touch shared/style.css). */
+    .block--credit {
+      padding: 14px 20px;
+      background: transparent;
+      border-top: 1px dotted var(--line);
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+      font-family: var(--serif);
+    }
+    .block--credit a { color: var(--clay); }
+
+    /* Lesson-local: the flex tree is visualized as outlined rectangles inside an
+       absolute-positioned stage. The solver computes x/y/width/height for every
+       node in JS; we apply those numbers directly to absolutely-positioned divs.
+       No DOM measurement — not even for the containers. */
+    #demo .demo-text-region {
+      height: 380px;
+      max-height: 380px;
+      overflow: hidden;
+      padding: 0;
+      background: #fcfaf4;
+      position: relative;
+    }
+    #flexStage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .flex-node {
+      position: absolute;
+      border: 1px solid rgba(77, 91, 126, 0.35);
+      border-radius: 4px;
+      background: rgba(250, 247, 242, 0.6);
+      overflow: hidden;
+      transition: left 140ms ease, top 140ms ease, width 140ms ease, height 140ms ease;
+    }
+    .flex-node.flex-container {
+      background: rgba(77, 91, 126, 0.04);
+      border-style: dashed;
+      border-color: rgba(77, 91, 126, 0.28);
+    }
+    .flex-node .flex-label {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+    .flex-node .flex-text {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 18px;
+      bottom: 6px;
+      font-family: var(--serif);
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--ink-2);
+      overflow: hidden;
+    }
+    #treeReadout {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.88);
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">29</span>Pretext + flexbox</span>
+      <nav class="prev-next">
+        <a href="28-kinetic-reveal.html">←</a>
+        <a href="30-accessibility-argument.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 10 · Ecosystem &amp; Future</div>
+    <h1 class="lesson-title">Pretext + flexbox</h1>
+    <div id="stamp"></div>
+
+    <p>A layout is more than one paragraph. A real UI is boxes inside boxes — a header beside a sidebar beside a body, each with text at the leaves. Pretext tells you how tall a paragraph is at a given width. Pair it with a tiny flex solver and you can compute the <em>whole</em> tree's geometry — every box's x, y, width, and height — entirely in JavaScript, before anything mounts.</p>
+
+    <p>Drag the width slider. Five nested boxes re-arrange and re-wrap in lockstep: Pretext measures each text leaf; the solver distributes space along the main axis and stacks the column along the cross axis. No DOM reflow is ever triggered — these are SVG-like rectangles whose positions come from arithmetic.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="treeReadout">5 nodes · 3 text leaves</div>
+      <div class="demo-text-region" id="textRegion" style="width: 560px;">
+        <div id="flexStage"></div>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">container width</label>
+        <input type="range" id="widthSlider" min="320" max="720" value="560" step="1">
+        <span class="value" id="widthValue">560</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>The tree is a plain JS object: a row container wrapping three children — a text leaf on the left, a column of three text leaves in the middle, and a text leaf on the right. Each text leaf carries a string; each container carries a direction (<code>row</code> / <code>column</code>) and a list of children with <code>flex</code> weights.</p>
+      <p>At boot we call <code>prepareWithSegments(text, font)</code> once per text leaf — the handles are reusable across every width the slider will ever produce. On each slider event we run a pure-JS solver:</p>
+      <ul style="margin-left: 24px; margin-top: 4px;">
+        <li><strong>Row container:</strong> split its inner width by child <code>flex</code> weights. Each child gets a main-axis width.</li>
+        <li><strong>Text leaf:</strong> call <code>layout(handle, childWidth, lineHeight)</code> — Pretext returns <code>{ height }</code>. That's the cross-axis size.</li>
+        <li><strong>Column container:</strong> recurse top to bottom. Each child gets the column's width; its returned height stacks below the previous one.</li>
+      </ul>
+      <p>The solver is one recursive pass. For this tree it runs in microseconds. We then stamp absolutely-positioned <code>&lt;div&gt;</code>s at the computed coordinates — one assignment per node, no <code>getBoundingClientRect</code>, no <code>offsetHeight</code>.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Once layout is arithmetic, a whole category of things becomes easy:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li><strong>DOM-free 2D layout.</strong> Compute positions for a React tree server-side or in a worker, then hydrate once. No layout thrash on mount.</li>
+        <li><strong>AI coding agents with "layout vision."</strong> An agent editing a UI can ask "does this button's label overflow at 320px?" without spawning a real browser — Pretext + a flex solver answer from a plain Node process.</li>
+        <li><strong>Offscreen measurement before hydration.</strong> Virtualized lists, animated reflows, "what if" width probes — all while the real DOM holds still.</li>
+        <li><strong>Speculative resize.</strong> Test a dozen candidate widths per frame and pick the one whose tree fits some aesthetic rule (line-count parity, golden-ratio heights, no orphans).</li>
+      </ul>
+      <p class="block--credit">Inspired by <a href="https://github.com/razroo/textura">Textura</a> (Pretext × Yoga) by Charlie Greenman. This demo implements a tiny subset of the pattern — Textura is the full library, backed by Facebook's Yoga engine.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"A sentence, well set, ends by giving back what it was given. A room, well arranged, does the same. Each part is held by its neighbors, and the whole is held by its parts — form containing form, and no part anywhere that does not know its place."</p>
+      <cite>Contemplative register</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"measure the whole layout, no DOM"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">combine Pretext with a userland flex engine; recurse the tree in JS</span>
+
+        <span class="phrase">"know positions before mounting"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">solve the tree; stamp absolute coordinates; zero reflow on mount</span>
+
+        <span class="phrase">"layout-aware AI without a browser"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">Pretext in Node + a flex solver; ask "does it overflow" offline</span>
+
+        <span class="phrase">"speculative sizing each frame"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>layout()</code> is cheap — try multiple widths, pick the winner</span>
+      </div>
+      <div class="meta">Next: the same paragraph rendered two ways. One stays text; one only looks like text.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">a minimal flex solver over Pretext handles</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layout } from '@chenglou/pretext';
+
+// Tree: each node is either a text leaf (handle + flex) or
+// a container (direction + children with flex weights).
+const tree = {
+  kind: 'container', direction: 'row', flex: 1,
+  children: [
+    { kind: 'text', flex: 2, handle: prepareWithSegments(T1, FONT) },
+    { kind: 'container', direction: 'column', flex: 3, children: [
+      { kind: 'text', flex: 1, handle: prepareWithSegments(T2, FONT) },
+      { kind: 'text', flex: 1, handle: prepareWithSegments(T3, FONT) },
+      { kind: 'text', flex: 1, handle: prepareWithSegments(T4, FONT) },
+    ]},
+    { kind: 'text', flex: 2, handle: prepareWithSegments(T5, FONT) },
+  ],
+};
+
+// Solve: recurse the tree, writing x/y/w/h onto each node.
+function solve(node, x, y, w, h) {
+  node.x = x; node.y = y; node.w = w; node.h = h;
+  if (node.kind === 'text') return;
+  const total = node.children.reduce((s, c) =&gt; s + c.flex, 0);
+  if (node.direction === 'row') {
+    let cx = x;
+    for (const c of node.children) {
+      const cw = (c.flex / total) * w;
+      solve(c, cx, y, cw, h);
+      cx += cw;
+    }
+  } else {
+    let cy = y;
+    for (const c of node.children) {
+      const ch = (c.flex / total) * h;
+      solve(c, x, cy, w, ch);
+      cy += ch;
+    }
+  }
+}
+
+// Text-leaf height comes from Pretext, not the DOM.
+function measureLeafHeight(node, lineHeight) {
+  return layout(node.handle, node.w, lineHeight).height;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    const textRegion = document.getElementById('textRegion');
+    const flexStage = document.getElementById('flexStage');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(560);
+
+    // Short contemplative fragments — one per text leaf. Each is a sentence
+    // fragment that makes sense on its own, so truncation still reads well.
+    const LEAF_TEXTS = [
+      "The letter rests on the line — the line rests on the page — the page rests on the table.",
+      "Form containing form.",
+      "Each part held by its neighbors.",
+      "No part that does not know its place.",
+      "A room, well arranged, gives back what it was given.",
+    ];
+
+    const FONT = "400 14px 'EB Garamond', Georgia, serif";
+    const LINE_HEIGHT_PX = 14 * 1.45;
+    const PADDING = 10;                // inner padding inside every container
+    const TEXT_TOP_OFFSET = 18;        // room for the label above the text
+    const TEXT_BOTTOM_OFFSET = 6;
+
+    let pretextLib = null;
+    let handles = [];
+    let stageEls = [];
+
+    // Tree definition: row(text, column(text,text,text), text).
+    // We rebuild the tree after the handles resolve, so at boot we keep it as
+    // a description — the handles get bound in once Pretext loads.
+    function makeTree(h) {
+      return {
+        kind: 'container', direction: 'row', label: 'row',
+        flex: 1,
+        children: [
+          { kind: 'text', label: 'leaf A', flex: 2, handleIndex: 0 },
+          {
+            kind: 'container', direction: 'column', label: 'column',
+            flex: 3,
+            children: [
+              { kind: 'text', label: 'leaf B', flex: 1, handleIndex: 1 },
+              { kind: 'text', label: 'leaf C', flex: 1, handleIndex: 2 },
+              { kind: 'text', label: 'leaf D', flex: 1, handleIndex: 3 },
+            ],
+          },
+          { kind: 'text', label: 'leaf E', flex: 2, handleIndex: 4 },
+        ],
+      };
+    }
+
+    // Flatten the tree into an ordered list of nodes for rendering. Depth-first
+    // traversal so containers render before their children and children draw on top.
+    function flatten(node, acc = []) {
+      acc.push(node);
+      if (node.children) for (const c of node.children) flatten(c, acc);
+      return acc;
+    }
+
+    // The solver: walks the tree top-down assigning x/y/w/h.
+    // Row containers divide width by flex weight; column containers divide
+    // height. For column containers whose children are text leaves, we ask
+    // Pretext for each child's intrinsic height instead of slicing by flex —
+    // that keeps each line of text readable rather than squished.
+    function solve(node, x, y, w, h) {
+      node.x = x; node.y = y; node.w = w; node.h = h;
+      if (node.kind === 'text') return;
+
+      if (node.direction === 'row') {
+        const totalFlex = node.children.reduce((s, c) => s + c.flex, 0);
+        let cx = x + PADDING;
+        const innerW = w - PADDING * 2;
+        const innerH = h - PADDING * 2;
+        for (const c of node.children) {
+          const cw = (c.flex / totalFlex) * innerW;
+          solve(c, cx, y + PADDING, cw, innerH);
+          cx += cw;
+        }
+      } else if (node.direction === 'column') {
+        // For a column of text leaves, use Pretext-measured intrinsic heights.
+        // The leaf widths are fixed by the column's own width; heights stack.
+        let cy = y + PADDING;
+        const innerW = w - PADDING * 2;
+        for (const c of node.children) {
+          let ch;
+          if (c.kind === 'text' && pretextLib) {
+            const textBox = innerW - PADDING * 2;  // leaf inner width for the string
+            const measuredTextH = pretextLib.layout(
+              handles[c.handleIndex], textBox, LINE_HEIGHT_PX
+            ).height;
+            // Add room for label + padding so the node box comfortably holds the text.
+            ch = measuredTextH + TEXT_TOP_OFFSET + TEXT_BOTTOM_OFFSET + 4;
+          } else {
+            // Equal share until Pretext is ready.
+            ch = (h - PADDING * 2) / node.children.length;
+          }
+          solve(c, x + PADDING, cy, innerW, ch);
+          cy += ch;
+        }
+      }
+    }
+
+    // Render: one absolutely-positioned div per node. Reuse existing elements
+    // across solves so transitions animate between sizes.
+    function render(nodes) {
+      while (stageEls.length < nodes.length) {
+        const el = document.createElement('div');
+        el.className = 'flex-node';
+        const label = document.createElement('div');
+        label.className = 'flex-label';
+        const text = document.createElement('div');
+        text.className = 'flex-text';
+        el.appendChild(label);
+        el.appendChild(text);
+        flexStage.appendChild(el);
+        stageEls.push({ el, label, text });
+      }
+      while (stageEls.length > nodes.length) {
+        const s = stageEls.pop();
+        flexStage.removeChild(s.el);
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        const s = stageEls[i];
+        s.el.classList.toggle('flex-container', n.kind === 'container');
+        s.el.style.left   = n.x + 'px';
+        s.el.style.top    = n.y + 'px';
+        s.el.style.width  = n.w + 'px';
+        s.el.style.height = n.h + 'px';
+        s.label.textContent = n.label;
+        if (n.kind === 'text') {
+          s.text.textContent = LEAF_TEXTS[n.handleIndex];
+          s.text.style.display = '';
+        } else {
+          s.text.style.display = 'none';
+        }
+      }
+    }
+
+    function renderAt(containerWidth) {
+      textRegion.style.width = containerWidth + 'px';
+      caliper.setWidth(containerWidth);
+
+      // Rebuild the tree each solve so handleIndex stays correct.
+      const tree = makeTree();
+      // Height adapts to fit the column's intrinsic needs; start generous.
+      const rowHeight = 360;
+      solve(tree, 0, 0, containerWidth, rowHeight);
+
+      const nodes = flatten(tree);
+      render(nodes);
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handles = LEAF_TEXTS.map(t => lib.prepareWithSegments(t, FONT));
+      renderAt(560);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    // Render a placeholder immediately — before Pretext loads, column leaves
+    // get equal-share heights so the tree is already drawn when handles arrive.
+    renderAt(560);
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        renderAt(val);
+      }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('28-kinetic-reveal.html', '30-accessibility-argument.html');
+  </script>
+
+  <script src="shared/nav.js?v=2"></script>
+</body>
+</html>
