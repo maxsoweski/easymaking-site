@@ -68,6 +68,10 @@
     pointer-events: none;
   }
 
+  /* Title is only structural / for screen readers — the visible letters
+     come from the RD pattern terminating at letter edges (see mask texture
+     in the shader). Color is transparent so nothing is painted on top of
+     the canvas. */
   h1.title {
     position: relative;
     z-index: 1;
@@ -76,7 +80,7 @@
     font-family: 'Bricolage Grotesque', system-ui, sans-serif;
     line-height: 0.92;
     letter-spacing: -0.045em;
-    color: var(--ink);
+    color: transparent;
     user-select: none;
   }
   h1.title .line {
@@ -407,6 +411,7 @@
       const RD_FRAG = `#version 300 es
         precision highp float;
         uniform sampler2D uState;
+        uniform sampler2D uMask;
         uniform vec2 uRes;
         uniform float uFeed, uKill, uDu, uDv, uDt;
         in vec2 vUv;
@@ -424,6 +429,19 @@
           float uvv = U * V * V;
           float nU = U + (uDu * lap.x - uvv + uFeed * (1.0 - U)) * uDt;
           float nV = V + (uDv * lap.y + uvv - (uFeed + uKill) * V) * uDt;
+
+          // Combined boundary mask:
+          //   outside circle (rad > 0.5)       → clamp to substrate
+          //   inside filled letter shapes      → clamp to substrate
+          // Pattern cannot sustain in either region, so it visibly terminates
+          // at both the circle circumference AND every letter edge.
+          float rad = length(vUv - 0.5);
+          float outside = smoothstep(0.495, 0.500, rad);
+          float letterInside = texture(uMask, vUv).r;
+          float suppress = max(outside, letterInside);
+          nU = mix(nU, 1.0, suppress);
+          nV = mix(nV, 0.0, suppress);
+
           outColor = vec4(clamp(nU, 0.0, 1.0), clamp(nV, 0.0, 1.0), 0.0, 1.0);
         }`;
 
@@ -475,6 +493,7 @@
       const rdLoc = {
         pos: gl.getAttribLocation(rdProg, 'aPos'),
         state: gl.getUniformLocation(rdProg, 'uState'),
+        mask: gl.getUniformLocation(rdProg, 'uMask'),
         res:  gl.getUniformLocation(rdProg, 'uRes'),
         feed: gl.getUniformLocation(rdProg, 'uFeed'),
         kill: gl.getUniformLocation(rdProg, 'uKill'),
@@ -508,6 +527,16 @@
 
       const texA = makeTex();
       const texB = makeTex();
+
+      // Mask texture — single-channel R8, holds the filled-letter interior.
+      // Written in seed() whenever the title text/font changes.
+      const maskTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, maskTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, SIM_W, SIM_H, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       const fboA = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, fboA);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texA, 0);
@@ -531,20 +560,18 @@
       const DARK = [0x1C / 255, 0x1A / 255, 0x17 / 255];
 
       function seed() {
-        // Rasterize the title text at sim aspect, white = text = V high
-        const c2 = document.createElement('canvas');
-        c2.width = SIM_W; c2.height = SIM_H;
-        const ctx = c2.getContext('2d');
-        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, SIM_W, SIM_H);
-        ctx.fillStyle = '#fff';
-        ctx.textBaseline = 'alphabetic';
-        ctx.textAlign = 'center';
-
+        // Two canvases at sim resolution:
+        //   edgeCanvas — strokeText outlines → V seed (pattern originates here)
+        //   maskCanvas — fillText interiors → mask (pattern suppressed here)
+        // Stroke is wide (12px) so the outside half survives the mask clamp,
+        // leaving a thick seed band just outside each letter edge.
         const f = TITLE_FONTS[currentFontIdx];
         const wE = measureText('easy',   f, BASE_MEASURE);
         const wM = measureText('making', f, BASE_MEASURE);
-        // 50% of sim width keeps room around the text for pattern growth.
-        const simTarget = SIM_W * 0.5;
+        // Match the DOM title's 60% target so mask aligns visually with where
+        // the hidden DOM text sits (and the pattern-defined letters read at
+        // the same size as the stroked fallback if the shader ever fails).
+        const simTarget = SIM_W * 0.60;
         const sE = (simTarget / wE) * BASE_MEASURE;
         const sM = (simTarget / wM) * BASE_MEASURE;
 
@@ -553,26 +580,65 @@
         const totalH = capE + capM;
         const yTop = (SIM_H - totalH) / 2;
 
-        ctx.font = fontString(f, sE);
-        ctx.fillText('easy', SIM_W / 2, yTop + capE);
-        ctx.font = fontString(f, sM);
-        ctx.fillText('making', SIM_W / 2, yTop + capE + capM);
+        function drawText(ctx, useStroke) {
+          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, SIM_W, SIM_H);
+          ctx.textBaseline = 'alphabetic';
+          ctx.textAlign = 'center';
+          if (useStroke) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 12;
+            ctx.lineJoin = 'round';
+          } else {
+            ctx.fillStyle = '#fff';
+          }
+          ctx.font = fontString(f, sE);
+          if (useStroke) ctx.strokeText('easy', SIM_W / 2, yTop + capE);
+          else           ctx.fillText  ('easy', SIM_W / 2, yTop + capE);
+          ctx.font = fontString(f, sM);
+          if (useStroke) ctx.strokeText('making', SIM_W / 2, yTop + capE + capM);
+          else           ctx.fillText  ('making', SIM_W / 2, yTop + capE + capM);
+        }
 
-        const img = ctx.getImageData(0, 0, SIM_W, SIM_H);
+        // Edge canvas → V seed
+        const edgeCanvas = document.createElement('canvas');
+        edgeCanvas.width = SIM_W; edgeCanvas.height = SIM_H;
+        drawText(edgeCanvas.getContext('2d'), true);
+        const edgeImg = edgeCanvas.getContext('2d').getImageData(0, 0, SIM_W, SIM_H);
+
+        // Mask canvas → letter-interior mask
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = SIM_W; maskCanvas.height = SIM_H;
+        drawText(maskCanvas.getContext('2d'), false);
+        const maskImg = maskCanvas.getContext('2d').getImageData(0, 0, SIM_W, SIM_H);
+
         const uv = new Float32Array(SIM_W * SIM_H * 2);
-        for (let i = 0; i < SIM_W * SIM_H; i++) {
-          const mask = img.data[i * 4] / 255;
-          // Canonical Gray-Scott seed: U=1 everywhere (always the substrate),
-          // V=0.5 at text pixels (seed regions). The reaction U·V² needs
-          // both chemicals present to ignite, so U must NOT drop to 0.
-          const noise = (Math.random() - 0.5) * 0.01;
-          uv[i * 2]     = 1.0 + noise;
-          uv[i * 2 + 1] = 0.5 * mask + Math.max(0, noise);
+        const maskData = new Uint8Array(SIM_W * SIM_H);
+        // WebGL textures use bottom-origin, canvas 2D uses top-origin.
+        // We upload raw bytes (UNPACK_FLIP_Y_WEBGL doesn't help for ArrayBufferView
+        // sources), so flip Y manually by reading from the canvas row mirrored.
+        for (let y = 0; y < SIM_H; y++) {
+          const srcY = SIM_H - 1 - y;
+          for (let x = 0; x < SIM_W; x++) {
+            const srcIdx = (srcY * SIM_W + x) * 4;
+            const dstIdx = y * SIM_W + x;
+            const edge   = edgeImg.data[srcIdx] / 255;
+            const inside = maskImg.data[srcIdx];
+            // Canonical Gray-Scott seed: U=1 everywhere, V=0.5 at edge pixels.
+            // (The mask clamp in the shader zeros V inside the letter fill,
+            // leaving only the outside half of the stroke ring as seed.)
+            const noise = (Math.random() - 0.5) * 0.01;
+            uv[dstIdx * 2]     = 1.0 + noise;
+            uv[dstIdx * 2 + 1] = 0.5 * edge + Math.max(0, noise);
+            maskData[dstIdx]   = inside;
+          }
         }
 
         const seedTex = current === 0 ? texA : texB;
         gl.bindTexture(gl.TEXTURE_2D, seedTex);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SIM_W, SIM_H, gl.RG, gl.FLOAT, uv);
+
+        gl.bindTexture(gl.TEXTURE_2D, maskTex);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SIM_W, SIM_H, gl.RED, gl.UNSIGNED_BYTE, maskData);
       }
 
       // Run many iterations quickly to skip the dormant early phase.
@@ -585,6 +651,9 @@
         gl.uniform1f(rdLoc.dv,   DV);
         gl.uniform1f(rdLoc.dt,   DT);
         gl.uniform1i(rdLoc.state, 0);
+        gl.uniform1i(rdLoc.mask, 1);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, maskTex);
         gl.viewport(0, 0, SIM_W, SIM_H);
         bindQuad(rdLoc.pos);
         for (let i = 0; i < iters; i++) {
@@ -633,6 +702,9 @@
         gl.uniform1f(rdLoc.dv,   DV);
         gl.uniform1f(rdLoc.dt,   DT);
         gl.uniform1i(rdLoc.state, 0);
+        gl.uniform1i(rdLoc.mask, 1);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, maskTex);
         gl.viewport(0, 0, SIM_W, SIM_H);
         bindQuad(rdLoc.pos);
 
