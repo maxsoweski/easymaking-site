@@ -424,11 +424,10 @@
         in vec2 vUv;
         out vec4 outColor;
         void main(){
-          vec2 uv = texture(uState, vUv).xy;
-          // DEBUG: encode U into red and V into green so we can see the
-          // raw state in a screenshot. Will be swapped back to palette mix
-          // after we confirm the sim is producing pattern.
-          outColor = vec4(clamp(uv.x, 0.0, 1.0), clamp(uv.y * 4.0, 0.0, 1.0), 0.0, 1.0);
+          // DEBUG LEVEL 2: ignore texture; output a UV gradient.
+          // If this shows a blue→red gradient, shader + FBO pipeline works.
+          // If still black, the display pass itself isn't committing.
+          outColor = vec4(vUv.x, 0.0, vUv.y, 1.0);
         }`;
 
       function compile(type, src){
