@@ -79,6 +79,12 @@
     margin: 0.35rem 0 0 0;
     max-width: 44ch;
   }
+  .course-item {
+    margin-bottom: 1.5rem;
+  }
+  .course-item:last-child {
+    margin-bottom: 0;
+  }
   footer {
     position: fixed;
     bottom: 1.5rem;
@@ -97,8 +103,31 @@
 
     <section class="courses">
       <p class="courses-label">Now available</p>
-      <a class="course-link" href="/honest-assistant/">The Honest Assistant &rarr;</a>
-      <p class="course-desc">An interactive course on building an AI assistant that is both productive and refuses to flatter you. Files, not magic.</p>
+
+      <div class="course-item">
+        <a class="course-link" href="/honest-assistant/">The Honest Assistant &rarr;</a>
+        <p class="course-desc">An interactive course on building an AI assistant that is both productive and refuses to flatter you. Files, not magic.</p>
+      </div>
+
+      <div class="course-item">
+        <a class="course-link" href="/av/">Approaching Vividness &rarr;</a>
+        <p class="course-desc">A five-part interactive course in liberated perception &mdash; space, form, energy, and play. An invitation, not a doctrine.</p>
+      </div>
+
+      <div class="course-item">
+        <a class="course-link" href="/shader-lab/">Shader Lab &rarr;</a>
+        <p class="course-desc">Thirty-five lessons in shader principles and the language of visual direction, from first pixel to post-processing.</p>
+      </div>
+
+      <div class="course-item">
+        <a class="course-link" href="/pretext-lab/">Pretext Lab &rarr;</a>
+        <p class="course-desc">An interactive course on Cheng Lou&rsquo;s @chenglou/pretext &mdash; text measurement, line layout, and the mechanics behind modern chat interfaces.</p>
+      </div>
+
+      <div class="course-item">
+        <a class="course-link" href="/globe/">Walking with Desire &rarr;</a>
+        <p class="course-desc">A 3D scene for walking with what you want.</p>
+      </div>
     </section>
   </main>
   <footer>easymaking.io</footer>
