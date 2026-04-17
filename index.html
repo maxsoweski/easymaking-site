@@ -424,12 +424,11 @@
         in vec2 vUv;
         out vec4 outColor;
         void main(){
-          float V = texture(uState, vUv).y;
-          // Lower threshold so the evolving pattern is actually visible
-          // against the paper ground — V peaks at ~0.3–0.4 in steady state.
-          float t = smoothstep(0.04, 0.30, V);
-          vec3 col = mix(uBg, uDark, t);
-          outColor = vec4(col, 1.0);
+          vec2 uv = texture(uState, vUv).xy;
+          // DEBUG: encode U into red and V into green so we can see the
+          // raw state in a screenshot. Will be swapped back to palette mix
+          // after we confirm the sim is producing pattern.
+          outColor = vec4(clamp(uv.x, 0.0, 1.0), clamp(uv.y * 4.0, 0.0, 1.0), 0.0, 1.0);
         }`;
 
       function compile(type, src){
