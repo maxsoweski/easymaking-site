@@ -424,10 +424,13 @@
         in vec2 vUv;
         out vec4 outColor;
         void main(){
-          // DEBUG LEVEL 2: ignore texture; output a UV gradient.
-          // If this shows a blue→red gradient, shader + FBO pipeline works.
-          // If still black, the display pass itself isn't committing.
-          outColor = vec4(vUv.x, 0.0, vUv.y, 1.0);
+          float V = texture(uState, vUv).y;
+          // V peaks around 0.25–0.35 inside pattern regions. Mapping
+          // [0.03, 0.28] → [uBg, uDark] reads as visible but subtle —
+          // same family as the paper ground, just lightly pigmented.
+          float t = smoothstep(0.03, 0.28, V);
+          vec3 col = mix(uBg, uDark, t);
+          outColor = vec4(col, 1.0);
         }`;
 
       function compile(type, src){
