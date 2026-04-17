@@ -30,6 +30,12 @@ const ARCS = [
     { n: 16, file: '16-appreciating-energy',         title: 'Appreciating energy' },
     { n: 17, file: '17-power-in-energy',             title: 'Power in energy' },
   ]},
+  { label: 'Arc 5 · Liberating Play', lessons: [
+    { n: 18, file: '18-no-wrong-moves',              title: 'No wrong moves' },
+    { n: 19, file: '19-ritual-and-as-if-worlds',     title: 'Ritual & as-if worlds' },
+    { n: 20, file: '20-confidence-in-responsiveness', title: 'Confidence in responsiveness' },
+    { n: 21, file: '21-course-closing',              title: 'Closing the course' },
+  ]},
 ];
 window.AV_ARCS = ARCS;
 

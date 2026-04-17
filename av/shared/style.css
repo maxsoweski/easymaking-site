@@ -812,6 +812,180 @@ body.nav-collapsed .av-nav .nav-inner { display: none; }
   color: var(--muted);
 }
 
+/* persistent sit timer (floating, always available) */
+.av-sit-timer {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 200;
+  font-family: var(--sans);
+}
+.av-sit-timer .sit-toggle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(40,38,46,0.18);
+  transition: transform 0.15s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.av-sit-timer .sit-toggle:hover {
+  background: var(--accent-deep);
+  transform: scale(1.06);
+}
+.av-sit-timer.running .sit-toggle {
+  background: var(--accent-deep);
+  animation: sit-pulse 2s ease-in-out infinite;
+}
+@keyframes sit-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(40,38,46,0.18); }
+  50% { box-shadow: 0 4px 28px rgba(111,142,124,0.55); }
+}
+.av-sit-timer.done .sit-toggle {
+  background: var(--accent);
+  animation: sit-bell 1.2s ease-out 4;
+}
+@keyframes sit-bell {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-15deg); }
+  40% { transform: rotate(12deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(5deg); }
+}
+.av-sit-timer .sit-panel {
+  position: absolute;
+  bottom: 64px;
+  right: 0;
+  width: 260px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 8px 32px rgba(40,38,46,0.18);
+  display: none;
+}
+.av-sit-timer.open .sit-panel { display: block; }
+.av-sit-timer .sit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.av-sit-timer .sit-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.av-sit-timer .sit-close {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.av-sit-timer .sit-close:hover { color: var(--ink); }
+.av-sit-timer .sit-display {
+  font-size: 38px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink);
+  margin-bottom: 16px;
+  letter-spacing: 0.02em;
+}
+.av-sit-timer.running .sit-display { color: var(--accent-deep); }
+.av-sit-timer.done .sit-display { color: var(--accent); }
+.av-sit-timer .sit-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.av-sit-timer .sit-presets button {
+  padding: 8px 0;
+  border: 1px solid var(--line-strong);
+  background: white;
+  color: var(--ink);
+  border-radius: 999px;
+  font-size: 13px;
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.av-sit-timer .sit-presets button:hover {
+  background: var(--accent-faint);
+  border-color: var(--accent);
+}
+.av-sit-timer .sit-presets button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.av-sit-timer .sit-custom {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.av-sit-timer .sit-custom input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 13px;
+  text-align: center;
+}
+.av-sit-timer .sit-custom input:focus { outline: none; border-color: var(--accent); }
+.av-sit-timer .sit-custom button {
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  background: white;
+  border-radius: 999px;
+  font-size: 13px;
+  font-family: var(--sans);
+  cursor: pointer;
+}
+.av-sit-timer .sit-custom button:hover { background: var(--accent-faint); border-color: var(--accent); }
+.av-sit-timer .sit-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.av-sit-timer .sit-controls button {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  background: white;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--sans);
+  cursor: pointer;
+}
+.av-sit-timer .sit-start {
+  background: var(--accent) !important;
+  color: white !important;
+  border-color: var(--accent) !important;
+}
+.av-sit-timer .sit-start:hover { background: var(--accent-deep) !important; }
+.av-sit-timer .sit-reset:hover { background: var(--accent-faint); border-color: var(--accent); }
+.av-sit-timer .sit-hint {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted-soft);
+  text-align: center;
+}
+
 /* responsive */
 @media (max-width: 900px) {
   .av-content { padding: 32px 24px 80px; }

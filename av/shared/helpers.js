@@ -645,3 +645,120 @@ customElements.define('av-card-shuffle', AVCardShuffle);
 
 // Update nav badge once everything is ready
 document.addEventListener('DOMContentLoaded', updateJournalBadge);
+
+// ─── Persistent floating sit-timer (always available) ─────────────────
+// Inserted into <body> on every page. Tiny bell icon at bottom-right.
+// Click to expand a panel with preset durations. Bell synthesized at end.
+function setupSitTimer() {
+  if (document.querySelector('.av-sit-timer')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'av-sit-timer';
+  wrap.innerHTML = `
+    <button class="sit-toggle" aria-label="Open sit timer" title="Open sit timer">⏼</button>
+    <div class="sit-panel">
+      <div class="sit-header">
+        <div class="sit-title">Sit</div>
+        <button class="sit-close" aria-label="Close">×</button>
+      </div>
+      <div class="sit-display">00:00</div>
+      <div class="sit-presets">
+        <button data-min="2">2m</button>
+        <button data-min="5">5m</button>
+        <button data-min="10">10m</button>
+        <button data-min="15">15m</button>
+        <button data-min="20">20m</button>
+        <button data-min="30">30m</button>
+      </div>
+      <div class="sit-custom">
+        <input type="number" min="1" max="120" placeholder="min" class="sit-custom-input">
+        <button class="sit-custom-set">Set</button>
+      </div>
+      <div class="sit-controls">
+        <button class="sit-start">Begin</button>
+        <button class="sit-reset">Reset</button>
+      </div>
+      <div class="sit-hint">Bell at the end. Available everywhere.</div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  const toggle = wrap.querySelector('.sit-toggle');
+  const panel = wrap.querySelector('.sit-panel');
+  const closeBtn = wrap.querySelector('.sit-close');
+  const display = wrap.querySelector('.sit-display');
+  const presets = wrap.querySelectorAll('.sit-presets button');
+  const customInput = wrap.querySelector('.sit-custom-input');
+  const customSet = wrap.querySelector('.sit-custom-set');
+  const startBtn = wrap.querySelector('.sit-start');
+  const resetBtn = wrap.querySelector('.sit-reset');
+
+  let totalSec = 5 * 60;  // default 5 min
+  let remaining = totalSec;
+  let intervalId = null;
+  let running = false;
+
+  const render = () => {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    display.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  };
+  render();
+
+  const setDuration = (min) => {
+    if (running) return;
+    totalSec = min * 60;
+    remaining = totalSec;
+    wrap.classList.remove('done');
+    render();
+    presets.forEach(b => b.classList.toggle('active', parseInt(b.dataset.min) === min));
+  };
+  setDuration(5);
+
+  toggle.addEventListener('click', () => {
+    wrap.classList.toggle('open');
+  });
+  closeBtn.addEventListener('click', () => wrap.classList.remove('open'));
+
+  presets.forEach(b => b.addEventListener('click', () => setDuration(parseInt(b.dataset.min))));
+  customSet.addEventListener('click', () => {
+    const v = parseInt(customInput.value);
+    if (v >= 1 && v <= 120) {
+      setDuration(v);
+      presets.forEach(b => b.classList.remove('active'));
+    }
+  });
+
+  const stop = () => {
+    clearInterval(intervalId);
+    running = false;
+    wrap.classList.remove('running');
+    startBtn.textContent = remaining === 0 ? 'Done' : 'Resume';
+  };
+
+  startBtn.addEventListener('click', () => {
+    if (running) { stop(); return; }
+    if (remaining === 0) { remaining = totalSec; wrap.classList.remove('done'); }
+    running = true;
+    wrap.classList.add('running');
+    startBtn.textContent = 'Pause';
+    intervalId = setInterval(() => {
+      remaining--;
+      render();
+      if (remaining <= 0) {
+        stop();
+        wrap.classList.add('done');
+        playBell();
+        startBtn.textContent = 'Done';
+      }
+    }, 1000);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    stop();
+    remaining = totalSec;
+    wrap.classList.remove('done');
+    render();
+    startBtn.textContent = 'Begin';
+  });
+}
+document.addEventListener('DOMContentLoaded', setupSitTimer);
