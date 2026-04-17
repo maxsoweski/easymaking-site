@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>19 · DOM target — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: the line-stack renderer. Each line is a <span style="display:block">,
+       so native selection still flows top-to-bottom. A note in the corner narrates what
+       the render is (and isn't) doing. */
+    #demo .demo-text-region {
+      /* Let Pretext's returned height drive the box — no DOM measurement on reflow. */
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    }
+    #lineStack {
+      /* Container that holds the per-line spans. Each child is a block-level span. */
+      position: relative;
+      z-index: 1;
+    }
+    #lineStack span.pt-line {
+      display: block;
+      /* Height controlled by the inherited line-height on .demo-text-region.
+         No positioning math here — flow handles vertical stacking, Pretext handles breaks. */
+      white-space: nowrap;  /* the line is already broken; don't let the browser re-break. */
+    }
+    #demoNote {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--sage);
+      padding: 3px 8px;
+      border: 1px solid rgba(111, 142, 124, 0.3);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.85);
+      font-variant-numeric: tabular-nums;
+    }
+    /* Make the selection visually pop so readers actually notice the affordance. */
+    #lineStack span.pt-line::selection { background: rgba(184, 101, 61, 0.28); color: var(--ink); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">19</span>DOM target</span>
+      <nav class="prev-next">
+        <a href="18-walkers.html">←</a>
+        <a href="20-canvas-target.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 7 · Rendering Targets</div>
+    <h1 class="lesson-title">DOM target</h1>
+    <div id="stamp"></div>
+
+    <p>The previous arc taught the walker. This arc asks the consumer's question: once Pretext has given you lines and positions, where do you put them? The first and friendliest answer: the ordinary DOM. A paragraph becomes a stack of block-level spans, one per wrapped line — and nothing else changes about the page.</p>
+
+    <p>Drag the width. The lines re-break live. Try to <strong>select</strong> a phrase and copy it; try tabbing into the region with a screen reader. The text is real text — crawlable, selectable, accessible — and the reflow itself touches zero measurement APIs.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="demoNote">selection works · SEO works · zero DOM reads</div>
+      <div class="demo-text-region" id="textRegion" style="width: 420px;">
+        <div id="lineStack"></div>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="200" max="640" value="420" step="1">
+        <span class="value" id="widthValue">420</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>At boot we call <code>prepareWithSegments(text, font)</code> — the rich variant that keeps the segment array around so we can materialize line strings later. On each width change we call <code>layoutWithLines(prepared, width, lineHeightPx)</code>, which returns <code>{ lineCount, height, lines }</code>. Each <code>line</code> carries its <code>.text</code>, its measured <code>.width</code>, and <code>start</code>/<code>end</code> cursors back into the prepared segments.</p>
+      <p>We then stamp one <code>&lt;span style="display:block"&gt;</code> per line, setting <code>.textContent</code> to the line's text. Because the spans are block-level in source order, the browser's native selection model does exactly what it has always done — click-drag selects text top to bottom; <code>Cmd+A</code> grabs the paragraph; screen readers announce lines in order. We set the container's <code>min-height</code> from Pretext's returned height, so the box is pre-sized before paint. No <code>getBoundingClientRect</code>, no <code>offsetHeight</code>, no reflow flush.</p>
+      <p>The handle is width-independent: the same <code>prepared</code> object services every width the slider can produce. The work done on each drag is: one <code>layoutWithLines</code> call plus a <code>.textContent</code> assignment per line. For a paragraph of this size it rounds to zero.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>This is the default target for "render via Pretext." The spans are:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li><strong>SEO-indexable</strong> — search crawlers see the text verbatim, not a shadow copy behind a canvas.</li>
+        <li><strong>Accessible</strong> — screen readers traverse the DOM; the text is in the DOM.</li>
+        <li><strong>Selectable &amp; copyable</strong> — the browser's selection engine handles spans natively.</li>
+        <li><strong>Reflow-cheap</strong> — the hot path is <code>layoutWithLines</code> plus span mutations; no synchronous measurement.</li>
+      </ul>
+      <p>What you get in return for the small ceremony of spanifying: you can now per-line style, per-line animate, per-line decorate — drop-caps, hanging indents, line numbers, line-level ripple reveals — without blowing up the flow, because each line is its own box.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived. I did not wish to live what was not life, living is so dear; nor did I wish to practise resignation, unless it was quite necessary."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"SEO-friendly Pretext text"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">per-line spans via DOM target; <code>layoutWithLines</code> + <code>textContent</code></span>
+
+        <span class="phrase">"still selectable, never measured"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">render only — don't read back with <code>offsetHeight</code> or <code>getBoundingClientRect</code></span>
+
+        <span class="phrase">"per-line decoration on live reflow"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">one <code>&lt;span style="display:block"&gt;</code> per <code>lines[i]</code>; style each independently</span>
+
+        <span class="phrase">"zero reflow cost on resize"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">set <code>minHeight</code> from Pretext's returned <code>height</code> before paint</span>
+      </div>
+      <div class="meta">Next: the same walker feeds a canvas. Selection goes away, but 60&nbsp;fps motion arrives.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">prepareWithSegments · layoutWithLines · per-line spans</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
+
+const FONT = "400 20px 'EB Garamond', serif";
+const LINE_HEIGHT_PX = 20 * 1.55;
+
+// Phase 1: analyze + fit prep — run once.
+const prepared = prepareWithSegments(text, FONT);
+
+// Phase 2: render — stamp block-level spans. Selectable. SEO-visible.
+function renderAt(width) {
+  const { lines, height } = layoutWithLines(prepared, width, LINE_HEIGHT_PX);
+  textRegion.style.minHeight = height + 'px';  // pre-size; no DOM read.
+  lineStack.textContent = '';
+  for (const line of lines) {
+    const span = document.createElement('span');
+    span.className = 'pt-line';
+    span.textContent = line.text;   // real text; the DOM owns it.
+    lineStack.appendChild(span);
+  }
+}
+
+widthSlider.addEventListener('input', e => {
+  renderAt(parseFloat(e.target.value));
+});</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['render']);
+
+    const textRegion = document.getElementById('textRegion');
+    const lineStack = document.getElementById('lineStack');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(420);
+
+    const SOURCE_TEXT =
+      "I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived. I did not wish to live what was not life, living is so dear; nor did I wish to practise resignation, unless it was quite necessary.";
+
+    const FONT = "400 20px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 20 * 1.55;
+
+    let pretextLib = null;
+    let prepared = null;
+
+    function renderAt(width) {
+      if (!pretextLib || !prepared) return;
+      const { lines, height } = pretextLib.layoutWithLines(prepared, width, LINE_HEIGHT_PX);
+      textRegion.style.minHeight = height + 'px';
+
+      // Minimal DOM churn: reuse existing spans, then trim or extend as needed.
+      const children = lineStack.children;
+      for (let i = 0; i < lines.length; i++) {
+        let span = children[i];
+        if (!span) {
+          span = document.createElement('span');
+          span.className = 'pt-line';
+          lineStack.appendChild(span);
+        }
+        if (span.textContent !== lines[i].text) span.textContent = lines[i].text;
+      }
+      // Remove any trailing spans that this width no longer needs.
+      while (children.length > lines.length) lineStack.removeChild(lineStack.lastChild);
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(SOURCE_TEXT, FONT);
+      renderAt(420);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        textRegion.style.width = val + 'px';
+        caliper.setWidth(val);
+        renderAt(val);
+      }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('18-walkers.html', '20-canvas-target.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>23 · Chat bubble pre-sizing — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: a chat panel with a scrolling history + a send button.
+       Two engines share the same markup — toggle selects which one drives
+       the growing bubble's height while tokens stream in. */
+    #chatPanel {
+      width: 520px;
+      max-width: 100%;
+      margin: 0 auto;
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #chatHistory {
+      height: 320px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 14px 18px;
+      font-family: var(--serif);
+      font-size: 16.5px;
+      line-height: 1.5;
+      color: var(--ink-2);
+      scrollbar-width: thin;
+      scrollbar-color: var(--paper-edge) transparent;
+    }
+    #chatHistory::-webkit-scrollbar { width: 6px; }
+    #chatHistory::-webkit-scrollbar-thumb { background: var(--paper-edge); border-radius: 3px; }
+    .bubble {
+      display: block;
+      max-width: 78%;
+      padding: 9px 14px;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      font-family: var(--serif);
+      font-size: 16.5px;
+      line-height: 1.5;
+      overflow: hidden;
+      transition: height 40ms linear;
+      /* Height is set explicitly by JS; the inner text flows inside. */
+      box-sizing: border-box;
+    }
+    .bubble .bubble-inner {
+      /* The text content — width must match what Pretext is told. */
+      width: 100%;
+      word-wrap: break-word;
+    }
+    .bubble.them {
+      background: var(--paper-warm);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .bubble.me {
+      margin-left: auto;
+      background: var(--clay);
+      color: white;
+    }
+    .bubble.growing {
+      box-shadow: 0 0 0 2px rgba(184, 101, 61, 0.14);
+    }
+    #chatControls {
+      display: flex;
+      gap: 8px;
+      padding: 12px 14px;
+      background: var(--paper-warm);
+      border-top: 1px solid var(--line);
+    }
+    #chatControls button {
+      padding: 7px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 100ms ease;
+    }
+    #chatControls button:hover:not(:disabled) { background: var(--clay-dim); border-color: var(--clay); }
+    #chatControls button:disabled { opacity: 0.45; cursor: not-allowed; }
+    #chatControls .engine-toggle {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    #chatControls .engine-toggle label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+    #chatControls .engine-toggle select {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      color: var(--ink);
+    }
+    #modeBadge {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    #modeBadge.pretext { color: var(--sage); border-color: rgba(111, 142, 124, 0.3); }
+    #modeBadge.dom { color: var(--clay); border-color: var(--clay-dim); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">23</span>Chat bubble pre-sizing</span>
+      <nav class="prev-next">
+        <a href="22-virtual-scroll.html">&larr;</a>
+        <a href="24-perf-bench.html">&rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 8 &middot; Production Patterns</div>
+    <h1 class="lesson-title">Chat bubble pre-sizing</h1>
+    <div id="stamp"></div>
+
+    <p>Open a familiar chat UI, ask a long question, and watch the reply stream in. Often the messages above the reply give a little jump every time a new line wraps. That jump is a chat UI reading its own DOM to find out how tall the growing bubble became, <em>after</em> it became that tall.</p>
+
+    <p>Send a message below. The bubble answers token by token. In <strong>Pretext</strong> mode the reply bubble's height is set before each render &mdash; it arrives already the right size, and the other messages never shift. Flip to <strong>DOM-measured</strong> to watch the history jitter on every wrap.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="modeBadge" class="pretext">engine &middot; pretext</div>
+      <div id="chatPanel">
+        <div id="chatHistory"></div>
+        <div id="chatControls">
+          <button id="sendBtn">send reply</button>
+          <button id="resetBtn">reset</button>
+          <div class="engine-toggle">
+            <label for="engineSelect">engine</label>
+            <select id="engineSelect">
+              <option value="pretext">Pretext (pre-size)</option>
+              <option value="dom">DOM-measured (post-size)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Both engines share the same markup: a bubble is a fixed-height box with an inner text element. The difference is who decides the height, and when.</p>
+      <p><strong>Pretext mode:</strong> inside the token loop, we call <code>prepare(currentText, font)</code> and then <code>layout(handle, bubbleWidth, lineHeight)</code>. That returns the height the bubble will need once the text is painted. We set <code>bubble.style.height</code> to that value, then write the new text into the inner element. The growth animates cleanly because every frame the bubble is already the right size.</p>
+      <p><strong>DOM-measured mode:</strong> we let the inner element render first, then read <code>getBoundingClientRect().height</code> off the DOM and copy it to the bubble's height. Because the read happens <em>after</em> the browser has already re-laid-out the message list, all the earlier messages have already jumped. We also pay for a synchronous layout flush on every token, while Pretext's version pays zero.</p>
+      <p>The two engines run the same token stream against the same text at the same width. Only the engine differs.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>The anti-jitter recipe generalizes to anything that mounts or grows in a list:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>LLM chat UIs during streaming &mdash; messages above the reply stay pinned.</li>
+        <li>Notification stacks where a new toast slides in at its final height, not at zero.</li>
+        <li>Inline editors in a feed that expand as the user types, without nudging the comments below.</li>
+        <li>Auto-grow textareas whose height matches the text on the <em>next</em> keystroke, not the previous one.</li>
+      </ul>
+    </div>
+
+    <div class="block block--content">
+      <p>"Confine yourself to the present. Accept the things to which fate binds you, and love the people with whom fate brings you together, but do so with all your heart."</p>
+      <cite>Marcus Aurelius, <em>Meditations</em> (2nd c. &middot; PD translation 1906)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"bubble arrives without shift"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">pre-size with <code>layout()</code> before inserting the element</span>
+
+        <span class="phrase">"no jitter during streaming"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">re-<code>prepare()</code> + re-<code>layout()</code> each token; set <code>height</code> before render</span>
+
+        <span class="phrase">"notification lands at its final size"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">same pattern &mdash; compute height, animate from there, mount pre-sized</span>
+
+        <span class="phrase">"auto-grow without the lag-by-one"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">answer the height from <code>layout()</code>, not from <code>scrollHeight</code></span>
+      </div>
+      <div class="meta">Next: the last lesson &mdash; run the bench side-by-side and see the two engines' numbers.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">re-measure per token, pre-size before render</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// For each incoming token, update the growing bubble's height before
+// we write the new text. The whole message list holds still.
+async function streamReply(text, bubble, inner) {
+  let current = '';
+  for (const tok of tokenize(text)) {
+    current += tok;
+    // Phase: analyze + fit. No DOM read.
+    const handle = prepare(current, FONT);
+    const { height } = layout(handle, BUBBLE_W, LINE_H);
+    bubble.style.height = height + 'px';
+    inner.textContent = current;
+    await wait(TOKEN_MS);
+  }
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, createStamp, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    const history = document.getElementById('chatHistory');
+    const sendBtn = document.getElementById('sendBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const engineSelect = document.getElementById('engineSelect');
+    const modeBadge = document.getElementById('modeBadge');
+
+    // ───────────────────────────────────────────────────────────────
+    // Styling constants — must match the .bubble CSS so Pretext's math
+    // agrees with what the browser will do when it actually paints.
+    // ───────────────────────────────────────────────────────────────
+    const FONT = "400 16.5px 'EB Garamond', serif";
+    const LINE_H = 16.5 * 1.5;
+    const BUBBLE_PAD_X = 14;     // .bubble padding-left/right
+    const BUBBLE_PAD_Y = 9;      // .bubble padding-top/bottom
+    // Bubble's text content width: 78% of history's inner width minus horiz padding.
+    function bubbleWidth() {
+      const panelW = history.clientWidth - 36;   // minus history padding
+      return Math.floor(panelW * 0.78) - 2 * BUBBLE_PAD_X;
+    }
+    const TOKEN_MS = 55;
+
+    // ───────────────────────────────────────────────────────────────
+    // Seed history with enough Marcus Aurelius / Seneca exchanges that
+    // the jitter is visible when older messages shift.
+    // ───────────────────────────────────────────────────────────────
+    const SEED = [
+      { who: 'them', text: "Begin the morning by saying to thyself, I shall meet with the busy-body, the ungrateful, arrogant, deceitful, envious, unsocial." },
+      { who: 'me',   text: "And how am I to prepare for them?" },
+      { who: 'them', text: "I have seen the nature of the good, that it is beautiful, and of the bad, that it is ugly. Nothing can harm me that is from a kinsman." },
+      { who: 'me',   text: "It is a hard teaching." },
+      { who: 'them', text: "Not hard — only unfamiliar. The hardest part is already done: you have lived this morning before." },
+      { who: 'me',   text: "Tell me again how to hold the day." },
+    ];
+
+    // The reply we stream in when Max clicks "send reply".
+    const REPLY = "Confine yourself to the present. Accept the things to which fate binds you, and love the people with whom fate brings you together, but do so with all your heart. This is the whole art, and it asks nothing more of you than that you keep returning to it.";
+
+    let pretextLib = null;
+    let engine = 'pretext';
+    let isStreaming = false;
+
+    // ───────────────────────────────────────────────────────────────
+    // Bubble construction. Height is ALWAYS set explicitly; the inner
+    // element carries the actual text. This way both engines have the
+    // same DOM shape and only the height-source differs.
+    // ───────────────────────────────────────────────────────────────
+    function createBubble(who, text = '') {
+      const b = document.createElement('div');
+      b.className = `bubble ${who}`;
+      const inner = document.createElement('div');
+      inner.className = 'bubble-inner';
+      inner.textContent = text;
+      b.appendChild(inner);
+      return { b, inner };
+    }
+
+    // Both engines return the BUBBLE outer height (text height + vertical padding).
+    // The .bubble element uses box-sizing: border-box, so we set its style.height
+    // to include padding directly — no extra arithmetic downstream.
+
+    // Measure via Pretext: no DOM touch. Ask for text height at the inner width,
+    // then add the vertical padding.
+    function measurePretext(text, width) {
+      if (!pretextLib) return 22 + 2 * BUBBLE_PAD_Y;
+      const { prepare, layout } = pretextLib;
+      const handle = prepare(text, FONT);
+      return layout(handle, width, LINE_H).height + 2 * BUBBLE_PAD_Y;
+    }
+
+    // Measure via DOM: probe the inner element AFTER it has text. The inner
+    // has no padding, so its rect gives us text height; we add padding to
+    // get the bubble outer height. The read itself forces a layout flush,
+    // which is the cost we're demonstrating.
+    function measureDOM(inner) {
+      return inner.getBoundingClientRect().height + 2 * BUBBLE_PAD_Y;
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Seed messages — pre-size each at mount so the initial history is
+    // stable under both engines.
+    // ───────────────────────────────────────────────────────────────
+    function renderSeed() {
+      history.innerHTML = '';
+      const W = bubbleWidth();
+      for (const msg of SEED) {
+        const { b, inner } = createBubble(msg.who, msg.text);
+        history.appendChild(b);
+        // Pre-size seed bubbles via Pretext so the starting history is
+        // clean under either engine.
+        const h = measurePretext(msg.text, W);
+        b.style.height = h + 'px';
+      }
+      history.scrollTop = history.scrollHeight;
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Token stream. Same text, same cadence, same DOM. Only the
+    // height-source differs. We scroll history to bottom each frame so
+    // jitter under DOM mode is visible as old messages nudging upward.
+    // ───────────────────────────────────────────────────────────────
+    function tokenize(s) {
+      // Split into "words with trailing space" so the stream looks natural.
+      return s.match(/\S+\s*/g) || [s];
+    }
+
+    async function streamReply() {
+      if (isStreaming) return;
+      isStreaming = true;
+      sendBtn.disabled = true;
+      engineSelect.disabled = true;
+      resetBtn.disabled = true;
+
+      const W = bubbleWidth();
+      const { b, inner } = createBubble('them');
+      b.classList.add('growing');
+      b.style.height = '0px';
+      history.appendChild(b);
+      history.scrollTop = history.scrollHeight;
+
+      const toks = tokenize(REPLY);
+      let current = '';
+      for (let i = 0; i < toks.length; i++) {
+        current += toks[i];
+
+        if (engine === 'pretext') {
+          // Pre-size first, then write the text. No DOM read at all.
+          const h = measurePretext(current, W);
+          b.style.height = h + 'px';
+          inner.textContent = current;
+        } else {
+          // Write the text first, then ask the DOM what height it landed at.
+          // This is the reading that forces layout and jolts the older messages.
+          inner.textContent = current;
+          const h = measureDOM(inner);
+          b.style.height = h + 'px';
+        }
+
+        history.scrollTop = history.scrollHeight;
+        await new Promise(r => setTimeout(r, TOKEN_MS));
+      }
+
+      b.classList.remove('growing');
+      isStreaming = false;
+      sendBtn.disabled = false;
+      engineSelect.disabled = false;
+      resetBtn.disabled = false;
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Wiring.
+    // ───────────────────────────────────────────────────────────────
+    sendBtn.addEventListener('click', streamReply);
+    resetBtn.addEventListener('click', () => { if (!isStreaming) renderSeed(); });
+    engineSelect.addEventListener('change', e => {
+      engine = e.target.value;
+      modeBadge.textContent = `engine · ${engine}`;
+      modeBadge.classList.toggle('pretext', engine === 'pretext');
+      modeBadge.classList.toggle('dom', engine === 'dom');
+    });
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      renderSeed();
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    // Re-size seed bubbles on viewport resize (the chat panel width can change).
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { if (!isStreaming && pretextLib) renderSeed(); }, 120);
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('22-virtual-scroll.html', '24-perf-bench.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

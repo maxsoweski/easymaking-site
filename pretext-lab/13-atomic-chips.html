@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>13 · Atomic chips — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: give the demo a flowing rich-text surface.
+       Rows of fragments are absolutely positioned so we can set a
+       per-fragment leading gap, the way rich-inline composition needs. */
+    #demo .demo-text-region {
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+    }
+    .rich-body { position: relative; }
+    .rich-line { position: absolute; left: 0; right: 0; white-space: nowrap; }
+    .rich-line .frag { display: inline-block; vertical-align: baseline; }
+
+    /* Chip visual — pill-shaped, self-contained. Width is pre-computed in JS
+       so Pretext never sees the chip characters; it only knows the reserved box. */
+    .chip {
+      display: inline-block;
+      vertical-align: baseline;
+      padding: 1px 9px 2px;
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-size: 13.5px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      line-height: 1.3;
+      color: white;
+      transform: translateY(-1px);
+    }
+    .chip--mention { background: var(--indigo); }
+    .chip--tag     { background: var(--sage); }
+    .chip--link    {
+      background: transparent;
+      color: var(--clay);
+      border: 1px solid var(--clay);
+      padding: 0 8px 1px;
+      font-weight: 500;
+    }
+
+    .chipCount {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">13</span>Atomic chips</span>
+      <nav class="prev-next">
+        <a href="12-emoji-graphemes.html">←</a>
+        <a href="14-mixed-fonts.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 5 · Rich Inline</div>
+    <h1 class="lesson-title">Atomic chips</h1>
+    <div id="stamp"></div>
+
+    <p>Flowing prose that contains atomic interruptions — a mention pill, a hashtag, an inline link — is the shape of every modern social UI. The awkward version breaks a chip in half when the paragraph wraps: <code>@and</code> on one line, <code>rew</code> on the next. The right version treats each chip as indivisible, letting the surrounding text wrap <em>around</em> it.</p>
+
+    <p>Drag the width. Watch the chips. They never split.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="chipCount" id="chipCount">5 chips · — lines</div>
+      <div class="demo-text-region" id="textRegion" style="width: 480px;">
+        <div class="rich-body" id="richBody"></div>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="220" max="640" value="480" step="1">
+        <span class="value" id="widthValue">480</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Pretext's public library exposes <code>prepare()</code> and <code>prepareWithSegments()</code>; rich inline is a <em>composition pattern</em> on top. We model the paragraph as an array of items — text runs and chips — and prepare each one individually at the right font. A chip's width is measured once and stored as a plain number.</p>
+      <p>On every width change, we walk the items with <code>layoutNextLine()</code>. For each text run we ask Pretext for the next line that fits the remaining width; for each chip we subtract its pre-measured width from the remaining budget. If a chip won't fit on the current line, we break — the text run resumes on the next line with a fresh width budget. The chip is never split because Pretext never sees its characters.</p>
+      <p>The result matches the browser's own line-breaking for the prose, while the atomic items ride alongside as inviolable pills.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Every interface that mixes reading with structure:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A social feed where <code>@handles</code>, <code>#tags</code>, and inline links look like first-class typographic citizens — not fragments pretending to be words.</li>
+        <li>A task description with inline assignees and priority pills that wrap at narrow widths without losing their pill shape.</li>
+        <li>A rich commit message where issue references (<code>PROJ-142</code>) and reviewer mentions stay whole at any column width.</li>
+        <li>An AI chat transcript whose citations render as compact badges inside the answer text, not as footnotes at the end.</li>
+      </ul>
+      <p>The common property: objects that carry their own visual identity survive reflow. The prose reshapes; the objects don't.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"That which is not good for the bee-hive cannot be good for the bees. Consider, each thing given, what part belongs to you and what part belongs to the whole; and when the whole moves, move with it, but do not pretend to be another part."</p>
+      <cite>Marcus Aurelius, <em>Meditations</em>, Book VI (Long trans., 1862)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"mentions that never break"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">model chips as pre-measured atomic widths; walk with <code>layoutNextLine()</code></span>
+
+        <span class="phrase">"tags inline without splitting"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">compose text runs + fixed-width items; break the line when a chip won't fit</span>
+
+        <span class="phrase">"the pills ride inside the prose"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">render each run as its own <code>&lt;span&gt;</code>, position rows with a per-line top offset</span>
+
+        <span class="phrase">"badge wraps like a word, not a character"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">reserve <code>chipWidth + gap</code> before calling <code>layoutNextLine()</code> for the next text run</span>
+      </div>
+      <div class="meta">Next: the same composition pattern, but each run carries its own font — mono, italic, larger — and widths stay honest.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">rich inline by userland composition</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
+
+// Each text run is prepared in its own font; each chip carries a measured width.
+const items = [
+  { kind: 'text', prepared: prepareWithSegments('Sit with ', BODY_FONT), /* ... */ },
+  { kind: 'chip', width: 62, label: '@dogen', tone: 'mention' },
+  { kind: 'text', prepared: prepareWithSegments(' and let ', BODY_FONT), /* ... */ },
+  { kind: 'chip', width: 74, label: '#mountains', tone: 'tag' },
+  // ...
+];
+
+// On every width change, walk the items one line at a time.
+function layoutRich(items, maxWidth) {
+  const lines = [];
+  let i = 0, textCursor = null;
+  while (i < items.length) {
+    const fragments = [];
+    let remaining = maxWidth;
+    while (i < items.length) {
+      const item = items[i];
+      if (item.kind === 'chip') {
+        if (item.width > remaining && fragments.length) break;
+        fragments.push({ ...item });
+        remaining -= item.width + GAP;
+        i++; textCursor = null;
+      } else {
+        const line = layoutNextLine(item.prepared, textCursor ?? LINE_START, remaining);
+        if (!line) { i++; textCursor = null; continue; }
+        fragments.push({ text: line.text, className: 'frag' });
+        remaining -= line.width;
+        if (cursorsEqual(line.end, item.endCursor)) { i++; textCursor = null; }
+        else { textCursor = line.end; break; }
+      }
+    }
+    if (!fragments.length) break;
+    lines.push({ fragments });
+  }
+  return lines;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    const textRegion = document.getElementById('textRegion');
+    const richBody = document.getElementById('richBody');
+    const chipCount = document.getElementById('chipCount');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(480);
+
+    // Typography: 20px EB Garamond body, matching the lab's default reading size.
+    const BODY_FONT = "400 20px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = Math.round(20 * 1.55);           // 31
+    const LINE_START = { segmentIndex: 0, graphemeIndex: 0 };
+
+    // Gaps around chips in CSS pixels — the visual breathing room between a chip
+    // and the surrounding text. Pretext doesn't know the chip exists; we tell
+    // it how much width a chip + its gaps consumes.
+    const CHIP_GAP_PX = 4;
+
+    // Specimen: Dogen register, in chip-native phrasing. A mention, a few tags,
+    // and an inline link all riding inside prose.
+    const INLINE_SPEC = [
+      { kind: 'text', text: 'Sit with ' },
+      { kind: 'chip', label: '@dogen', tone: 'mention' },
+      { kind: 'text', text: ', who wrote that ' },
+      { kind: 'chip', label: '#mountains', tone: 'tag' },
+      { kind: 'text', text: ' do in fact ' },
+      { kind: 'chip', label: '#walk', tone: 'tag' },
+      { kind: 'text', text: ', and that the walking is the one movement of attention that does not require a place to go. Read the ' },
+      { kind: 'chip', label: 'Shōbōgenzō', tone: 'link' },
+      { kind: 'text', text: ' passage slowly; the sentence that holds the claim is also the mountain that holds the walker, and the walker who reads is the same walker the mountain is. Add ' },
+      { kind: 'chip', label: '#quiet', tone: 'tag' },
+      { kind: 'text', text: '. Stop adding.' },
+    ];
+
+    let pretextLib = null;
+    // Prepared items, each tagged with its kind.
+    let items = [];
+
+    // Measure a chip's rendered width by creating an off-screen span with the
+    // same class. This happens once per chip, not per layout pass.
+    function measureChipWidth(label, tone) {
+      const probe = document.createElement('span');
+      probe.className = 'chip chip--' + tone;
+      probe.style.cssText = 'position:absolute;visibility:hidden;top:-9999px;left:-9999px;white-space:nowrap;';
+      probe.textContent = label;
+      document.body.appendChild(probe);
+      const w = probe.getBoundingClientRect().width;
+      document.body.removeChild(probe);
+      return w;
+    }
+
+    // For each text run, measure its unwrapped full width once so we can fast-path
+    // runs that fit entirely on the current line.
+    function measureFullWidth(prepared) {
+      // walkLineRanges at an unbounded width reports the natural single-line width.
+      let maxW = 0;
+      pretextLib.walkLineRanges(prepared, 100_000, line => {
+        if (line.width > maxW) maxW = line.width;
+      });
+      return maxW;
+    }
+
+    function prepareItems(lib) {
+      const prepared = [];
+      for (const spec of INLINE_SPEC) {
+        if (spec.kind === 'chip') {
+          prepared.push({
+            kind: 'chip',
+            label: spec.label,
+            tone: spec.tone,
+            width: measureChipWidth(spec.label, spec.tone),
+          });
+        } else {
+          const p = lib.prepareWithSegments(spec.text, BODY_FONT);
+          // Full (unwrapped) line. layoutNextLine at huge width gives the whole run
+          // and its end cursor; we use both as hints in the layout loop.
+          const whole = lib.layoutNextLine(p, LINE_START, 100_000);
+          prepared.push({
+            kind: 'text',
+            prepared: p,
+            fullText: whole ? whole.text : spec.text,
+            fullWidth: whole ? whole.width : 0,
+            endCursor: whole ? whole.end : LINE_START,
+          });
+        }
+      }
+      return prepared;
+    }
+
+    function cursorsEqual(a, b) {
+      return a.segmentIndex === b.segmentIndex && a.graphemeIndex === b.graphemeIndex;
+    }
+
+    // Core composition: walk items, emit lines. Each line is a list of fragments.
+    function composeLines(items, maxWidth) {
+      if (!pretextLib) return [];
+      const { layoutNextLine } = pretextLib;
+      const lines = [];
+      let i = 0;
+      let textCursor = null;
+      const safeWidth = Math.max(1, maxWidth);
+
+      while (i < items.length) {
+        const fragments = [];
+        let remaining = safeWidth;
+
+        lineLoop:
+        while (i < items.length) {
+          const item = items[i];
+
+          if (item.kind === 'chip') {
+            const gap = fragments.length === 0 ? 0 : CHIP_GAP_PX;
+            const needed = gap + item.width;
+            if (fragments.length > 0 && needed > remaining) break lineLoop;
+            fragments.push({
+              kind: 'chip',
+              label: item.label,
+              tone: item.tone,
+              leadingGap: gap,
+              width: item.width,
+            });
+            remaining -= needed;
+            i++;
+            textCursor = null;
+            continue;
+          }
+
+          // text
+          if (textCursor !== null && cursorsEqual(textCursor, item.endCursor)) {
+            // run already fully consumed; move on
+            i++;
+            textCursor = null;
+            continue;
+          }
+
+          // Fast path: the whole unwrapped run fits.
+          if (textCursor === null && item.fullWidth <= remaining) {
+            fragments.push({ kind: 'text', text: item.fullText, width: item.fullWidth });
+            remaining -= item.fullWidth;
+            i++;
+            continue;
+          }
+
+          // Slow path: ask Pretext for as much of this run as fits in remaining px.
+          const startCursor = textCursor ?? LINE_START;
+          const line = layoutNextLine(item.prepared, startCursor, Math.max(1, remaining));
+          if (line === null || cursorsEqual(startCursor, line.end)) {
+            if (fragments.length === 0) {
+              // Nothing fits at all at this width — force one line with whatever
+              // Pretext would produce at the smallest ask we can make.
+              const forced = layoutNextLine(item.prepared, startCursor, 1);
+              if (forced === null) { i++; textCursor = null; continue; }
+              fragments.push({ kind: 'text', text: forced.text, width: forced.width });
+              textCursor = cursorsEqual(forced.end, item.endCursor) ? null : forced.end;
+              if (textCursor === null) i++;
+              break lineLoop;
+            }
+            // Can't fit anything more on this line — line break.
+            break lineLoop;
+          }
+
+          fragments.push({ kind: 'text', text: line.text, width: line.width });
+          remaining -= line.width;
+
+          if (cursorsEqual(line.end, item.endCursor)) {
+            // finished the run — continue with next item on same line
+            i++;
+            textCursor = null;
+            continue;
+          }
+          // run continues — advance to next line
+          textCursor = line.end;
+          break lineLoop;
+        }
+
+        if (fragments.length === 0) break;
+        lines.push(fragments);
+      }
+      return lines;
+    }
+
+    function render(lines) {
+      richBody.textContent = '';
+      const frag = document.createDocumentFragment();
+      let chipsDrawn = 0;
+      for (let li = 0; li < lines.length; li++) {
+        const row = document.createElement('div');
+        row.className = 'rich-line';
+        row.style.top = (li * LINE_HEIGHT_PX) + 'px';
+        row.style.height = LINE_HEIGHT_PX + 'px';
+        for (const part of lines[li]) {
+          if (part.kind === 'chip') {
+            const span = document.createElement('span');
+            span.className = 'chip chip--' + part.tone;
+            span.textContent = part.label;
+            if (part.leadingGap > 0) span.style.marginLeft = part.leadingGap + 'px';
+            row.appendChild(span);
+            chipsDrawn++;
+          } else {
+            const span = document.createElement('span');
+            span.className = 'frag';
+            span.textContent = part.text;
+            row.appendChild(span);
+          }
+        }
+        frag.appendChild(row);
+      }
+      richBody.appendChild(frag);
+      richBody.style.height = (lines.length * LINE_HEIGHT_PX) + 'px';
+      chipCount.textContent = `${chipsDrawn} chips · ${lines.length} lines`;
+    }
+
+    function relayout(width) {
+      textRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib) return;
+      // Inner content width is the text region's width minus its padding-free
+      // inline layout width — there's no padding on the rich-body container, so
+      // maxWidth is simply the region width.
+      const lines = composeLines(items, width);
+      render(lines);
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      items = prepareItems(lib);
+      relayout(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => relayout(val)
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('12-emoji-graphemes.html', '14-mixed-fonts.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

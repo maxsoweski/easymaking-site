@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>05 · Reusable handle — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: four narrow panes side-by-side. style.css gives us .demo-stage.split and .pane;
+       we arrange them in a row and let each pane show its own width-constrained specimen. */
+    #demo.split {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+    #demo.split > .pane {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .pane .pane-specimen {
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--ink-2);
+      /* Width is set per-pane via JS */
+      max-width: 100%;
+      margin: 0 auto;
+      min-height: 0;
+      max-height: 300px;
+      overflow-y: auto;
+      transition: min-height 140ms ease;
+    }
+    .pane .pane-readout {
+      margin-top: 12px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+    .pane .pane-readout .val { color: var(--sage); }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      background: var(--paper-warm);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      margin-bottom: 22px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      flex-wrap: wrap;
+    }
+    .stats-row .stat .n {
+      color: var(--clay);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .stats-row .stat .n.sage { color: var(--sage); }
+    .stats-row .sep { color: var(--muted-soft); }
+
+    @media (max-width: 800px) {
+      #demo.split { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">05</span>Reusable handle</span>
+      <nav class="prev-next">
+        <a href="04-font-as-string.html">←</a>
+        <a href="06-normal-vs-prewrap.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 2 · Basic Measurement</div>
+    <h1 class="lesson-title">Reusable handle</h1>
+    <div id="stamp"></div>
+
+    <p>One analyze, many fits. <code>prepare()</code> is the expensive step — it segments, measures, caches. <code>layout()</code> is cheap arithmetic. Once you hold a handle, you can ask for any width and get the exact height, as many times as you like, without repeating the measurement.</p>
+
+    <p>Below, four panes show the same paragraph at mobile, tablet, desktop, and wide breakpoints. One <code>prepare()</code> call at boot produced the handle. Four <code>layout()</code> calls filled the panes. Nudge the font size — all four update in lock-step.</p>
+
+    <div class="demo-stage split" id="demo">
+      <div class="pane">
+        <div class="pane-label">mobile · 320</div>
+        <div class="pane-specimen" data-pane-idx="0">I contain multitudes.</div>
+        <div class="pane-readout">height <span class="val" data-height="0">—</span>px · <span data-lines="0">—</span> lines</div>
+      </div>
+      <div class="pane">
+        <div class="pane-label">tablet · 480</div>
+        <div class="pane-specimen" data-pane-idx="1">I contain multitudes.</div>
+        <div class="pane-readout">height <span class="val" data-height="1">—</span>px · <span data-lines="1">—</span> lines</div>
+      </div>
+      <div class="pane">
+        <div class="pane-label">desktop · 720</div>
+        <div class="pane-specimen" data-pane-idx="2">I contain multitudes.</div>
+        <div class="pane-readout">height <span class="val" data-height="2">—</span>px · <span data-lines="2">—</span> lines</div>
+      </div>
+      <div class="pane">
+        <div class="pane-label">wide · 1040</div>
+        <div class="pane-specimen" data-pane-idx="3">I contain multitudes.</div>
+        <div class="pane-readout">height <span class="val" data-height="3">—</span>px · <span data-lines="3">—</span> lines</div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <span class="stat"><span class="n" id="prepCount">1</span> prepare call</span>
+      <span class="sep">·</span>
+      <span class="stat"><span class="n sage" id="layoutCount">4</span> layout calls</span>
+      <span class="sep">·</span>
+      <span class="stat">last pass <span class="n sage" id="passTime">—</span> μs</span>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="sizeSlider">font size</label>
+        <input type="range" id="sizeSlider" min="13" max="22" value="16" step="1">
+        <span class="value" id="sizeValue">16</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>A Pretext handle is an opaque cache of "everything the text and font say that doesn't depend on width." Segments. Glue rules. Canvas-measured widths. Bidi levels where relevant. None of that changes when you ask about a new width, so Pretext doesn't recompute it.</p>
+      <p><code>layout(handle, width, lineHeight)</code> walks those cached segments and applies word-wrap rules in arithmetic. On the library's benchmark snapshot, <code>prepare()</code> averages about <strong>19ms</strong> for a 500-text batch; <code>layout()</code> for that same batch averages about <strong>0.09ms</strong>. The ratio is roughly 200:1. A handle pays for itself on the second call and compounds from there.</p>
+      <p>Practical consequence: the right unit of caching is the handle, not the rendered height. Store handles keyed by <code>(text, font)</code>; never cache by width. Widths are cheap to answer about.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>"Cached across breakpoints" stops being aspirational and becomes the default:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>One content piece, every viewport — one handle, a <code>layout()</code> call per column width on the page.</li>
+        <li>Responsive masonry — each tile prepares once on ingest; placement on resize is pure arithmetic over all tiles.</li>
+        <li>A/B width tests — pick the width that yields the "nicest" line count without re-measuring the text.</li>
+        <li>A print-preview panel that shows the same article at three widths simultaneously — three <code>layout()</code> calls on one handle.</li>
+      </ul>
+      <p>The heuristic: if two regions display the same text in the same font, they share one handle. The only thing that differs between them is the argument to <code>layout()</code>.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"Do I contradict myself? Very well then I contradict myself, (I am large, I contain multitudes.)"</p>
+      <cite>Walt Whitman, <em>Song of Myself</em>, from <em>Leaves of Grass</em> (1855)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"one content piece, every viewport"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">one <code>prepare()</code>, one <code>layout()</code> per column width you need</span>
+
+        <span class="phrase">"cache across breakpoints"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">keep the handle keyed by <code>(text, font)</code>; never key by width</span>
+
+        <span class="phrase">"three widths, side by side"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">three <code>layout()</code> calls on the same handle — no extra measurement</span>
+
+        <span class="phrase">"pick the nicest wrap"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">sweep widths via <code>layout()</code>; take the <code>lineCount</code> you like</span>
+      </div>
+      <div class="meta">Next arc: whitespace and breaks — when the text isn't prose, the rules shift.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one handle, four layouts</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+const FONT = "400 16px 'EB Garamond', serif";
+const LINE_HEIGHT = 16 * 1.5;
+const BREAKPOINTS = [320, 480, 720, 1040];
+
+// Prepare once. Analyze cost paid.
+const handle = prepare(TEXT, FONT);
+
+// Lay out everywhere. Pure arithmetic per call.
+for (const width of BREAKPOINTS) {
+  const { height, lineCount } = layout(handle, width, LINE_HEIGHT);
+  // ...place each pane using its own height.
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    // Whitman, Song of Myself (1855). Public domain. Short stanza — a few lines at most widths.
+    const TEXT = "Do I contradict myself? Very well then I contradict myself, I am large, I contain multitudes. The past and present wilt — I have filled them, emptied them. And proceed to fill my next fold of the future.";
+
+    const BREAKPOINTS = [320, 480, 720, 1040];
+    const FAMILY = "'EB Garamond', serif";
+    const LINE_HEIGHT_RATIO = 1.5;
+
+    const panes = Array.from(document.querySelectorAll('.pane-specimen'));
+    const heightEls = panes.map((_, i) => document.querySelector(`[data-height="${i}"]`));
+    const linesEls  = panes.map((_, i) => document.querySelector(`[data-lines="${i}"]`));
+    const prepCountEl = document.getElementById('prepCount');
+    const layoutCountEl = document.getElementById('layoutCount');
+    const passTimeEl = document.getElementById('passTime');
+
+    // Seed the specimens with the real text now (before Pretext loads), so there's no flash.
+    panes.forEach(p => { p.textContent = TEXT; });
+
+    let pretextLib = null;
+    let handle = null;
+    let currentSize = 16;
+    let prepCount = 0;
+    let layoutCount = 0;
+
+    function layAllPanes() {
+      if (!pretextLib || !handle) return;
+      const { layout } = pretextLib;
+      const lineHeightPx = currentSize * LINE_HEIGHT_RATIO;
+      // Panes render at breakpoint widths, but the .pane itself may be narrower on mobile.
+      // The teaching point stands either way — we pass the breakpoint width to layout().
+      const t0 = performance.now();
+      for (let i = 0; i < BREAKPOINTS.length; i++) {
+        const width = BREAKPOINTS[i];
+        const { height, lineCount } = layout(handle, width, lineHeightPx);
+        layoutCount++;
+
+        const pane = panes[i];
+        // Cap the specimen at its pane's actual content width so the visual text wraps to
+        // something reasonable on the page, while the reported height reflects the breakpoint.
+        const visibleWidth = Math.min(width, pane.parentElement.clientWidth - 8);
+        pane.style.width = visibleWidth + 'px';
+        pane.style.font = `400 ${currentSize}px/${LINE_HEIGHT_RATIO} ${FAMILY}`;
+        pane.style.minHeight = height + 'px';
+
+        heightEls[i].textContent = Math.round(height);
+        linesEls[i].textContent = lineCount;
+      }
+      const t1 = performance.now();
+      // Display pass time in microseconds for readability.
+      passTimeEl.textContent = Math.round((t1 - t0) * 1000);
+      layoutCountEl.textContent = layoutCount;
+    }
+
+    function rePrepare() {
+      if (!pretextLib) return;
+      const fontStr = `400 ${currentSize}px ${FAMILY}`;
+      handle = pretextLib.prepare(TEXT, fontStr);
+      prepCount++;
+      prepCountEl.textContent = prepCount;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      rePrepare();    // one prepare at boot
+      layAllPanes();  // four layouts
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('sizeSlider'),
+      document.getElementById('sizeValue'),
+      (val) => {
+        currentSize = Math.round(val);
+        // Font size is part of the font string, so the old handle's measurements are stale.
+        // Re-prepare once, then fan out to all four panes. Still "one analyze, many fits."
+        rePrepare();
+        layAllPanes();
+      }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('04-font-as-string.html', '06-normal-vs-prewrap.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

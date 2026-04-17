@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>14 · Mixed fonts and sizes — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    #demo .demo-text-region {
+      height: auto;
+      min-height: 0;
+      max-height: 380px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+    }
+    .rich-body { position: relative; }
+    .rich-line { position: absolute; left: 0; right: 0; white-space: nowrap; }
+    .rich-line .frag { display: inline-block; vertical-align: baseline; }
+
+    /* Per-style spans — each matches the font string passed to prepare(). */
+    .frag--body {
+      font: 400 19px/1 'EB Garamond', serif;
+    }
+    .frag--pull {
+      font: italic 600 28px/1 'EB Garamond', serif;
+      color: var(--clay);
+      letter-spacing: -0.005em;
+    }
+    .frag--code {
+      font: 500 15px/1 'JetBrains Mono', ui-monospace, Menlo, monospace;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    .frag--smallcaps {
+      font: 500 14px/1 'JetBrains Mono', ui-monospace, Menlo, monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--indigo);
+    }
+
+    .lineMeta {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Row height — driven by the tallest item's line-box. We compute it from the
+       pull-quote size so the pull-quote never clips. */
+    .rich-body { line-height: 0; }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">14</span>Mixed fonts + sizes</span>
+      <nav class="prev-next">
+        <a href="13-atomic-chips.html">←</a>
+        <a href="15-streaming-chat.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 5 · Rich Inline</div>
+    <h1 class="lesson-title">Mixed fonts and sizes</h1>
+    <div id="stamp"></div>
+
+    <p>One paragraph can carry more than one voice. A running body serif can make room for a pull-quote set larger and italic, then drop a token of inline code in mono, then return. The browser handles this for static HTML; the challenge comes the moment you need to <em>know the width of each run</em> — for wrapping, for virtualization, for animation.</p>
+
+    <p>Pretext prepares each run in its own font. When you compose them, widths stay honest.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="lineMeta" id="lineMeta">— lines · 4 type specs</div>
+      <div class="demo-text-region" id="textRegion" style="width: 520px;">
+        <div class="rich-body" id="richBody"></div>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="260" max="680" value="520" step="1">
+        <span class="value" id="widthValue">520</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>The public API offers <code>prepareWithSegments(text, font)</code> — note the per-call font argument. Rich inline with multiple fonts is just this call, once per run, with each run's own font string. The handle returned carries that run's widths, measured against the canvas font engine at the correct type specs.</p>
+      <p>Composition is a userland loop. We walk the items; for each text run we ask <code>layoutNextLine(handle, cursor, remainingWidth)</code>; the returned line width is correct for <em>that run's font</em>, even though the previous fragment on the same line was measured in a different one. When a run can't fit on the current line, we break; the next line starts fresh with the full width.</p>
+      <p>The arithmetic is still pure. No DOM reads, no mid-handler reflow. Every run's width, at every line, comes back in microseconds.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Typography stops being locked into one spec per paragraph:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A magazine-style pull-quote <em>inside</em> running prose — larger, italic, maybe coloured — with the surrounding body text wrapping around the change in height.</li>
+        <li>Inline <code>&lt;code&gt;</code> tokens that don't throw off the line widths — mono segments measured exactly, not approximated.</li>
+        <li>Small-caps labels and abbreviations that use their own letter-spacing without breaking the wrap calculation.</li>
+        <li>A footnote marker set at a smaller size, tracked tight, whose advance width the engine computes correctly.</li>
+      </ul>
+      <p>The common unlock: the type specs you <em>want</em> on the page are the type specs Pretext measures with. No fallback to the body font for the hard cases.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I went to the woods because I wished to live deliberately. Not as the crowd lives, but as Whitman urged, <em>standing at ease in nature</em>, among the voices that speak before speech."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854), with Walt Whitman, <em>Song of Myself</em> (1855)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"pull-quote inside a paragraph"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">a run with a larger italic font descriptor, prepared alongside the body runs</span>
+
+        <span class="phrase">"inline code in flowing text"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">a <code>&lt;code&gt;</code> run prepared with the mono font string</span>
+
+        <span class="phrase">"small-caps label without breaking wrap"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">prepare the label run in its tracked-out font; width is measured with that tracking</span>
+
+        <span class="phrase">"no drift when sizes coexist"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">one <code>prepareWithSegments()</code> per type spec; share the cursor math across all of them</span>
+      </div>
+      <div class="meta">Next: the same two-phase dance, but on a moving target — tokens arriving from a stream.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one handle per type spec</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
+
+const BODY_FONT = "400 19px 'EB Garamond', serif";
+const PULL_FONT = "italic 600 28px 'EB Garamond', serif";
+const CODE_FONT = "500 15px 'JetBrains Mono', ui-monospace, monospace";
+
+// Each run is prepared in its own font. The handles are independent.
+const items = [
+  { kind: 'text', className: 'frag--body',
+    prepared: prepareWithSegments('I went to the woods ', BODY_FONT) },
+  { kind: 'text', className: 'frag--pull',
+    prepared: prepareWithSegments('to live deliberately', PULL_FONT) },
+  { kind: 'text', className: 'frag--body',
+    prepared: prepareWithSegments(', and to call the ', BODY_FONT) },
+  { kind: 'text', className: 'frag--code',
+    prepared: prepareWithSegments('layout()', CODE_FONT) },
+  { kind: 'text', className: 'frag--body',
+    prepared: prepareWithSegments(' of my days what it is.', BODY_FONT) },
+];
+
+// Composition — walk items, emitting lines that respect every run's font.
+function layoutMixed(items, maxWidth) {
+  const lines = [];
+  let i = 0, textCursor = null;
+  while (i < items.length) {
+    const fragments = [];
+    let remaining = maxWidth;
+    while (i < items.length) {
+      const item = items[i];
+      const start = textCursor ?? { segmentIndex: 0, graphemeIndex: 0 };
+      const line = layoutNextLine(item.prepared, start, Math.max(1, remaining));
+      if (line === null) { i++; textCursor = null; continue; }
+      fragments.push({ text: line.text, className: item.className, width: line.width });
+      remaining -= line.width;
+      if (cursorsEqual(line.end, item.endCursor)) { i++; textCursor = null; }
+      else { textCursor = line.end; break; }
+    }
+    if (!fragments.length) break;
+    lines.push({ fragments });
+  }
+  return lines;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    const textRegion = document.getElementById('textRegion');
+    const richBody = document.getElementById('richBody');
+    const lineMeta = document.getElementById('lineMeta');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(520);
+
+    // Four type specs — the demo carries one run of each.
+    const BODY_FONT = "400 19px 'EB Garamond', serif";
+    const PULL_FONT = "italic 600 28px 'EB Garamond', serif";
+    const CODE_FONT = "500 15px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+    const SMALLCAPS_FONT = "500 14px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+
+    // Line box sized to the tallest run (the pull-quote at 28px). A more
+    // ambitious demo would vary line height per line; here we keep it constant.
+    const LINE_HEIGHT_PX = Math.round(28 * 1.42);            // 40
+
+    const LINE_START = { segmentIndex: 0, graphemeIndex: 0 };
+
+    // A short essay-register specimen that mixes four voices: running body,
+    // a larger italic pulled-out phrase, inline code, and a small-caps label.
+    // Thoreau's Walden blended with Whitman's Song of Myself (both public domain).
+    const SPEC = [
+      { text: 'I went to the woods ',
+        className: 'frag--body', font: BODY_FONT },
+      { text: 'to live deliberately',
+        className: 'frag--pull', font: PULL_FONT },
+      { text: ' — not as the crowd lives, but as ',
+        className: 'frag--body', font: BODY_FONT },
+      { text: 'whitman',
+        className: 'frag--smallcaps', font: SMALLCAPS_FONT },
+      { text: ' urged, ',
+        className: 'frag--body', font: BODY_FONT },
+      { text: 'standing at ease in nature',
+        className: 'frag--pull', font: PULL_FONT },
+      { text: ', among the voices that speak before speech. The engine calls this ',
+        className: 'frag--body', font: BODY_FONT },
+      { text: 'prepareWithSegments()',
+        className: 'frag--code', font: CODE_FONT },
+      { text: ' and then ',
+        className: 'frag--body', font: BODY_FONT },
+      { text: 'layoutNextLine()',
+        className: 'frag--code', font: CODE_FONT },
+      { text: '; the words do the rest.',
+        className: 'frag--body', font: BODY_FONT },
+    ];
+
+    let pretextLib = null;
+    let items = [];
+
+    function cursorsEqual(a, b) {
+      return a.segmentIndex === b.segmentIndex && a.graphemeIndex === b.graphemeIndex;
+    }
+
+    function prepareItems(lib) {
+      const out = [];
+      for (const spec of SPEC) {
+        const prepared = lib.prepareWithSegments(spec.text, spec.font);
+        // Cache the end cursor of the full run for fast "did we finish this run?" checks.
+        const whole = lib.layoutNextLine(prepared, LINE_START, 100_000);
+        out.push({
+          kind: 'text',
+          prepared,
+          font: spec.font,
+          className: spec.className,
+          fullText: whole ? whole.text : spec.text,
+          fullWidth: whole ? whole.width : 0,
+          endCursor: whole ? whole.end : LINE_START,
+        });
+      }
+      return out;
+    }
+
+    function composeLines(items, maxWidth) {
+      if (!pretextLib) return [];
+      const { layoutNextLine } = pretextLib;
+      const lines = [];
+      let i = 0;
+      let textCursor = null;
+      const safeWidth = Math.max(1, maxWidth);
+
+      while (i < items.length) {
+        const fragments = [];
+        let remaining = safeWidth;
+
+        lineLoop:
+        while (i < items.length) {
+          const item = items[i];
+
+          if (textCursor !== null && cursorsEqual(textCursor, item.endCursor)) {
+            i++;
+            textCursor = null;
+            continue;
+          }
+
+          // Fast path: whole unwrapped run fits on this line.
+          if (textCursor === null && item.fullWidth <= remaining && item.fullWidth > 0) {
+            fragments.push({
+              text: item.fullText,
+              className: item.className,
+              width: item.fullWidth,
+            });
+            remaining -= item.fullWidth;
+            i++;
+            continue;
+          }
+
+          const startCursor = textCursor ?? LINE_START;
+          const line = layoutNextLine(item.prepared, startCursor, Math.max(1, remaining));
+          if (line === null || cursorsEqual(startCursor, line.end)) {
+            if (fragments.length === 0) {
+              // Force at least one fragment to avoid infinite loop at very small widths.
+              const forced = layoutNextLine(item.prepared, startCursor, 1);
+              if (forced === null) { i++; textCursor = null; continue; }
+              fragments.push({
+                text: forced.text,
+                className: item.className,
+                width: forced.width,
+              });
+              if (cursorsEqual(forced.end, item.endCursor)) {
+                i++;
+                textCursor = null;
+              } else {
+                textCursor = forced.end;
+              }
+              break lineLoop;
+            }
+            break lineLoop;
+          }
+
+          fragments.push({
+            text: line.text,
+            className: item.className,
+            width: line.width,
+          });
+          remaining -= line.width;
+
+          if (cursorsEqual(line.end, item.endCursor)) {
+            i++;
+            textCursor = null;
+            continue;
+          }
+          textCursor = line.end;
+          break lineLoop;
+        }
+
+        if (fragments.length === 0) break;
+        lines.push(fragments);
+      }
+      return lines;
+    }
+
+    function render(lines) {
+      richBody.textContent = '';
+      const frag = document.createDocumentFragment();
+      for (let li = 0; li < lines.length; li++) {
+        const row = document.createElement('div');
+        row.className = 'rich-line';
+        row.style.top = (li * LINE_HEIGHT_PX) + 'px';
+        row.style.height = LINE_HEIGHT_PX + 'px';
+        row.style.lineHeight = LINE_HEIGHT_PX + 'px';
+        for (const part of lines[li]) {
+          const span = document.createElement('span');
+          span.className = 'frag ' + part.className;
+          span.textContent = part.text;
+          row.appendChild(span);
+        }
+        frag.appendChild(row);
+      }
+      richBody.appendChild(frag);
+      richBody.style.height = (lines.length * LINE_HEIGHT_PX) + 'px';
+      lineMeta.textContent = `${lines.length} lines · 4 type specs`;
+    }
+
+    function relayout(width) {
+      textRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib) return;
+      const lines = composeLines(items, width);
+      render(lines);
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      items = prepareItems(lib);
+      relayout(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => relayout(val)
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('13-atomic-chips.html', '15-streaming-chat.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

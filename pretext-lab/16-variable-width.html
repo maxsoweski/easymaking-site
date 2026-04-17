@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>16 · Variable-width wrap — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: editorial spread. The text region is a canvas; text is painted
+       by pretext as positioned absolute spans. A "floated" image box sits inside
+       the region and can be dragged vertically; text re-routes around its y-band. */
+    #editorialStage {
+      position: relative;
+      width: 560px;
+      height: 440px;
+      margin: 0 auto;
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 4px;
+      overflow: hidden;
+      font-family: var(--serif);
+      color: var(--ink-2);
+      user-select: none;
+    }
+    #editorialText {
+      position: absolute;
+      inset: 28px 32px;
+      font-size: 18px;
+      line-height: 1.55;
+      pointer-events: none; /* let drags on image pass through text layer */
+    }
+    #editorialText .pt-line {
+      position: absolute;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #floatedImage {
+      position: absolute;
+      left: 52%;
+      width: 210px;
+      height: 150px;
+      background:
+        linear-gradient(135deg, rgba(201, 184, 136, 0.65), rgba(184, 101, 61, 0.55) 60%, rgba(77, 91, 126, 0.55)),
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), transparent 55%);
+      border: 1px solid var(--paper-edge);
+      box-shadow: 0 8px 18px -10px rgba(31, 29, 40, 0.35);
+      cursor: grab;
+      touch-action: none;
+      transition: box-shadow 120ms ease;
+    }
+    #floatedImage.dragging {
+      cursor: grabbing;
+      box-shadow: 0 12px 26px -10px rgba(31, 29, 40, 0.5);
+    }
+    #floatedImage::after {
+      content: "fig. 1 — Walden Pond, looking south";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -20px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-align: right;
+    }
+    #editorialHint {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.06em;
+      color: var(--muted-soft);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">16</span>Variable-width wrap</span>
+      <nav class="prev-next">
+        <a href="15-streaming-chat.html">&larr;</a>
+        <a href="17-line-stats.html">&rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 6 · Streaming &amp; Variable-Width</div>
+    <h1 class="lesson-title">Variable-width wrap</h1>
+    <div id="stamp"></div>
+
+    <p>The web has had &ldquo;text around an image&rdquo; since it had images, but the CSS float is a crude instrument: the obstacle has to live in the document, reflow is the browser's business, and the text cannot react to anything the author can compute. Pretext re-opens this old problem by handing you the line-break loop directly.</p>
+
+    <p>Drag the warm rectangle. The paragraph re-routes around it, line by line, at the frame rate of the drag. The text is real text &mdash; selectable, measurable, font-metric-correct &mdash; but every line's width is a value you chose in JavaScript a millisecond ago.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="editorialStage">
+        <div id="editorialHint">drag the image &middot; text re-routes</div>
+        <div id="editorialText"></div>
+        <div id="floatedImage" style="top: 80px;"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="imgY">image y</label>
+        <input type="range" id="imgY" min="0" max="300" value="80" step="1">
+        <span class="value" id="imgYVal">80</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>The fixed-width primitive <code>layout()</code> assumes every line has the same maximum width. The variable-width primitive does not. You call <code>layoutNextLine(prepared, cursor, maxWidth)</code> once per line, and <em>you</em> choose the <code>maxWidth</code> you pass in &mdash; a different number every line if you want.</p>
+      <p>The loop in this demo is four lines long. Start the cursor at <code>{ segmentIndex: 0, graphemeIndex: 0 }</code>. For each baseline y, decide: does this line's vertical band overlap the image? If yes, subtract the image's horizontal band from the full column width. If no, use the full column. Call <code>layoutNextLine</code> with that width, paint the line it returns, advance the cursor to the line's <code>end</code>, step y forward by the line height. Repeat until the call returns <code>null</code>.</p>
+      <p>The returned <code>LayoutLine</code> is a full object &mdash; <code>{ text, width, start, end }</code> &mdash; so the rendered line is the exact string the browser would have placed at that width, with the same word-break decisions. No probe insertions, no hidden measurements. The canvas measurements from <code>prepareWithSegments()</code> are doing all of the work in arithmetic.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>The design space that opens is the editorial one the web has historically punted on:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A magazine spread where body text hugs an irregular silhouette &mdash; a cut-out subject, a curved initial capital.</li>
+        <li>A draggable figure that the reader positions mid-article; text reflows live, not after a round trip through the DOM.</li>
+        <li>A pull-quote that the headline flows <em>around</em>, at any angle, without leaving gaps.</li>
+        <li>A timeline whose captions avoid each other as the user zooms in; no label ever overlaps another.</li>
+      </ul>
+      <p>All four of these are one <code>layoutNextLine</code> loop with a different &ldquo;what width is available at this y?&rdquo; function.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>&ldquo;I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived. I did not wish to live what was not life, living is so dear; nor did I wish to practise resignation, unless it was quite necessary.&rdquo;</p>
+      <cite>Henry David Thoreau, <em>Walden</em>, Ch. 2 (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">&ldquo;text that hugs the image&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">variable-width loop via <code>layoutNextLine</code>, one call per line</span>
+
+        <span class="phrase">&ldquo;re-route around the obstacle&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">per-line <code>maxWidth</code> as a function of the baseline y</span>
+
+        <span class="phrase">&ldquo;live drag, text follows&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">run the whole loop inside <code>pointermove</code>; no DOM reads</span>
+
+        <span class="phrase">&ldquo;wrap around anything&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">replace &ldquo;is this y inside the image?&rdquo; with any shape predicate</span>
+      </div>
+      <div class="meta">Next: walking the lines to collect stats &mdash; line count, widest line &mdash; without ever materializing a string.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one prepare, many layoutNextLine calls &mdash; different width each time</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext';
+
+const FONT = "400 18px 'EB Garamond', serif";
+const LINE_HEIGHT = 18 * 1.55;
+const prepared = prepareWithSegments(TEXT, FONT);
+
+function relayout(imageY, imageBottom, columnWidth, indent) {
+  let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+  let y = 0;
+  const lines = [];
+
+  while (true) {
+    // Decide the available width for this line, based on where the image is.
+    const bandTop = y;
+    const bandBottom = y + LINE_HEIGHT;
+    const overlapsImage = bandBottom > imageY && bandTop < imageBottom;
+    const width = overlapsImage ? columnWidth - indent : columnWidth;
+
+    const line = layoutNextLine(prepared, cursor, width);
+    if (line === null) break;
+
+    lines.push({ text: line.text, y, x: 0, width: line.width });
+    cursor = line.end;           // advance cursor to the line's end
+    y += LINE_HEIGHT;
+  }
+  return lines;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['fit']);
+
+    // Thoreau, Walden, Ch. 2 ("Where I Lived, and What I Lived For"). Public domain.
+    // ~200 words, suitable length for a short editorial spread.
+    const TEXT =
+      "I went to the woods because I wished to live deliberately, to front only the essential " +
+      "facts of life, and see if I could not learn what it had to teach, and not, when I came " +
+      "to die, discover that I had not lived. I did not wish to live what was not life, living " +
+      "is so dear; nor did I wish to practise resignation, unless it was quite necessary. I " +
+      "wanted to live deep and suck out all the marrow of life, to live so sturdily and " +
+      "Spartan-like as to put to rout all that was not life, to cut a broad swath and shave " +
+      "close, to drive life into a corner, and reduce it to its lowest terms, and, if it " +
+      "proved to be mean, why then to get the whole and genuine meanness of it, and publish " +
+      "its meanness to the world; or if it were sublime, to know it by experience, and be " +
+      "able to give a true account of it in my next excursion. For most men, it appears to " +
+      "me, are in a strange uncertainty about it, whether it is of the devil or of God, and " +
+      "have somewhat hastily concluded that it is the chief end of man here to glorify God " +
+      "and enjoy him forever.";
+
+    const FONT_SIZE = 18;
+    const LINE_HEIGHT_PX = FONT_SIZE * 1.55;
+    const FONT = `400 ${FONT_SIZE}px 'EB Garamond', serif`;
+
+    const stage = document.getElementById('editorialStage');
+    const textLayer = document.getElementById('editorialText');
+    const floatedImage = document.getElementById('floatedImage');
+
+    // Column geometry. Matches editorialText inset 28 32 + stage 560x440.
+    const STAGE_W = 560;
+    const STAGE_H = 440;
+    const PAD_X = 32;
+    const PAD_Y = 28;
+    const COLUMN_WIDTH = STAGE_W - PAD_X * 2;   // 496
+    const COLUMN_HEIGHT = STAGE_H - PAD_Y * 2;  // 384
+
+    const IMG_WIDTH = 210;
+    const IMG_HEIGHT = 150;
+    // image.left inside the stage is 52% of stage width. The intrusion into the text
+    // region is IMG_WIDTH minus the gap between the image's left edge and the
+    // column's right edge. With left=52% in a 560px stage, image_left=291,
+    // image_right=501, column_right (stage - PAD_X) = 528. So the image intrudes
+    // column_right - image_left = 237px into the column, but we want the text to
+    // end at image_left minus a little gutter. Easier: available text width on
+    // lines that overlap the image = image_left - PAD_X - gutter.
+    const IMG_LEFT_PCT = 0.52;
+    const GUTTER = 14;
+
+    let pretextLib = null;
+    let prepared = null;
+
+    function renderLines() {
+      if (!prepared || !pretextLib) return;
+
+      // Image y-range relative to the TEXT LAYER's local coordinate system,
+      // which is offset by PAD_Y from the stage.
+      const imageTopInText = parseFloat(floatedImage.style.top) - PAD_Y;
+      const imageBottomInText = imageTopInText + IMG_HEIGHT;
+
+      const imageLeftInStage = STAGE_W * IMG_LEFT_PCT;
+      const narrowWidth = Math.max(80, imageLeftInStage - PAD_X - GUTTER);
+
+      const { layoutNextLine } = pretextLib;
+      let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+      let y = 0;
+      const out = [];
+
+      // Hard cap on iterations so a misconfigured width can never spin forever.
+      for (let i = 0; i < 200; i++) {
+        if (y + LINE_HEIGHT_PX > COLUMN_HEIGHT) break;
+        const bandTop = y;
+        const bandBottom = y + LINE_HEIGHT_PX;
+        const overlapsImage =
+          bandBottom > imageTopInText && bandTop < imageBottomInText;
+        const width = overlapsImage ? narrowWidth : COLUMN_WIDTH;
+
+        const line = layoutNextLine(prepared, cursor, width);
+        if (line === null) break;
+
+        out.push({ text: line.text, y, w: line.width });
+        cursor = line.end;
+        y += LINE_HEIGHT_PX;
+      }
+
+      // Paint into the absolute-positioned text layer.
+      textLayer.innerHTML = out.map(l =>
+        `<span class="pt-line" style="left:0;top:${l.y}px">${escapeHtml(l.text)}</span>`
+      ).join('');
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(TEXT, FONT);
+      renderLines();
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    // Slider drives image top. Clamp inside stage.
+    bindSlider(
+      document.getElementById('imgY'),
+      document.getElementById('imgYVal'),
+      (val) => {
+        const clamped = Math.max(0, Math.min(STAGE_H - IMG_HEIGHT, val));
+        floatedImage.style.top = clamped + 'px';
+        renderLines();
+      }
+    );
+
+    // Drag the image directly. Pointer events scoped to the image.
+    let dragState = null;
+    floatedImage.addEventListener('pointerdown', (e) => {
+      floatedImage.setPointerCapture(e.pointerId);
+      floatedImage.classList.add('dragging');
+      dragState = {
+        startY: e.clientY,
+        startTop: parseFloat(floatedImage.style.top || '0'),
+      };
+    });
+    floatedImage.addEventListener('pointermove', (e) => {
+      if (!dragState) return;
+      const dy = e.clientY - dragState.startY;
+      const raw = dragState.startTop + dy;
+      const clamped = Math.max(0, Math.min(STAGE_H - IMG_HEIGHT, raw));
+      floatedImage.style.top = clamped + 'px';
+      // Keep slider visually in sync.
+      const slider = document.getElementById('imgY');
+      slider.value = String(Math.round(clamped));
+      document.getElementById('imgYVal').textContent = Math.round(clamped);
+      renderLines();
+    });
+    floatedImage.addEventListener('pointerup', (e) => {
+      floatedImage.releasePointerCapture(e.pointerId);
+      floatedImage.classList.remove('dragging');
+      dragState = null;
+    });
+    floatedImage.addEventListener('pointercancel', () => {
+      floatedImage.classList.remove('dragging');
+      dragState = null;
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('15-streaming-chat.html', '17-line-stats.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

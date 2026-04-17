@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>09 · Tabs — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* The receipt region wants a monospaced font so the tab stops line up
+       visually — this is the same font discipline any "tabular figures"
+       layout depends on. */
+    .demo-text-region.ledger {
+      font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 16px;
+      line-height: 1.7;
+      font-variant-numeric: tabular-nums;
+      white-space: pre-wrap;  /* browser must honor tabs too */
+      tab-size: 8;
+      -moz-tab-size: 8;
+      color: var(--ink-2);
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    .demo-text-region.ledger .rule {
+      color: var(--muted-soft);
+    }
+    .ledger-foot {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted-soft);
+      margin-top: 14px;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+    .density-toggle {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .density-toggle button {
+      padding: 5px 12px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--mono);
+      letter-spacing: 0.04em;
+      transition: all 100ms ease;
+    }
+    .density-toggle button[data-active="true"] {
+      background: var(--clay);
+      color: white;
+      border-color: var(--clay);
+    }
+    .density-toggle button:hover:not([data-active="true"]) {
+      background: var(--clay-dim);
+      border-color: var(--clay);
+    }
+    .density-toggle label {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--ink);
+      font-weight: 500;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">09</span>Tabs</span>
+      <nav class="prev-next">
+        <a href="08-soft-hyphens.html">←</a>
+        <a href="10-rtl.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 3 · Whitespace &amp; Breaks</div>
+    <h1 class="lesson-title">Tabs</h1>
+    <div id="stamp"></div>
+
+    <p>The last piece of whitespace Pretext takes seriously is the humble <code>\t</code>. Under <code>whiteSpace: 'pre-wrap'</code>, a tab advances to the next tab stop — the same rule the browser applies with <code>tab-size: 8</code> — measured in canvas-width multiples of a single space glyph. The result is an old idea made usable again: columns without a table.</p>
+
+    <p>Below is a contemplative ledger. Items on the left, poetic costs on the right, separated by tabs. Try more or fewer tab stops per row.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="demo-text-region ledger" id="textRegion" style="width: 440px;"></div>
+      <div id="caliperMount"></div>
+      <div class="ledger-foot" id="ledgerFoot">height — · lines —</div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="280" max="620" value="440" step="1">
+        <span class="value" id="widthValue">440</span>
+      </div>
+      <div class="control" style="grid-template-columns: 110px 1fr;">
+        <label>density</label>
+        <div class="density-toggle">
+          <button data-stops="1" id="stops1">1 tab</button>
+          <button data-stops="2" data-active="true" id="stops2">2 tabs</button>
+          <button data-stops="3" id="stops3">3 tabs</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>When <code>prepare()</code> runs with <code>whiteSpace: 'pre-wrap'</code>, <code>\t</code> survives as a <em>tab</em> segment. Unlike normal text segments, a tab has no fixed width — its advance is computed at <code>layout()</code> time from the current line's running width: it expands to the distance that brings the running total to the next multiple of the tab stop.</p>
+      <p>The tab stop itself is <em>8 spaces wide</em> at the prepared font's space-glyph width. That's the default browser rule (<code>tab-size: 8</code>), and it's the value Pretext uses. So the column a tab advances to depends on everything that came before it on the line — which is exactly why tabs are the right tool for aligning ragged content to a grid without building a table.</p>
+      <p>If the line wraps, the next line starts fresh at position zero, and tab advances on that line are computed from there. The advance is measurement, not magic.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>One engine handles prose, verse, and ledgers. Concretely:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>Receipts with right-aligned prices — set monospace, <code>font-variant-numeric: tabular-nums</code>, tabs between item and cost.</li>
+        <li>A changelog where the date, the tag, and the commit message line up at fixed columns, no grid component needed.</li>
+        <li>An indented outline that preserves tab-based indentation from the source.</li>
+        <li>Code rendering where leading tabs expand to the same stops your editor uses.</li>
+      </ul>
+      <p>Pretext gives you the exact height of the wrapped result, so aligned listings still get the two-phase dance: measure once, fit forever.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"Our life is frittered away by detail. An honest man has hardly need to count more than his ten fingers, or in extreme cases he may add his ten toes, and lump the rest."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"aligned columns without a table"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pre-wrap + <code>\t</code> between the fields</span>
+
+        <span class="phrase">"tabular figures"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">monospace font + <code>font-variant-numeric: tabular-nums</code></span>
+
+        <span class="phrase">"receipt-style line items"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">tabs to push prices to the right margin</span>
+
+        <span class="phrase">"preserve the indent from the source"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pre-wrap handle, feed the original text verbatim</span>
+      </div>
+      <div class="meta">Arc 3 ends here. The next arc crosses into multilingual territory — RTL scripts, CJK keep-all in real passages, emoji graphemes.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">a ledger that fits, without a table</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// Tab-separated items. Pre-wrap keeps the \t as a visible tab segment;
+// each tab advances to the next 8-space stop at layout time.
+const ledger =
+  "lamplight\tone hour\n" +
+  "walnuts\ta handful\n" +
+  "silence\tseven minutes";
+
+const font = "400 16px 'JetBrains Mono', ui-monospace, monospace";
+const handle = prepare(ledger, font, { whiteSpace: 'pre-wrap' });
+
+// layout() returns the fit height; the browser then paints the same tabs
+// using its own tab-size: 8 so the two agree pixel-for-pixel.
+const { height, lineCount } = layout(handle, 440, 16 * 1.7);</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    // Thoreau's Walden ledger inspired a small "contemplative ledger":
+    // each line is an item and a poetic cost, tab-separated.
+    // Item names vary in length so the tabs have to do real work to align.
+    const ITEMS = [
+      ["lamplight",     "one hour"],
+      ["walnuts",       "a handful"],
+      ["silence",       "seven minutes"],
+      ["an open window","the sound of rain"],
+      ["water from the well", "a cold morning"],
+      ["the cricket",   "every summer night"],
+      ["paper and ink", "what the hand remembers"],
+      ["a walk at dusk","the day returned to itself"],
+    ];
+
+    const FONT = "400 16px 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace";
+    const LINE_HEIGHT_PX = 16 * 1.7;
+
+    const textRegion = document.getElementById('textRegion');
+    const ledgerFoot = document.getElementById('ledgerFoot');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(440);
+
+    let pretextLib = null;
+    let handle = null;
+    let tabCount = 2;
+
+    // Build the ledger text with `tabCount` tabs between each item and its cost.
+    // More tabs → each row advances further along the tab-stop grid, pushing
+    // the right column further right until it wraps.
+    function buildLedger(n) {
+      const sep = "\t".repeat(n);
+      return ITEMS.map(([item, cost]) => `${item}${sep}${cost}`).join("\n");
+    }
+
+    // Paint the ledger into the DOM. CSS handles the pre-wrap + tab-size: 8.
+    function paintLedger() {
+      const text = buildLedger(tabCount);
+      textRegion.textContent = text;
+      return text;
+    }
+
+    async function reprepare() {
+      const text = paintLedger();
+      if (!pretextLib) return;
+      handle = pretextLib.prepare(text, FONT, { whiteSpace: 'pre-wrap' });
+      refresh(parseFloat(document.getElementById('widthSlider').value));
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      reprepare();
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    function refresh(width) {
+      textRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib || !handle) return;
+      const { height, lineCount } = pretextLib.layout(handle, width, LINE_HEIGHT_PX);
+      ledgerFoot.textContent =
+        `${tabCount} tab${tabCount === 1 ? '' : 's'} per row · height ${Math.round(height)}px · ${lineCount} line${lineCount === 1 ? '' : 's'}`;
+    }
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => { refresh(val); }
+    );
+
+    // Density buttons — rebuild the text with a different number of tabs
+    // between fields, re-prepare, and re-layout at the current width.
+    document.querySelectorAll('.density-toggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabCount = parseInt(btn.getAttribute('data-stops'), 10);
+        document.querySelectorAll('.density-toggle button').forEach(b => {
+          b.setAttribute('data-active', b === btn ? 'true' : 'false');
+        });
+        reprepare();
+      });
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('08-soft-hyphens.html', '10-rtl.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>10 · RTL bidi — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: load Noto Naskh so Persian/Arabic glyphs render consistently
+       across platforms. Keep the English side in EB Garamond. */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500&display=swap');
+
+    .demo-text-region.rtl {
+      direction: rtl;
+      font-family: "Noto Naskh Arabic", "EB Garamond", serif;
+      font-size: 22px;
+      line-height: 1.7;
+    }
+    .demo-text-region.mixed {
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
+    .demo-text-region.mixed .ar {
+      font-family: "Noto Naskh Arabic", "EB Garamond", serif;
+      font-size: 21px;
+    }
+    #heightBadge {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--sage);
+      padding: 3px 8px;
+      border: 1px solid rgba(111, 142, 124, 0.3);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    #demo .demo-text-region {
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+    }
+    /* Soft separator between the two specimens inside the single stage. */
+    .specimen-gap {
+      height: 1px;
+      background: var(--line);
+      margin: 22px 0;
+    }
+    .specimen-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">10</span>RTL bidi</span>
+      <nav class="prev-next">
+        <a href="09-tabs.html">←</a>
+        <a href="11-cjk.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 4 · Multilingual</div>
+    <h1 class="lesson-title">RTL bidi</h1>
+    <div id="stamp"></div>
+
+    <p>A page that serves a reader in Tehran or Tel Aviv has to put the first glyph on the right and step left, line after line — and still handle the stray English URL, the ASCII parenthesis, the Latin name dropped into a Persian sentence. That is <em>bidirectional layout</em>, and Pretext handles it inside <code>prepare()</code> so your wrap code never has to care which way the script runs.</p>
+
+    <p>Drag the width below. The Persian couplet reflows to the right edge; the mixed paragraph keeps each run in its natural direction while the line itself still wraps cleanly.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="heightBadge">height · —px</div>
+
+      <div class="specimen-label">Persian · right-to-left</div>
+      <div class="demo-text-region rtl" id="textRegionRTL" lang="fa" style="width: 440px;">
+        <p>بشنو این نی چون شکایت می‌کند، از جدایی‌ها حکایت می‌کند. کز نیستان تا مرا ببریده‌اند، از نفیرم مرد و زن نالیده‌اند.</p>
+      </div>
+
+      <div class="specimen-gap"></div>
+
+      <div class="specimen-label">Mixed · English with inline Arabic</div>
+      <div class="demo-text-region mixed" id="textRegionMixed" style="width: 440px;">
+        <p>The Arabic word for <em>heart</em> — <span class="ar" lang="ar">القلب</span> — shares a root with the verb <em>to turn</em>, <span class="ar" lang="ar">قلب</span>, as if the organ were named for what attention keeps doing. When you wrap this line at any width, the Arabic run stays in its own direction and the surrounding English stays in its.</p>
+      </div>
+
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="220" max="640" value="440" step="1">
+        <span class="value" id="widthValue">440</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Inside <code>prepare()</code>, Pretext runs a simplified bidirectional algorithm derived from pdf.js. It classifies every codepoint into a bidi type — strong L, strong R, Arabic letter, Arabic number, European number, neutrals — and resolves an embedding level for every run. The segmenter and the canvas measurer then work on runs whose direction is already known.</p>
+      <p>Line breaking itself doesn't read those levels; the browser already reorders glyphs at render time the same way it always would. What Pretext earns by doing the bidi pass is <em>correctness</em>: Arabic no-space punctuation clusters stay glued to their word, Arabic marks stay attached to the base letter they modify, and width measurements come back right the first time instead of inflated by a stray neutral stuck on the wrong side of a run.</p>
+      <p>The consequence for you: RTL text is not a special case. One <code>prepare()</code> call, one <code>layout()</code> call, identical return type. You point at the paragraph, you get the height and line count, and the browser's renderer handles the mirror.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Most web apps that ship "also in Arabic" discover that bidi is where their layout plans quietly fall apart. Line-break positions look reasonable but the last-line punctuation wraps alone; a virtualized list's cached heights are off because the ellipsis at end-of-run was measured in the wrong direction; a chat bubble grows by one line the second time it renders. Each of those is a measurement bug, not a rendering bug.</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A multilingual CMS where an English headline and an Arabic headline share the same card component — same <code>prepare()</code>/<code>layout()</code> code path, same tight fit.</li>
+        <li>A chat app whose Hebrew messages pre-size correctly on first render, without a reflow pass that nudges the scroll.</li>
+        <li>Editorial prose that drops a Persian phrase inline — the line wraps where you'd expect, the Persian glyphs sit in their own direction, nothing re-ladders when the window resizes.</li>
+        <li>Search snippets that mix RTL and LTR scripts and still return a correct <code>maxLineWidth</code> for shrinkwrap.</li>
+      </ul>
+    </div>
+
+    <div class="block block--content">
+      <p>"Listen to the reed how it tells a tale, complaining of separations — saying, 'Ever since I was parted from the reed-bed, my lament hath caused man and woman to moan.'"</p>
+      <cite>Jalāl al-Dīn Rūmī, <em>Masnavi-ye Ma'navi</em>, opening lines (13th c.); trans. Reynold A. Nicholson (1926)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"correct Arabic line order"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">RTL handled automatically by <code>prepare()</code> — no special-case code</span>
+
+        <span class="phrase">"mixed scripts inline"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">bidi preserves reading order inside a single <code>prepare()</code>/<code>layout()</code></span>
+
+        <span class="phrase">"same card component for English and Arabic"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">reuse the height from <code>layout()</code>; pair with <code>dir="rtl"</code> on the container</span>
+
+        <span class="phrase">"Hebrew UI that pre-sizes on first render"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">call <code>setLocale('he')</code> at boot, then <code>prepare()</code> as usual</span>
+      </div>
+      <div class="meta">Next: the same posture applied to CJK — when the rule is "don't break compounds," not "reverse the direction."</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">RTL and mixed-script measurement use the same two calls</span>
+      </div>
+      <pre><code>import { prepare, layout, setLocale } from '@chenglou/pretext';
+
+// Optional: set the word-segmenter locale for the paragraph's primary script.
+setLocale('fa');
+
+// Persian. Pretext runs the pdf.js-derived bidi pass inside prepare().
+const rtlHandle = prepare(
+  "بشنو این نی چون شکایت می‌کند، از جدایی‌ها حکایت می‌کند.",
+  "400 22px 'Noto Naskh Arabic', serif"
+);
+
+// Mixed English + Arabic. Same function, same return type.
+const mixedHandle = prepare(
+  "The Arabic word for heart — القلب — shares a root with قلب.",
+  "400 21px 'EB Garamond', serif"
+);
+
+// Both lay out the same way. No RTL branch in the consumer.
+widthSlider.addEventListener('input', (e) => {
+  const width = parseFloat(e.target.value);
+  const { height: hR } = layout(rtlHandle,   width, 22 * 1.7);
+  const { height: hM } = layout(mixedHandle, width, 21 * 1.55);
+  // Use hR / hM as container heights — the browser handles glyph order at paint.
+});</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    const rtlRegion   = document.getElementById('textRegionRTL');
+    const mixedRegion = document.getElementById('textRegionMixed');
+    const heightBadge = document.getElementById('heightBadge');
+    const caliper     = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(440);
+
+    // Rumi, Masnavi-ye Ma'navi, opening lines (13th c. Persian). Public domain.
+    // The paragraph the specimen also shows.
+    const RTL_TEXT = "بشنو این نی چون شکایت می‌کند، از جدایی‌ها حکایت می‌کند. کز نیستان تا مرا ببریده‌اند، از نفیرم مرد و زن نالیده‌اند.";
+
+    // Mixed English + Arabic specimen. Original prose in the contemplative
+    // register; Arabic words are common-noun dictionary entries.
+    const MIXED_TEXT = "The Arabic word for heart — القلب — shares a root with the verb to turn, قلب, as if the organ were named for what attention keeps doing. When you wrap this line at any width, the Arabic run stays in its own direction and the surrounding English stays in its.";
+
+    // Font descriptors — kept in sync with the CSS applied on each region.
+    const RTL_FONT        = "400 22px 'Noto Naskh Arabic', 'EB Garamond', serif";
+    const RTL_LINE_HEIGHT = 22 * 1.7;
+    const MIX_FONT        = "400 21px 'EB Garamond', serif";
+    const MIX_LINE_HEIGHT = 21 * 1.55;
+
+    let pretextLib = null;
+    let rtlHandle = null;
+    let mixedHandle = null;
+
+    function applyWidth(width) {
+      rtlRegion.style.width   = width + 'px';
+      mixedRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib || !rtlHandle || !mixedHandle) return;
+      const { height: hR } = pretextLib.layout(rtlHandle,   width, RTL_LINE_HEIGHT);
+      const { height: hM } = pretextLib.layout(mixedHandle, width, MIX_LINE_HEIGHT);
+      rtlRegion.style.minHeight   = hR + 'px';
+      mixedRegion.style.minHeight = hM + 'px';
+      heightBadge.textContent = `rtl · ${Math.round(hR)}px   ·   mixed · ${Math.round(hM)}px`;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      // prepare() runs the bidi pass internally. No RTL-specific setup needed.
+      rtlHandle   = lib.prepare(RTL_TEXT,   RTL_FONT);
+      mixedHandle = lib.prepare(MIXED_TEXT, MIX_FONT);
+      applyWidth(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => applyWidth(val)
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('09-tabs.html', '11-cjk.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

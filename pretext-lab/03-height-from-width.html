@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>03 · Height from width — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: the height badge mirrors .workload-badge position but pins right like .fps-readout,
+       and we relax the .demo-text-region height cap so minHeight from layout() can drive the box. */
+    #heightBadge {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--sage);
+      padding: 3px 8px;
+      border: 1px solid rgba(111, 142, 124, 0.3);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    #demo .demo-text-region {
+      /* Let the Pretext-returned height drive the box. Keep overflow sane. */
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">03</span>Height from width</span>
+      <nav class="prev-next">
+        <a href="02-two-phase.html">←</a>
+        <a href="04-font-as-string.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 2 · Basic Measurement</div>
+    <h1 class="lesson-title">Height from width</h1>
+    <div id="stamp"></div>
+
+    <p>The simplest question you can ask a text engine is the one every card, every chat bubble, every virtualized row depends on: <em>given this text and this width, how tall?</em> In Pretext that question is a single function call, and the answer arrives before the text is painted.</p>
+
+    <p>Drag the width below. The box settles exactly to the content — no reflow flash, no overshoot. The height in the corner is Pretext's answer; the box uses it as its own <code>min-height</code>.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="heightBadge">height · —px</div>
+      <div class="demo-text-region" id="textRegion" style="width: 400px;">
+        <p>I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived.</p>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="160" max="640" value="400" step="1">
+        <span class="value" id="widthValue">400</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Once at boot, we call <code>prepare(text, font)</code>. Pretext segments the paragraph, measures every segment's width against the browser's canvas font engine, and caches the result inside an opaque handle.</p>
+      <p>On every width change we call <code>layout(handle, width, lineHeightPx)</code> and read the returned <code>{ height, lineCount }</code>. No DOM is touched. The returned height is the exact pixel height the browser would have produced at that width — not a rounded estimate, not a probe reflow. We assign it to the container as <code>minHeight</code> before the next paint, so the box knows its size before the text is placed.</p>
+      <p>This one call — <code>layout()</code> — is the entire primitive for content-aware containers. Everything Arc 2 builds leans on it.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>The whole family of "jumpy on mount" patterns collapses into a one-liner:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A card that knows its height before insertion — no sibling nudge when it lands.</li>
+        <li>A chat bubble sized to its message at maximum bubble width, then animated open.</li>
+        <li>A virtualized list whose row positions are arithmetic, not cached from mount heights.</li>
+        <li>A resize handler that animates the container's height toward the next <code>layout()</code> value instead of snapping after reflow.</li>
+      </ul>
+      <p>Each of these used to require inserting the element hidden, reading its <code>offsetHeight</code>, removing it, and trusting the read. Now the answer comes back from arithmetic, in the same frame you asked.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"fit exactly to the content"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">use the <code>height</code> returned by <code>layout()</code> as the container's height</span>
+
+        <span class="phrase">"snap to content — no reflow flash"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">set <code>minHeight</code> from <code>layout()</code> <em>before</em> inserting the text</span>
+
+        <span class="phrase">"card should know its size before mount"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>prepare()</code> the body, <code>layout()</code> at the target width, render pre-sized</span>
+
+        <span class="phrase">"animate the box opening to the message"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">transition <code>height</code> toward the value <code>layout()</code> just returned</span>
+      </div>
+      <div class="meta">Next: the font string is the contract between your CSS and Pretext's idea of width.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one prepare, one layout per width change</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// Once, at boot. Keep the font string identical to the CSS you'll render.
+const FONT = "400 20px 'EB Garamond', serif";
+const LINE_HEIGHT = 20 * 1.55;
+const handle = prepare(TEXT, FONT);
+
+// On every width change. No DOM reads.
+widthSlider.addEventListener('input', (e) => {
+  const width = parseFloat(e.target.value);
+  const { height, lineCount } = layout(handle, width, LINE_HEIGHT);
+
+  textRegion.style.width = width + 'px';
+  textRegion.style.minHeight = height + 'px';  // settles before paint
+  heightBadge.textContent = `height · ${Math.round(height)}px`;
+});</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    const textRegion = document.getElementById('textRegion');
+    const heightBadge = document.getElementById('heightBadge');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(400);
+
+    // Thoreau, Walden (1854). Public domain. The paragraph the specimen also shows.
+    const TEXT = "I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived.";
+
+    const FONT = "400 20px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 20 * 1.55;
+
+    let pretextLib = null;
+    let handle = null;
+
+    function applyWidth(width) {
+      textRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib || !handle) return;
+      const { height } = pretextLib.layout(handle, width, LINE_HEIGHT_PX);
+      textRegion.style.minHeight = height + 'px';
+      heightBadge.textContent = `height · ${Math.round(height)}px`;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handle = lib.prepare(TEXT, FONT);
+      // Re-run with the current slider value now that the handle exists.
+      applyWidth(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => applyWidth(val)
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('02-two-phase.html', '04-font-as-string.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

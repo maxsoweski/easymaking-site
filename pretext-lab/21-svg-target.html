@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>21 · SVG target — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: the SVG fills a fixed-height stage; the inner transform
+       scales the <text> group around the top-left origin so zoom feels centered
+       on the specimen. Vector text stays crisp at any zoom factor. */
+    #demo .demo-text-region {
+      height: 340px;
+      overflow: hidden;
+      padding: 0;
+      background: #fcfaf4;
+    }
+    #demo svg.pt-svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #demo svg .pt-line {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 24px;
+      font-weight: 500;
+      fill: #1f1d28;
+      font-style: italic;
+    }
+    .zoom-cluster {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 3;
+    }
+    .zoom-cluster button {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      min-width: 32px;
+      transition: all 100ms ease;
+    }
+    .zoom-cluster button:hover { background: var(--clay-dim); border-color: var(--clay); }
+    #zoomLabel {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+      z-index: 3;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">21</span>SVG target</span>
+      <nav class="prev-next">
+        <a href="20-canvas-target.html">←</a>
+        <a href="22-virtual-scroll.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 7 · Rendering Targets</div>
+    <h1 class="lesson-title">SVG target</h1>
+    <div id="stamp"></div>
+
+    <p>Pretext's output — line strings with positions — doesn't care what surface draws it. Feed the same walker into an <code>&lt;svg&gt;</code> and you get a <em>typographic specimen</em>: a vector document whose text stays razor-crisp at any zoom. No pixelation, no re-rasterization, no DOM measurement on the wrap change.</p>
+
+    <p>Use the zoom buttons to push in on the type. At 1× the width slider still controls the wrap, just like the DOM and canvas targets. At 3× you can count the serifs.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="zoomLabel">zoom · 1.0×</div>
+      <div class="zoom-cluster">
+        <button id="zoomOut" aria-label="zoom out">−</button>
+        <button id="zoomReset" aria-label="zoom reset">reset</button>
+        <button id="zoomIn" aria-label="zoom in">+</button>
+      </div>
+      <div class="demo-text-region" id="textRegion" style="width: 480px;">
+        <svg class="pt-svg" id="svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet">
+          <g id="stage"></g>
+        </svg>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="240" max="640" value="480" step="1">
+        <span class="value" id="widthValue">480</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Same walker pattern as the DOM and canvas targets. We call <code>prepareWithSegments(text, font)</code> once, then <code>layoutWithLines(prepared, width, lineHeightPx)</code> whenever the wrap width changes. For each returned line we emit one SVG <code>&lt;text&gt;</code> element with an explicit <code>x</code> and <code>y</code>, where <code>y</code> is the baseline: <code>y = lineHeight * ascentRatio + i * lineHeight</code>. SVG text, like canvas text, anchors to the baseline by default.</p>
+      <p>Zoom is a single <code>transform="scale(s)"</code> on the stage group. Because SVG text is vector — the glyph outlines are in the document, not rasterized pixels — it stays sharp at every scale. The browser re-rasterizes at paint time using the glyph data it already has. The font descriptor we pass to Pretext matches the font-family/size/weight we declare in CSS on the <code>&lt;text&gt;</code> elements, which keeps the <em>measured</em> line breaks aligned with the <em>rendered</em> glyphs.</p>
+      <p>Nothing about this path reads from the DOM on reflow. The <code>&lt;text&gt;</code> nodes are written with pre-computed positions; the browser never needs to flow them itself.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>SVG wins anywhere resolution has to survive a transform:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li><strong>Print-ready specimens</strong> — typographic posters, pull-quotes, hero blocks that export to PDF or print cleanly.</li>
+        <li><strong>Infinite-zoom archives</strong> — pannable, zoomable scrolls of text — manuscripts, poems, kernings study.</li>
+        <li><strong>Export pipelines</strong> — the SVG is the document; it can be saved as-is, inlined in a PDF, or rendered server-side.</li>
+        <li><strong>Overlay text for maps and diagrams</strong> — labels that live inside a zoomable diagram without going fuzzy.</li>
+      </ul>
+      <p>The SVG target loses native text selection in most browsers (text inside <code>&lt;text&gt;</code> tags behaves differently than ordinary DOM). It keeps accessibility — screen readers read SVG text — and it keeps crispness. Choose it when zoom is the point.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"A word is dead<br>When it is said,<br>Some say.<br>I say it just<br>Begins to live<br>That day."</p>
+      <cite>Emily Dickinson, published in <em>Poems, Third Series</em> (1896)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"zoomable typographic specimen"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">SVG target; <code>&lt;text x y&gt;</code> nodes per <code>lines[i]</code></span>
+
+        <span class="phrase">"crisp at any zoom"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">SVG vector <code>&lt;text&gt;</code>; scale via <code>transform</code>, not re-rasterization</span>
+
+        <span class="phrase">"print-ready pull quote"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">emit SVG; export-as-is pipeline; browser never reflows</span>
+
+        <span class="phrase">"baseline in SVG"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>y = lineHeight * 0.78 + i * lineHeight</code>; default anchor is baseline</span>
+      </div>
+      <div class="meta">Arc 7 closes with three targets sharing one walker. Next: virtual scrolling — the first production pattern that makes all three earn their keep.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">walker on SVG: &lt;text x y&gt; per line, scale via transform</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
+
+const FONT_PX = 24;
+const FONT = `500 italic ${FONT_PX}px 'EB Garamond', serif`;
+const LINE_HEIGHT_PX = FONT_PX * 1.4;
+const ASCENT_RATIO = 0.78;  // SVG text anchors at the baseline by default
+
+const prepared = prepareWithSegments(text, FONT);
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function renderAt(width) {
+  const { lines } = layoutWithLines(prepared, width, LINE_HEIGHT_PX);
+  stage.textContent = '';  // clear previous
+  for (let i = 0; i &lt; lines.length; i++) {
+    const y = LINE_HEIGHT_PX * ASCENT_RATIO + i * LINE_HEIGHT_PX;
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('class', 'pt-line');
+    t.setAttribute('x', String(paddingX));
+    t.setAttribute('y', String(paddingY + y));
+    t.textContent = lines[i].text;
+    stage.appendChild(t);
+  }
+}
+
+// Zoom is a single transform. Text stays crisp — it's vector.
+function setZoom(s) { stage.setAttribute('transform', `scale(${s})`); }</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['render']);
+
+    const textRegion = document.getElementById('textRegion');
+    const svg = document.getElementById('svg');
+    const stage = document.getElementById('stage');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(480);
+
+    const SOURCE_TEXT =
+      "A word is dead when it is said, some say. I say it just begins to live that day.";
+
+    const FONT_PX = 24;
+    const FONT_FAMILY = "'EB Garamond', Georgia, serif";
+    // Prepare-font must match the CSS font on .pt-line <text> elements or the
+    // measured breaks won't land on the rendered glyphs.
+    const FONT = `500 italic ${FONT_PX}px ${FONT_FAMILY}`;
+    const LINE_HEIGHT_PX = FONT_PX * 1.4;
+    const ASCENT_RATIO = 0.78;
+    const PADDING_X = 32;
+    const PADDING_Y = 18;
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    let pretextLib = null;
+    let prepared = null;
+    let currentWidth = 480;
+    let zoom = 1;
+
+    function renderAt(width) {
+      if (!pretextLib || !prepared) return;
+      const wrapWidth = Math.max(40, width - PADDING_X * 2);
+      const { lines } = pretextLib.layoutWithLines(prepared, wrapWidth, LINE_HEIGHT_PX);
+
+      // Reuse existing <text> nodes; add or trim as lineCount changes.
+      const existing = stage.querySelectorAll('text.pt-line');
+      for (let i = 0; i < lines.length; i++) {
+        let t = existing[i];
+        if (!t) {
+          t = document.createElementNS(SVG_NS, 'text');
+          t.setAttribute('class', 'pt-line');
+          stage.appendChild(t);
+        }
+        const y = LINE_HEIGHT_PX * ASCENT_RATIO + i * LINE_HEIGHT_PX;
+        t.setAttribute('x', String(PADDING_X));
+        t.setAttribute('y', String(PADDING_Y + y));
+        if (t.textContent !== lines[i].text) t.textContent = lines[i].text;
+      }
+      for (let i = lines.length; i < existing.length; i++) {
+        existing[i].remove();
+      }
+    }
+
+    function applyZoom() {
+      // Scale around the top-left of the stage. Simple and visually centered
+      // enough for a short specimen; a longer document would want a pan control too.
+      stage.setAttribute('transform', `scale(${zoom})`);
+      document.getElementById('zoomLabel').textContent = `zoom · ${zoom.toFixed(1)}×`;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(SOURCE_TEXT, FONT);
+      renderAt(currentWidth);
+      applyZoom();
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        currentWidth = val;
+        textRegion.style.width = val + 'px';
+        caliper.setWidth(val);
+        renderAt(val);
+      }
+    );
+
+    document.getElementById('zoomIn').addEventListener('click', () => {
+      zoom = Math.min(4, +(zoom + 0.25).toFixed(2));
+      applyZoom();
+    });
+    document.getElementById('zoomOut').addEventListener('click', () => {
+      zoom = Math.max(0.5, +(zoom - 0.25).toFixed(2));
+      applyZoom();
+    });
+    document.getElementById('zoomReset').addEventListener('click', () => {
+      zoom = 1;
+      applyZoom();
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('20-canvas-target.html', '22-virtual-scroll.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

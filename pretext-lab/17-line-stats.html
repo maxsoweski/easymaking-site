@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>17 · Line stats — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: a writer's workbench. A textarea on top, a live readout below. */
+    #writerArea {
+      width: 100%;
+      min-height: 160px;
+      resize: vertical;
+      padding: 14px 16px;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink-2);
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 4px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 120ms ease;
+    }
+    #writerArea:focus { border-color: var(--clay); }
+    #statReadout {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--paper-warm);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px 16px;
+    }
+    #statReadout .label {
+      color: var(--muted-soft);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    #statReadout .val {
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    #statReadout .val.over {
+      color: var(--clay);
+    }
+    #statReadout .val.under {
+      color: var(--sage);
+    }
+    #statReadout .group { min-width: 0; }
+    #overflowHint {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--muted);
+      min-height: 16px;
+    }
+    #overflowHint.over { color: var(--clay); }
+    #overflowHint.under { color: var(--sage); }
+    /* Visual width guide — a thin vertical ruler showing the current wrap target
+       drawn over the textarea's right edge. Purely decorative cue. */
+    .writer-wrap { position: relative; }
+    #widthGuide {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--clay) 20%, var(--clay) 80%, transparent);
+      pointer-events: none;
+      opacity: 0.25;
+      transition: left 120ms ease;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">17</span>Line stats</span>
+      <nav class="prev-next">
+        <a href="16-variable-width.html">&larr;</a>
+        <a href="18-walkers.html">&rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 6 · Streaming &amp; Variable-Width</div>
+    <h1 class="lesson-title">Line stats</h1>
+    <div id="stamp"></div>
+
+    <p>Before you render text, you often want to <em>ask questions</em> about it: How many lines will this become? Will it overflow the container I've allotted? What is the tightest column width that would still hold every word? Line stats answer these without painting anything.</p>
+
+    <p>Type below. The readout updates on every keystroke &mdash; line count, the widest wrapped line, the average line, and the <em>natural</em> width (the tightest column that would still avoid any break). Drag the target width to see which stat crosses which threshold.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="writer-wrap">
+        <textarea id="writerArea" placeholder="Type something, or paste a paragraph&hellip;">The shape the content wants is already there before you decide what to give it. The paper does not know what it is until the ink asks.</textarea>
+        <div id="widthGuide"></div>
+      </div>
+      <div id="statReadout">
+        <div class="group">
+          <div class="label">lines</div>
+          <div class="val" id="statLineCount">&mdash;</div>
+        </div>
+        <div class="group">
+          <div class="label">max line</div>
+          <div class="val" id="statMaxLine">&mdash;</div>
+        </div>
+        <div class="group">
+          <div class="label">avg line</div>
+          <div class="val" id="statAvgLine">&mdash;</div>
+        </div>
+        <div class="group">
+          <div class="label">natural</div>
+          <div class="val" id="statNatural">&mdash;</div>
+        </div>
+      </div>
+      <div id="overflowHint">&nbsp;</div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="targetWidth">width</label>
+        <input type="range" id="targetWidth" min="200" max="720" value="520" step="1">
+        <span class="value" id="targetWidthVal">520</span>
+      </div>
+      <div class="control">
+        <label for="fontSize">size</label>
+        <input type="range" id="fontSize" min="12" max="28" value="18" step="1">
+        <span class="value" id="fontSizeVal">18</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Stats without materialization is what <code>walkLineRanges(prepared, width, onLine)</code> exists for. It runs the same line-break loop as <code>layoutWithLines</code>, but it never builds the line strings &mdash; for each line it just calls your callback with <code>{ width, start, end }</code>. The heavy lifting (segmenting the text, measuring every word, applying the break rules) already happened inside <code>prepare</code>. The walk itself is arithmetic over cached numbers.</p>
+      <p>To measure the <em>natural</em> width &mdash; the tightest column that avoids any line break &mdash; we run <code>walkLineRanges</code> a second time with an enormous width, so nothing breaks, and take the width of the single returned line. This is the web's long-missing &ldquo;shrink-wrap&rdquo;: the exact minimum column into which this paragraph fits without any word hyphenating or wrapping.</p>
+      <p>Both calls happen synchronously inside the <code>input</code> handler. On a long paragraph this is still well under a millisecond; on a typical message it's closer to a hundred microseconds. Cheap enough that you can run it every keystroke without debouncing.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Live-stat panes are the first obvious use, but most of the leverage is elsewhere:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A writer's pane that shows line count and overflow threshold as they type, without a layout pass.</li>
+        <li>A caption field that turns a warning light on when the current string will wrap past its two-line budget.</li>
+        <li>An auto-fit layout that binary-searches the font size until <code>lineCount</code> lands on a target &mdash; <code>walkLineRanges</code> returns <em>the count alone</em>, so each trial is cheap.</li>
+        <li>A button label that decides whether to show the full name or the abbreviation based on whether natural width exceeds the button's fixed width.</li>
+      </ul>
+      <p>Every one of these would cost a hidden DOM node and a forced reflow a year ago. Now it costs the length of this sentence in microseconds.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>&ldquo;A foolish consistency is the hobgoblin of little minds, adored by little statesmen and philosophers and divines. With consistency a great soul has simply nothing to do. He may as well concern himself with his shadow on the wall.&rdquo;</p>
+      <cite>Ralph Waldo Emerson, <em>Self-Reliance</em> (1841)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">&ldquo;live line count as I type&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping"><code>walkLineRanges</code> in the input handler; count callbacks</span>
+
+        <span class="phrase">&ldquo;will this overflow?&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">compare the walk's max line width to the container</span>
+
+        <span class="phrase">&ldquo;shrink-wrap the column&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">walk at a huge width; take the resulting single line's width</span>
+
+        <span class="phrase">&ldquo;auto-fit the font size&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">binary-search font size; each trial a cheap <code>walkLineRanges</code></span>
+      </div>
+      <div class="meta">Next: walkers in anger &mdash; scanning long paragraphs for lines that match a query, without materializing the ones that don't.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">line count, max line, natural width &mdash; all from one prepare</span>
+      </div>
+      <pre><code>import { prepareWithSegments, walkLineRanges } from '@chenglou/pretext';
+
+function computeStats(text, font, targetWidth) {
+  const prepared = prepareWithSegments(text, font);
+
+  // Walk once at the target width to get count + widths.
+  let lineCount = 0;
+  let maxW = 0;
+  let totalW = 0;
+  walkLineRanges(prepared, targetWidth, line => {
+    lineCount++;
+    totalW += line.width;
+    if (line.width > maxW) maxW = line.width;
+  });
+
+  // Walk again with a huge width; nothing breaks; that's the natural width.
+  let naturalWidth = 0;
+  walkLineRanges(prepared, 1_000_000, line => {
+    if (line.width > naturalWidth) naturalWidth = line.width;
+  });
+
+  return {
+    lineCount,
+    maxLineWidth: maxW,
+    avgLineWidth: lineCount ? totalW / lineCount : 0,
+    naturalWidth,
+    overflows: maxW > targetWidth,
+  };
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    const writer = document.getElementById('writerArea');
+    const statLineCount = document.getElementById('statLineCount');
+    const statMaxLine = document.getElementById('statMaxLine');
+    const statAvgLine = document.getElementById('statAvgLine');
+    const statNatural = document.getElementById('statNatural');
+    const overflowHint = document.getElementById('overflowHint');
+    const widthGuide = document.getElementById('widthGuide');
+
+    let pretextLib = null;
+    let currentWidth = 520;
+    let currentFontSize = 18;
+
+    // Debounce key events a tiny bit to coalesce burst typing, while still
+    // feeling live. `walkLineRanges` itself is cheap enough that a one-frame
+    // coalesce is overkill; we use rAF so we only compute once per paint.
+    let scheduled = false;
+    function scheduleCompute() {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        compute();
+      });
+    }
+
+    function fontString(size) {
+      return `400 ${size}px 'EB Garamond', serif`;
+    }
+
+    function compute() {
+      if (!pretextLib) return;
+      const text = writer.value;
+      const font = fontString(currentFontSize);
+
+      if (text.length === 0) {
+        statLineCount.textContent = '0';
+        statMaxLine.textContent = '0px';
+        statAvgLine.textContent = '0px';
+        statNatural.textContent = '0px';
+        overflowHint.textContent = '\u00A0';
+        overflowHint.className = '';
+        return;
+      }
+
+      // prepareWithSegments every time is fine for writer-pane scale. The
+      // typical caller would reuse a handle across width-only changes; we
+      // re-prepare here because the text changes on every keystroke.
+      const prepared = pretextLib.prepareWithSegments(text, font);
+
+      let lineCount = 0;
+      let maxW = 0;
+      let totalW = 0;
+      pretextLib.walkLineRanges(prepared, currentWidth, line => {
+        lineCount++;
+        totalW += line.width;
+        if (line.width > maxW) maxW = line.width;
+      });
+
+      let naturalWidth = 0;
+      pretextLib.walkLineRanges(prepared, 1_000_000, line => {
+        if (line.width > naturalWidth) naturalWidth = line.width;
+      });
+
+      const avgW = lineCount ? totalW / lineCount : 0;
+
+      statLineCount.textContent = String(lineCount);
+      statMaxLine.textContent = Math.round(maxW) + 'px';
+      statAvgLine.textContent = Math.round(avgW) + 'px';
+      statNatural.textContent = Math.round(naturalWidth) + 'px';
+
+      // Overflow flagging. The textarea isn't the measurement target (its
+      // font-metrics differ from the pretext measurement font in subtle ways),
+      // but the target width slider is. We compare max-line to target.
+      const overflows = maxW > currentWidth + 0.5;
+      statMaxLine.classList.toggle('over', overflows);
+      statMaxLine.classList.toggle('under', !overflows);
+
+      if (overflows) {
+        overflowHint.textContent =
+          `max line ${Math.round(maxW)}px exceeds target ${currentWidth}px`;
+        overflowHint.className = 'over';
+      } else {
+        const slack = currentWidth - Math.round(maxW);
+        overflowHint.textContent =
+          `fits: ${slack}px of slack at the widest line`;
+        overflowHint.className = 'under';
+      }
+    }
+
+    function positionWidthGuide() {
+      // Position the guide at `currentWidth` pixels into the textarea,
+      // clamped to the textarea's own width.
+      const wrap = widthGuide.parentElement;
+      const wrapWidth = wrap.clientWidth;
+      const guideX = Math.min(wrapWidth - 1, currentWidth);
+      widthGuide.style.left = guideX + 'px';
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      compute();
+      positionWidthGuide();
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    writer.addEventListener('input', scheduleCompute);
+
+    bindSlider(
+      document.getElementById('targetWidth'),
+      document.getElementById('targetWidthVal'),
+      (val) => {
+        currentWidth = val;
+        positionWidthGuide();
+        scheduleCompute();
+      }
+    );
+
+    bindSlider(
+      document.getElementById('fontSize'),
+      document.getElementById('fontSizeVal'),
+      (val) => {
+        currentFontSize = val;
+        writer.style.fontSize = val + 'px';
+        scheduleCompute();
+      }
+    );
+
+    window.addEventListener('resize', positionWidthGuide);
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('16-variable-width.html', '18-walkers.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>06 · Normal vs pre-wrap — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Two-pane split: each pane has its own text region below a caption. */
+    .pane .demo-text-region { margin: 0 auto; }
+    .pane { position: relative; }
+    /* A subtle background behind the pre-wrap pane's text so the preserved
+       whitespace has something to read against. */
+    .pane--prewrap .demo-text-region {
+      background: rgba(201, 184, 136, 0.05);
+    }
+    .pane-meta {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted-soft);
+      margin-top: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">06</span>Normal vs pre-wrap</span>
+      <nav class="prev-next">
+        <a href="05-reusable-handle.html">←</a>
+        <a href="07-word-break.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 3 · Whitespace &amp; Breaks</div>
+    <h1 class="lesson-title">Normal vs pre-wrap</h1>
+    <div id="stamp"></div>
+
+    <p>A single option on <code>prepare()</code> decides whether whitespace is a compositor or a carrier. The default, <code>whiteSpace: 'normal'</code>, collapses runs of spaces, tabs, and newlines into single word-breaks — the same rule you've been using in every prose lesson so far. Flip it to <code>'pre-wrap'</code> and those same characters survive as visible structure: indents, blank lines, poetic spacing.</p>
+
+    <p>Same text, same font, same width. Two panes. Drag the shared width slider.</p>
+
+    <div class="demo-stage split" id="demo">
+      <div class="pane pane--normal">
+        <div class="pane-label">normal — whitespace collapses</div>
+        <div class="demo-text-region" id="paneNormal" style="width: 360px;"></div>
+        <div id="caliperMountNormal"></div>
+        <div class="pane-meta" id="metaNormal">height — · lines —</div>
+      </div>
+      <div class="pane pane--prewrap">
+        <div class="pane-label">pre-wrap — whitespace preserved</div>
+        <div class="demo-text-region" id="panePrewrap" style="width: 360px;"></div>
+        <div id="caliperMountPrewrap"></div>
+        <div class="pane-meta" id="metaPrewrap">height — · lines —</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="200" max="520" value="360" step="1">
+        <span class="value" id="widthValue">360</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>During <code>prepare()</code>, Pretext runs a normalization pass over the input before segmenting it. Under the default <code>whiteSpace: 'normal'</code>, any run of ASCII whitespace (<code>" "</code>, <code>\t</code>, <code>\n</code>) collapses to a single break opportunity — the CSS <em>white-space: normal</em> rule every browser applies to body text.</p>
+      <p>Under <code>whiteSpace: 'pre-wrap'</code>, the normalization pass stops collapsing. The engine now distinguishes <em>preserved spaces</em>, <em>tabs</em>, and <em>hard breaks</em> as separate segment kinds. A preserved space inside a long run still participates in wrapping, but it also occupies visible width. A tab advances to the next tab stop (default <code>tab-size: 8</code>). A <code>\n</code> forces a new line regardless of width.</p>
+      <p>Handles produced in each mode are not interchangeable — the segmentation is different — so you pick the mode at <code>prepare()</code> time, not <code>layout()</code> time.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>One layout engine, two registers. The <em>same</em> call site that fits your prose paragraphs can also fit:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A poem where indentation is meaning — Whitman's breath-ruled lines, Dickinson's dashes, a haiku spaced on the page the way it was written.</li>
+        <li>A <code>&lt;textarea&gt;</code>-like field whose height you need to know before insertion, with the user's literal spaces and line breaks intact.</li>
+        <li>A code block that wraps at the column but preserves every indent.</li>
+        <li>ASCII art, diffs, log output — anything where the whitespace <em>is</em> the diagram.</li>
+      </ul>
+      <p>No flag, no extra CSS, no branching pipeline. One option.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"A noiseless patient spider,<br>
+      I mark'd where on a little promontory it stood isolated,<br>
+      Mark'd how to explore the vacant vast surrounding,<br>
+      It launch'd forth filament, filament, filament, out of itself,<br>
+      Ever unreeling them, ever tirelessly speeding them."</p>
+      <cite>Walt Whitman, <em>Leaves of Grass</em> (1891)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"collapse to a flowing paragraph"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">default <code>prepare()</code> — <code>whiteSpace: 'normal'</code></span>
+
+        <span class="phrase">"preserve the layout as typed"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>prepare(text, font, { whiteSpace: 'pre-wrap' })</code></span>
+
+        <span class="phrase">"measure the textarea before it mounts"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pre-wrap handle + <code>layout()</code> at the target width</span>
+
+        <span class="phrase">"render verse and prose through the same engine"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">one call site, pick the mode per content type</span>
+      </div>
+      <div class="meta">The next lesson applies a similar single-option switch to CJK wrapping: <code>wordBreak: 'keep-all'</code>.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">same text, two modes, one API</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+const font = "400 20px 'EB Garamond', serif";
+const lh = 20 * 1.55;
+
+// Normal: runs of whitespace collapse to single break opportunities.
+const normalHandle = prepare(verse, font);
+
+// Pre-wrap: tabs, newlines, and repeated spaces survive as visible structure.
+const prewrapHandle = prepare(verse, font, { whiteSpace: 'pre-wrap' });
+
+// layout() is the same in either case — pure arithmetic on the cached widths.
+const a = layout(normalHandle,  width, lh);
+const b = layout(prewrapHandle, width, lh);</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    // A short verse with deliberate spacing — tabs between the first two
+    // lines, a blank line break, and extra spaces inside the third line.
+    // In 'normal' mode all of this collapses. In 'pre-wrap' it survives.
+    const VERSE =
+      "A noiseless    patient    spider,\n" +
+      "\tI mark'd where on a little promontory it stood isolated,\n" +
+      "\tMark'd how to explore the vacant vast surrounding,\n" +
+      "\n" +
+      "It launch'd forth filament,  filament,  filament,  out of itself,\n" +
+      "Ever unreeling them, ever tirelessly speeding them.";
+
+    const FONT = "400 20px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 20 * 1.55;
+
+    const paneNormal = document.getElementById('paneNormal');
+    const panePrewrap = document.getElementById('panePrewrap');
+    const metaNormal = document.getElementById('metaNormal');
+    const metaPrewrap = document.getElementById('metaPrewrap');
+
+    const caliperN = createWidthCaliper(document.getElementById('caliperMountNormal'));
+    const caliperP = createWidthCaliper(document.getElementById('caliperMountPrewrap'));
+    caliperN.setWidth(360);
+    caliperP.setWidth(360);
+
+    // Render the text into each pane. Normal mode uses a normal <p>; pre-wrap
+    // mode needs CSS 'white-space: pre-wrap' so the browser paints the
+    // preserved whitespace Pretext agreed to keep.
+    function paintPanes() {
+      paneNormal.innerHTML = `<p>${escapeHtml(VERSE)}</p>`;
+      panePrewrap.innerHTML = `<p style="white-space: pre-wrap;">${escapeHtml(VERSE)}</p>`;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    paintPanes();
+
+    let pretextLib = null;
+    let handleNormal = null;
+    let handlePrewrap = null;
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handleNormal  = lib.prepare(VERSE, FONT);
+      handlePrewrap = lib.prepare(VERSE, FONT, { whiteSpace: 'pre-wrap' });
+      refresh(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    function refresh(width) {
+      paneNormal.style.width  = width + 'px';
+      panePrewrap.style.width = width + 'px';
+      caliperN.setWidth(width);
+      caliperP.setWidth(width);
+
+      if (!pretextLib || !handleNormal || !handlePrewrap) return;
+      const { layout } = pretextLib;
+      const rN = layout(handleNormal,  width, LINE_HEIGHT_PX);
+      const rP = layout(handlePrewrap, width, LINE_HEIGHT_PX);
+      metaNormal.textContent  = `height ${Math.round(rN.height)}px · ${rN.lineCount} line${rN.lineCount === 1 ? '' : 's'}`;
+      metaPrewrap.textContent = `height ${Math.round(rP.height)}px · ${rP.lineCount} line${rP.lineCount === 1 ? '' : 's'}`;
+    }
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => { refresh(val); }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('05-reusable-handle.html', '07-word-break.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

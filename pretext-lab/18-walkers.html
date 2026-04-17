@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>18 · Walkers — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: a search bar feeding a per-line highlighter, and a per-line
+       width sparkline in the right margin produced by a separate (cheap) walker pass. */
+    #searchRow {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 10px 14px;
+      font-family: var(--serif);
+      font-size: 16px;
+      color: var(--ink-2);
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 4px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 120ms ease;
+    }
+    #searchInput:focus { border-color: var(--clay); }
+    #scanBadge {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      padding: 3px 10px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    #scanBadge.has-match {
+      color: var(--clay);
+      border-color: var(--clay-dim);
+      background: var(--clay-faint);
+    }
+
+    /* The per-line rendered stack. Each line is a block-level span so we can
+       flip a warm-clay background on the ones that contain the query. */
+    #walkerStage {
+      position: relative;
+      padding: 28px 80px 28px 32px;
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 4px;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink-2);
+      min-height: 220px;
+    }
+    #lineStack span.pt-line {
+      display: block;
+      white-space: nowrap;
+      padding: 2px 6px;
+      margin: 0 -6px;
+      border-radius: 3px;
+      transition: background 120ms ease, color 120ms ease;
+    }
+    #lineStack span.pt-line.line-match {
+      background: rgba(184, 101, 61, 0.16);
+      color: var(--ink);
+    }
+    #lineStack span.pt-line .match-hit {
+      /* The actual query substring inside a matched line gets a stronger wash,
+         so the reader sees where in the line the match sits. */
+      background: rgba(184, 101, 61, 0.32);
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    /* The right-margin sparkline of per-line widths. Rendered from a second
+       walker pass that never materializes any line text. */
+    #widthSparkline {
+      position: absolute;
+      top: 28px;
+      right: 16px;
+      width: 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      pointer-events: none;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted-soft);
+      font-variant-numeric: tabular-nums;
+    }
+    #widthSparkline .spark-row {
+      /* Each row matches the baseline rhythm of one rendered line. */
+      height: calc(18px * 1.55);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+      box-sizing: border-box;
+    }
+    #widthSparkline .bar {
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--paper-edge) 30%, var(--paper-edge));
+      border-radius: 1px;
+    }
+    #widthSparkline .bar span {
+      display: block;
+      height: 100%;
+      background: var(--indigo);
+      border-radius: 1px;
+      opacity: 0.65;
+    }
+    #widthSparkline .num {
+      min-width: 18px;
+      text-align: right;
+    }
+
+    #walkerNote {
+      position: absolute;
+      top: 10px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      color: var(--muted-soft);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">18</span>Walkers</span>
+      <nav class="prev-next">
+        <a href="17-line-stats.html">&larr;</a>
+        <a href="19-dom-target.html">&rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 6 · Streaming &amp; Variable-Width</div>
+    <h1 class="lesson-title">Walkers</h1>
+    <div id="stamp"></div>
+
+    <p>The last two lessons both used <code>walkLineRanges</code>, but quietly &mdash; as a way to ask the prepared paragraph a question. Here we pull the walker to the front and watch what it does.</p>
+
+    <p>Type a word in the search field and the matching lines below light up. Notice the grey ribbons on the right: those are the per-line widths, drawn from a second walker pass that never built a single line string. The walker iterates line boundaries with arithmetic alone &mdash; measuring, counting, scanning &mdash; and only the lines you ask about cost a materialization.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="searchRow">
+        <input type="text" id="searchInput" placeholder="search the passage&hellip;" autocomplete="off" spellcheck="false">
+        <div id="scanBadge">&mdash; lines scanned</div>
+      </div>
+      <div id="walkerStage">
+        <div id="walkerNote">walker pass &middot; no materialization</div>
+        <div id="lineStack"></div>
+        <div id="widthSparkline"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="280" max="620" value="440" step="1">
+        <span class="value" id="widthValue">440</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Where <code>layoutWithLines</code> returns every line's text, <code>walkLineRanges(prepared, maxWidth, onLine)</code> calls your callback once per line with <code>{ width, start, end }</code> &mdash; cursors into the prepared segments, plus the measured width, and nothing else. No strings. No allocations beyond the small range object. On a long passage this is genuinely cheap: the analysis work already happened inside <code>prepareWithSegments</code>, and the walk is arithmetic over cached widths.</p>
+      <p>This demo runs two walker passes on every keystroke. The first pass collects per-line widths for the margin sparkline &mdash; the widest line tells you whether the paragraph would fit a narrower column, and the profile of widths tells you how ragged the right edge is. The second pass finds matches: for each line, we look at the original text between <code>start</code> and <code>end</code> (we can reconstruct that from the prepared segments), and if it contains the query, we record the line's index. Only the matched lines trigger a materialization to render the highlight. The rest stay geometry.</p>
+      <p>The separation matters because &ldquo;how many lines?&rdquo;, &ldquo;how wide is the widest?&rdquo;, &ldquo;does any line mention X?&rdquo; &mdash; these are ordinary questions about running text. Making them cheap means you can ask them on every keystroke, every scroll event, every frame of an animation, without ever paying for the text you're not going to paint.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Walkers are the primitive behind a family of pages we rarely see because they were too expensive to build:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A document scanner that highlights only the lines containing a user's query, across a page of twelve paragraphs, without a layout pass.</li>
+        <li>A long-form reader that shows a mini-map of line widths in the margin &mdash; a readable sparkline of the text's own breathing.</li>
+        <li>A writing coach that flags unusually long or unusually short lines as you type, without ever rendering those lines in its analysis pane.</li>
+        <li>A PDF-style &ldquo;find in page&rdquo; that jumps to a paragraph and knows which of its lines matched, without the browser's opaque text-fragment machinery.</li>
+      </ul>
+      <p>The common shape: a question about text that doesn't need the text &mdash; it needs the geometry of the text. Walkers answer those in microseconds.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>&ldquo;I celebrate myself, and sing myself,<br>And what I assume you shall assume,<br>For every atom belonging to me as good belongs to you.&rdquo;</p>
+      <cite>Walt Whitman, <em>Leaves of Grass</em> (1855)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">&ldquo;find without re-rendering&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping"><code>walkLineRanges</code> over the paragraph; materialize only matching lines</span>
+
+        <span class="phrase">&ldquo;stats across a long passage&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">one walker pass; fold widths/counts in the callback</span>
+
+        <span class="phrase">&ldquo;sparkline of line widths in the margin&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">walker pass &rarr; array of widths &rarr; per-line margin bars</span>
+
+        <span class="phrase">&ldquo;scan every paragraph on scroll&rdquo;</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">walkers are cheap enough to run per visible block, per scroll</span>
+      </div>
+      <div class="meta">Arc 6 ends here. Arc 7 picks up the opposite end: where do the lines Pretext returns actually get painted?</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">scan for matches without building the lines you don't need</span>
+      </div>
+      <pre><code>import { prepareWithSegments, walkLineRanges, layoutWithLines } from '@chenglou/pretext';
+
+const FONT = "400 18px 'EB Garamond', serif";
+const LINE_HEIGHT = 18 * 1.55;
+const prepared = prepareWithSegments(text, FONT);
+
+// Pass 1: widths only. Never builds a line string.
+function lineWidths(width) {
+  const widths = [];
+  walkLineRanges(prepared, width, line => widths.push(line.width));
+  return widths;
+}
+
+// Pass 2: find-in-paragraph. We need text per line only when we've decided
+// a line matches, so materialization is opt-in per line.
+function findMatches(width, query) {
+  if (!query) return new Set();
+  const { lines } = layoutWithLines(prepared, width, LINE_HEIGHT);
+  const q = query.toLowerCase();
+  const matchedIndices = new Set();
+  for (let i = 0; i &lt; lines.length; i++) {
+    if (lines[i].text.toLowerCase().includes(q)) matchedIndices.add(i);
+  }
+  return matchedIndices;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['fit']);
+
+    // Whitman, opening of "Song of Myself" (1855, Leaves of Grass). Public domain.
+    // Three lines of the original poem, expanded into a short prose run so the
+    // walker has more breaks to iterate and more widths to sparkline.
+    const SOURCE_TEXT =
+      "I celebrate myself, and sing myself, and what I assume you shall assume, " +
+      "for every atom belonging to me as good belongs to you. I loafe and invite " +
+      "my soul, I lean and loafe at my ease observing a spear of summer grass. " +
+      "My tongue, every atom of my blood, form'd from this soil, this air, " +
+      "born here of parents born here from parents the same, and their parents " +
+      "the same. I, now thirty-seven years old in perfect health begin, hoping " +
+      "to cease not till death.";
+
+    const FONT_SIZE = 18;
+    const LINE_HEIGHT_PX = FONT_SIZE * 1.55;
+    const FONT = `400 ${FONT_SIZE}px 'EB Garamond', serif`;
+
+    const searchInput = document.getElementById('searchInput');
+    const scanBadge = document.getElementById('scanBadge');
+    const walkerStage = document.getElementById('walkerStage');
+    const lineStack = document.getElementById('lineStack');
+    const sparkline = document.getElementById('widthSparkline');
+
+    let pretextLib = null;
+    let prepared = null;
+    let currentWidth = 440;
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+    }
+
+    // Case-insensitive highlight of the query within a line's text.
+    function highlightLine(text, query) {
+      if (!query) return escapeHtml(text);
+      const lower = text.toLowerCase();
+      const q = query.toLowerCase();
+      let out = '';
+      let i = 0;
+      while (i < text.length) {
+        const hit = lower.indexOf(q, i);
+        if (hit === -1) { out += escapeHtml(text.slice(i)); break; }
+        if (hit > i) out += escapeHtml(text.slice(i, hit));
+        out += `<span class="match-hit">${escapeHtml(text.slice(hit, hit + q.length))}</span>`;
+        i = hit + q.length;
+      }
+      return out;
+    }
+
+    function render() {
+      if (!pretextLib || !prepared) return;
+      const { walkLineRanges, layoutWithLines } = pretextLib;
+
+      // ── Pass 1 (walker only): per-line widths for the sparkline. ─────
+      // Never builds a line string; callback gets { width, start, end }.
+      const widths = [];
+      let maxWidthSeen = 0;
+      walkLineRanges(prepared, currentWidth, line => {
+        widths.push(line.width);
+        if (line.width > maxWidthSeen) maxWidthSeen = line.width;
+      });
+
+      // ── Pass 2 (materializing): we need the line text, but only
+      // because we're going to paint it. Highlight-matching is done
+      // on the returned line text via includes().
+      const { lines } = layoutWithLines(prepared, currentWidth, LINE_HEIGHT_PX);
+
+      const query = searchInput.value.trim();
+      const qLower = query.toLowerCase();
+      let matchCount = 0;
+
+      // Render the line stack. Reuse existing spans where possible.
+      const children = lineStack.children;
+      for (let i = 0; i < lines.length; i++) {
+        let span = children[i];
+        if (!span) {
+          span = document.createElement('span');
+          span.className = 'pt-line';
+          lineStack.appendChild(span);
+        }
+        const lineText = lines[i].text;
+        const matches = query.length > 0 && lineText.toLowerCase().includes(qLower);
+        if (matches) matchCount++;
+        span.classList.toggle('line-match', matches);
+        // innerHTML (not textContent) so the <span class="match-hit"> wrapper renders.
+        span.innerHTML = highlightLine(lineText, query);
+      }
+      while (children.length > lines.length) lineStack.removeChild(lineStack.lastChild);
+
+      // Render the margin sparkline from Pass 1's widths only.
+      const sparkRows = widths.map(w => {
+        const pct = maxWidthSeen > 0 ? (w / maxWidthSeen) * 100 : 0;
+        return `<div class="spark-row"><div class="bar"><span style="width:${pct.toFixed(1)}%"></span></div><div class="num">${Math.round(w)}</div></div>`;
+      }).join('');
+      sparkline.innerHTML = sparkRows;
+
+      // Scan badge: count reflects Pass 1 (walker) — we report how many
+      // lines the walker iterated.
+      if (query.length === 0) {
+        scanBadge.textContent = `${widths.length} lines scanned`;
+        scanBadge.classList.remove('has-match');
+      } else if (matchCount === 0) {
+        scanBadge.textContent = `${widths.length} lines &middot; no match`;
+        scanBadge.classList.remove('has-match');
+      } else {
+        scanBadge.innerHTML = `${matchCount} of ${widths.length} lines match`;
+        scanBadge.classList.add('has-match');
+      }
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(SOURCE_TEXT, FONT);
+      render();
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    // Debounce the input handler just enough to coalesce bursts of typing
+    // to one frame; walkers are cheap, but there's no reason to re-render
+    // mid-keypress.
+    let scheduled = false;
+    function scheduleRender() {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        render();
+      });
+    }
+
+    searchInput.addEventListener('input', scheduleRender);
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        currentWidth = val;
+        walkerStage.style.maxWidth = (val + 112) + 'px';
+        // The stage has 32px left + 80px right padding = 112px of chrome
+        // outside the text column; we pin stage width to currentWidth plus chrome
+        // so the column the walker uses and the column the user sees are the same.
+        scheduleRender();
+      }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('17-line-stats.html', '19-dom-target.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>20 · Canvas target — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: the canvas lives inside the demo-text-region box. We let the
+       box shape the width (so the width slider still controls wrap width); the
+       canvas fills its container. DPR-aware to keep text crisp on HiDPI. */
+    #demo .demo-text-region {
+      height: 340px;
+      overflow: hidden;
+      background: #fcfaf4;
+      padding: 0;
+    }
+    #demo canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">20</span>Canvas target</span>
+      <nav class="prev-next">
+        <a href="19-dom-target.html">←</a>
+        <a href="21-svg-target.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 7 · Rendering Targets</div>
+    <h1 class="lesson-title">Canvas target</h1>
+    <div id="stamp"></div>
+
+    <p>Move the same walker to a different canvas and the whole scene changes. The text is still Pretext's — same segments, same line breaks, same measured widths — but now it lives on a <code>&lt;canvas&gt;</code>, beside particles that drift through and around it. Because layout happens in JS and the draw call is just <code>ctx.fillText</code>, the loop holds 60&nbsp;fps while the text stays crisp and correctly broken at every width.</p>
+
+    <p>Slide the width to reflow the paragraph. Slide density to feed more or fewer particles into the scene. The numbers in the corner are real — they update every frame.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="workload-badge" id="densityBadge">density · 48 particles</div>
+      <div class="fps-readout" id="fps">— fps</div>
+      <div class="demo-text-region" id="textRegion" style="width: 520px;">
+        <canvas id="canvas"></canvas>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="260" max="680" value="520" step="1">
+        <span class="value" id="widthValue">520</span>
+      </div>
+      <div class="control">
+        <label for="densitySlider">density</label>
+        <input type="range" id="densitySlider" min="0" max="240" value="48" step="1">
+        <span class="value" id="densityValue">48</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>We call <code>prepareWithSegments(text, font)</code> once at boot. When the wrap width changes — and only then — we call <code>layoutWithLines(prepared, width, lineHeightPx)</code> and cache the returned <code>lines</code> array. Each <code>line</code> is <code>{ text, width, start, end }</code>. Inside the RAF loop we clear the canvas, draw a drift of particles, then draw text by calling <code>ctx.fillText(line.text, x, baselineY)</code> for each cached line.</p>
+      <p>Canvas text is drawn from the <strong>baseline</strong>, not the top. We derive the first line's baseline from the line height: <code>baseline = lineHeight * ascentRatio</code>, with <code>ascentRatio ≈ 0.78</code> for most proportional fonts at this size. Subsequent lines add <code>lineHeight</code> each. We mirror the container's CSS font onto the 2D context via <code>ctx.font</code> so the drawn glyphs match what Pretext measured.</p>
+      <p>Because the hot path never touches the DOM — no <code>getBoundingClientRect</code>, no <code>textMetrics</code> probing per segment — the frame budget is spent on particles, compositing, and paint. Text layout is effectively free once <code>prepare</code> has run.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Anywhere text has to share a surface with live motion:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li><strong>In-game UI</strong> — nameplates, dialog, captions that wrap correctly inside a running canvas scene.</li>
+        <li><strong>Data-viz with narration</strong> — a headline or legend that lives inside the plot, not above it.</li>
+        <li><strong>Kinetic typography</strong> — text as a first-class scene element, not a DOM overlay fighting z-index.</li>
+        <li><strong>Background-text effects</strong> — particles passing over, behind, or around a paragraph; masks; blend modes.</li>
+      </ul>
+      <p>The trade is explicit: canvas text is not selectable, not crawlable, and not read by screen readers. Ship it where motion is the point, and keep the DOM target for the article body.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I am large, I contain multitudes."</p>
+      <cite>Walt Whitman, <em>Song of Myself</em>, <em>Leaves of Grass</em> (1855)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"text inside a canvas scene"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>layoutWithLines</code> when width changes; <code>ctx.fillText</code> per cached line each frame</span>
+
+        <span class="phrase">"60&nbsp;fps text in games"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">no DOM during the loop — Pretext gives positions, canvas draws</span>
+
+        <span class="phrase">"headline inside the plot"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>prepareWithSegments</code> once; <code>ctx.font</code> mirrors the prepare font exactly</span>
+
+        <span class="phrase">"baseline, not top-left"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>baseline = lineHeight * 0.78</code> for line 0; add <code>lineHeight</code> per line</span>
+      </div>
+      <div class="meta">Next: the same pattern with <code>&lt;svg&gt;&lt;text&gt;</code> nodes — vector, infinitely zoomable.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">walker on canvas: layoutWithLines + ctx.fillText per line</span>
+      </div>
+      <pre><code>import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
+
+const FONT_PX = 22;
+const FONT = `500 ${FONT_PX}px 'EB Garamond', serif`;
+const LINE_HEIGHT_PX = FONT_PX * 1.55;
+const ASCENT_RATIO = 0.78;  // baseline = lineHeight * ascentRatio
+
+ctx.font = FONT;                            // mirror Pretext's font onto the canvas
+ctx.textBaseline = 'alphabetic';
+const prepared = prepareWithSegments(text, FONT);
+
+// Recompute lines only when wrap width actually changes — not every frame.
+let lines = [], lastWidth = -1;
+
+function frame(wrapWidth) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawParticles(ctx);                       // motion lives in the same pixels
+
+  if (wrapWidth !== lastWidth) {
+    lines = layoutWithLines(prepared, wrapWidth, LINE_HEIGHT_PX).lines;
+    lastWidth = wrapWidth;
+  }
+  for (let i = 0; i &lt; lines.length; i++) {
+    const baselineY = i * LINE_HEIGHT_PX + LINE_HEIGHT_PX * ASCENT_RATIO;
+    ctx.fillText(lines[i].text, paddingX, paddingY + baselineY);
+  }
+  requestAnimationFrame(() =&gt; frame(wrapWidth));
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, fpsCounter,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['render']);
+
+    const fps = fpsCounter(document.getElementById('fps'));
+    const textRegion = document.getElementById('textRegion');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(520);
+
+    const SOURCE_TEXT =
+      "Do I contradict myself? Very well then I contradict myself, I am large, I contain multitudes. I sound my barbaric yawp over the roofs of the world — I stop somewhere waiting for you.";
+
+    const FONT_PX = 22;
+    const FONT_FAMILY = "'EB Garamond', Georgia, serif";
+    const FONT = `500 ${FONT_PX}px ${FONT_FAMILY}`;
+    const LINE_HEIGHT_PX = FONT_PX * 1.55;
+    const ASCENT_RATIO = 0.78;
+    const PADDING_X = 28;
+    const PADDING_Y = 22;
+
+    let pretextLib = null;
+    let prepared = null;
+    let currentWidth = 520;
+    let density = 48;
+    // Cache the lines from the last layout call. layoutWithLines() is cheap,
+    // but even cheap calls add up at 60fps — recompute only when width changes.
+    let cachedLines = [];
+    let cachedLinesWidth = -1;
+
+    // Resize the canvas for device pixel ratio so text stays crisp on HiDPI.
+    function sizeCanvas() {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const cssW = textRegion.clientWidth;
+      const cssH = textRegion.clientHeight;
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // ctx state (font, baseline, fillStyle) resets on width/height change — reapply.
+      ctx.font = FONT;
+      ctx.textBaseline = 'alphabetic';
+    }
+
+    // Simple drifting particles. Not Perlin — straight-line wrap-around, which is
+    // enough to make "the canvas is alive" visible without eating the frame budget.
+    const MAX_PARTICLES = 240;
+    const particles = new Array(MAX_PARTICLES).fill(0).map(() => ({
+      x: Math.random(),
+      y: Math.random(),
+      vx: (Math.random() - 0.5) * 0.00038,
+      vy: (Math.random() - 0.5) * 0.00024,
+      r: 1 + Math.random() * 2.2,
+      a: 0.18 + Math.random() * 0.22,
+    }));
+
+    function drawParticles(w, h) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(184, 101, 61, 0.55)';
+      for (let i = 0; i < density; i++) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x += 1;
+        if (p.x > 1) p.x -= 1;
+        if (p.y < 0) p.y += 1;
+        if (p.y > 1) p.y -= 1;
+        ctx.globalAlpha = p.a;
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function frame() {
+      fps.tick();
+      const w = textRegion.clientWidth;
+      const h = textRegion.clientHeight;
+
+      ctx.clearRect(0, 0, w, h);
+      drawParticles(w, h);
+
+      if (pretextLib && prepared) {
+        const wrapWidth = Math.max(40, w - PADDING_X * 2);
+        if (wrapWidth !== cachedLinesWidth) {
+          cachedLines = pretextLib.layoutWithLines(prepared, wrapWidth, LINE_HEIGHT_PX).lines;
+          cachedLinesWidth = wrapWidth;
+        }
+
+        ctx.save();
+        ctx.fillStyle = '#1f1d28';
+        for (let i = 0; i < cachedLines.length; i++) {
+          const baselineY = i * LINE_HEIGHT_PX + LINE_HEIGHT_PX * ASCENT_RATIO;
+          ctx.fillText(cachedLines[i].text, PADDING_X, PADDING_Y + baselineY);
+        }
+        ctx.restore();
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      prepared = lib.prepareWithSegments(SOURCE_TEXT, FONT);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    sizeCanvas();
+    requestAnimationFrame(frame);
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => {
+        currentWidth = val;
+        textRegion.style.width = val + 'px';
+        caliper.setWidth(val);
+        sizeCanvas();
+        cachedLinesWidth = -1;  // wrap width changed; invalidate the line cache
+      }
+    );
+
+    bindSlider(
+      document.getElementById('densitySlider'),
+      document.getElementById('densityValue'),
+      (val) => {
+        density = Math.max(0, Math.min(MAX_PARTICLES, Math.round(val)));
+        document.getElementById('densityBadge').textContent = `density · ${density} particles`;
+      }
+    );
+
+    // Keep canvas sharp if the pixel ratio or window size changes.
+    window.addEventListener('resize', sizeCanvas);
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('19-dom-target.html', '21-svg-target.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>07 · Word-break keep-all — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* CJK text needs a font with proper Han coverage. Stack Source Han /
+       Noto CJK behind our serif so characters render correctly everywhere. */
+    .pane .demo-text-region {
+      font-family: "Songti SC", "SimSun", "Source Han Serif SC",
+                   "Noto Serif CJK SC", "EB Garamond", serif;
+      font-size: 20px;
+      line-height: 1.8;
+      margin: 0 auto;
+    }
+    .pane-meta {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted-soft);
+      margin-top: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">07</span>Word-break keep-all</span>
+      <nav class="prev-next">
+        <a href="06-normal-vs-prewrap.html">←</a>
+        <a href="08-soft-hyphens.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 3 · Whitespace &amp; Breaks</div>
+    <h1 class="lesson-title">Word-break keep-all</h1>
+    <div id="stamp"></div>
+
+    <p>In Chinese, Japanese, and Korean, every character is a word-like unit. The browser's default behavior is to break between any two CJK characters — which is fine for filling lines, but which can shatter compounds that a native reader expects to stay together. A second option on <code>prepare()</code>, <code>wordBreak: 'keep-all'</code>, tells Pretext to refuse those mid-compound breaks. Latin words in the same text continue to break normally.</p>
+
+    <p>The same passage rendered twice. Narrow the width and watch the two panes diverge.</p>
+
+    <div class="demo-stage split" id="demo">
+      <div class="pane pane--normal">
+        <div class="pane-label">wordBreak: normal</div>
+        <div class="demo-text-region" id="paneNormal" style="width: 260px;"></div>
+        <div id="caliperMountNormal"></div>
+        <div class="pane-meta" id="metaNormal">height — · lines —</div>
+      </div>
+      <div class="pane pane--keepall">
+        <div class="pane-label">wordBreak: keep-all</div>
+        <div class="demo-text-region" id="paneKeepAll" style="width: 260px;"></div>
+        <div id="caliperMountKeepAll"></div>
+        <div class="pane-meta" id="metaKeepAll">height — · lines —</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="140" max="480" value="260" step="1">
+        <span class="value" id="widthValue">260</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>When Pretext segments the prepared text, it tags each segment with a break kind. Normal word-break gives CJK runs an implicit <em>zero-width break opportunity</em> between every grapheme — the same rule the browser applies under <code>word-break: normal</code>. A wrap can fall anywhere in the run.</p>
+      <p>Under <code>wordBreak: 'keep-all'</code>, those inter-character break opportunities are suppressed. The only places the engine will break a CJK run are the ones it would always have honored: explicit whitespace (rare in Chinese), punctuation that permits a break, or a boundary with a non-CJK script. Latin words embedded in the passage still break on spaces the way they always did — keep-all only changes CJK behavior.</p>
+      <p>Because both runs share the same measured widths, the split between the two panes is a pure arithmetic replay of different break rules over the same canvas measurements.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Serving CJK typography that doesn't shatter takes one option. The immediate unlocks:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A Chinese headline that breaks between clauses, never inside a compound.</li>
+        <li>A Japanese body block that reads the way the author punctuated it, even at tight column widths.</li>
+        <li>A Korean article that co-mingles English terms and still breaks both scripts correctly.</li>
+        <li>A single prose pipeline that switches mode by locale detection, with no other changes downstream.</li>
+      </ul>
+      <p>The pre-measured heights are still exact, so virtualization, masonry, and pre-mount sizing work as before. Keep-all costs you nothing but an option.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"道可道，非常道。名可名，非常名。"<br>
+      <span style="font-size: 14.5px; color: var(--muted); font-style: normal; font-family: var(--serif);">The way that can be spoken is not the eternal way; the name that can be named is not the eternal name.</span></p>
+      <cite>Laozi, <em>Dao De Jing</em> (c. 4th c. BCE; trans. public domain)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"respect the compound"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>wordBreak: 'keep-all'</code> on <code>prepare()</code></span>
+
+        <span class="phrase">"CJK that doesn't shatter"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">keep-all handle for every CJK paragraph</span>
+
+        <span class="phrase">"mixed Chinese and English, wrap each correctly"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">keep-all — Latin still breaks on spaces</span>
+
+        <span class="phrase">"switch behavior by locale"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pick the option when you call <code>prepare()</code></span>
+      </div>
+      <div class="meta">Next: breaking words that won't fit any other way, on purpose, with soft hyphens.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">CJK-aware wrapping with one option</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+const font = "400 20px 'Songti SC', 'Source Han Serif SC', serif";
+const lh = 20 * 1.8;
+
+// Normal: break opportunity between any two CJK characters.
+const normalHandle = prepare(cjkText, font);
+
+// keep-all: CJK runs stay intact; Latin words still break on spaces.
+const keepAllHandle = prepare(cjkText, font, { wordBreak: 'keep-all' });
+
+const a = layout(normalHandle,  width, lh);
+const b = layout(keepAllHandle, width, lh);</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    // Opening of the Dao De Jing plus a short bilingual note. The embedded
+    // "Laozi writes" shows keep-all still breaks Latin words on spaces.
+    const CJK_TEXT =
+      "道可道，非常道。名可名，非常名。" +
+      "無名天地之始；有名萬物之母。" +
+      "故常無欲，以觀其妙；常有欲，以觀其徼。" +
+      "Laozi writes of the nameless source — 此兩者，同出而異名，同謂之玄。" +
+      "玄之又玄，眾妙之門。";
+
+    const FONT = "400 20px 'Songti SC', 'SimSun', 'Source Han Serif SC', 'Noto Serif CJK SC', 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 20 * 1.8;
+
+    const paneNormal = document.getElementById('paneNormal');
+    const paneKeepAll = document.getElementById('paneKeepAll');
+    const metaNormal = document.getElementById('metaNormal');
+    const metaKeepAll = document.getElementById('metaKeepAll');
+
+    // Render the text into each pane with the appropriate CSS word-break rule
+    // so the browser paints what Pretext planned.
+    paneNormal.innerHTML  = `<p style="word-break: normal;">${CJK_TEXT}</p>`;
+    paneKeepAll.innerHTML = `<p style="word-break: keep-all;">${CJK_TEXT}</p>`;
+
+    const caliperN = createWidthCaliper(document.getElementById('caliperMountNormal'));
+    const caliperK = createWidthCaliper(document.getElementById('caliperMountKeepAll'));
+    caliperN.setWidth(260);
+    caliperK.setWidth(260);
+
+    let pretextLib = null;
+    let handleNormal = null;
+    let handleKeepAll = null;
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handleNormal  = lib.prepare(CJK_TEXT, FONT);
+      handleKeepAll = lib.prepare(CJK_TEXT, FONT, { wordBreak: 'keep-all' });
+      refresh(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    function refresh(width) {
+      paneNormal.style.width  = width + 'px';
+      paneKeepAll.style.width = width + 'px';
+      caliperN.setWidth(width);
+      caliperK.setWidth(width);
+
+      if (!pretextLib || !handleNormal || !handleKeepAll) return;
+      const { layout } = pretextLib;
+      const rN = layout(handleNormal,  width, LINE_HEIGHT_PX);
+      const rK = layout(handleKeepAll, width, LINE_HEIGHT_PX);
+      metaNormal.textContent  = `height ${Math.round(rN.height)}px · ${rN.lineCount} line${rN.lineCount === 1 ? '' : 's'}`;
+      metaKeepAll.textContent = `height ${Math.round(rK.height)}px · ${rK.lineCount} line${rK.lineCount === 1 ? '' : 's'}`;
+    }
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => { refresh(val); }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('06-normal-vs-prewrap.html', '08-soft-hyphens.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

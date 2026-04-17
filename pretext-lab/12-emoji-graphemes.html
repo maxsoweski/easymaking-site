@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>12 · Emoji + graphemes — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    .demo-text-region.message {
+      font-size: 22px;
+      line-height: 1.6;
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+    }
+    /* Soft bump on the emoji so they read as atomic units inside the flow. */
+    .demo-text-region.message .emoji {
+      font-size: 1.05em;
+      display: inline-block;
+      vertical-align: -0.08em;
+    }
+    #heightBadge {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--sage);
+      padding: 3px 8px;
+      border: 1px solid rgba(111, 142, 124, 0.3);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Grapheme breakdown — a pulled-apart view of one ZWJ cluster, shown
+       below the live specimen so the atomic mechanism is visible. */
+    .grapheme-anatomy {
+      margin-top: 22px;
+      padding: 14px 16px;
+      background: var(--paper-warm);
+      border: 1px dashed var(--line-strong);
+      border-radius: 4px;
+    }
+    .grapheme-anatomy .anatomy-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .grapheme-anatomy .cluster {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      font-family: var(--mono);
+      font-size: 13px;
+      align-items: center;
+    }
+    .grapheme-anatomy .codepoint {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 8px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      margin: 2px;
+      min-width: 36px;
+    }
+    .grapheme-anatomy .codepoint .glyph {
+      font-family: var(--serif);
+      font-size: 22px;
+      line-height: 1;
+    }
+    .grapheme-anatomy .codepoint .hex {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.04em;
+    }
+    .grapheme-anatomy .codepoint.zwj {
+      background: var(--clay-faint);
+      border-color: var(--clay);
+    }
+    .grapheme-anatomy .codepoint.zwj .glyph {
+      color: var(--clay);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .grapheme-anatomy .codepoint.zwj .hex { color: var(--clay); font-weight: 500; }
+    .grapheme-anatomy .glue {
+      font-family: var(--mono);
+      font-size: 20px;
+      color: var(--muted-soft);
+      padding: 0 2px;
+    }
+    .grapheme-anatomy .caption {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .grapheme-anatomy .caption .cluster-out {
+      font-family: var(--serif);
+      font-style: normal;
+      font-size: 22px;
+      color: var(--ink);
+      margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">12</span>Emoji + graphemes</span>
+      <nav class="prev-next">
+        <a href="11-cjk.html">←</a>
+        <a href="13-atomic-chips.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 4 · Multilingual</div>
+    <h1 class="lesson-title">Emoji + graphemes</h1>
+    <div id="stamp"></div>
+
+    <p>A modern family emoji — 👨‍👩‍👧‍👦 — is seven codepoints held together by three <em>zero-width joiners</em>. A flag is two regional-indicator letters. A waving hand with a specific skin tone is the hand plus a Fitzpatrick modifier. Break any of those clusters in the wrong place and the message is no longer the message: half a flag, a stranger's skin tone, a father with no family.</p>
+
+    <p>Drag the width narrow. The message wraps, but the clusters never do — each compound emoji stays one atomic unit and is routed to the next line whole.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="heightBadge">height · —px</div>
+      <div class="demo-text-region message" id="textRegion" style="width: 420px;">
+        <p id="message">A small note, sent on a small screen: my family <span class="emoji">👨‍👩‍👧‍👦</span> is well, the weather in Tokyo <span class="emoji">🇯🇵</span> is mild, and I am waving <span class="emoji">👋🏽</span> toward home <span class="emoji">🇺🇸</span> with the usual wish — that nothing inside a cluster ever breaks <span class="emoji">❤️</span> at the boundary of the line.</p>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="180" max="640" value="420" step="1">
+        <span class="value" id="widthValue">420</span>
+      </div>
+    </div>
+
+    <!-- Anatomy of one ZWJ family cluster, so the invisible joiners become visible. -->
+    <div class="grapheme-anatomy">
+      <div class="anatomy-label">Anatomy of 👨‍👩‍👧‍👦 · one grapheme, seven codepoints</div>
+      <div class="cluster">
+        <div class="codepoint"><span class="glyph">👨</span><span class="hex">U+1F468</span></div>
+        <div class="codepoint zwj"><span class="glyph">ZWJ</span><span class="hex">U+200D</span></div>
+        <div class="codepoint"><span class="glyph">👩</span><span class="hex">U+1F469</span></div>
+        <div class="codepoint zwj"><span class="glyph">ZWJ</span><span class="hex">U+200D</span></div>
+        <div class="codepoint"><span class="glyph">👧</span><span class="hex">U+1F467</span></div>
+        <div class="codepoint zwj"><span class="glyph">ZWJ</span><span class="hex">U+200D</span></div>
+        <div class="codepoint"><span class="glyph">👦</span><span class="hex">U+1F466</span></div>
+      </div>
+      <div class="caption">
+        Unicode segmenters read <code>\u200d</code> as a "keep together" instruction. The seven codepoints collapse into one grapheme cluster, <span class="cluster-out">👨‍👩‍👧‍👦</span>, and Pretext never breaks inside it.
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Inside <code>prepare()</code>, Pretext walks the text with the browser's <code>Intl.Segmenter</code> at the grapheme granularity. A grapheme cluster is whatever the Unicode rules say "a reader perceives as one character" — including ZWJ sequences, regional-indicator pairs (flags), skin-tone modifier sequences, variation-selector pairs, and text-selector clusters. Each cluster is measured once, against the actual canvas font, and cached as a single atomic width.</p>
+      <p>The line walker only ever asks the question "does the next unit fit?" about whole clusters. That question cannot be answered mid-cluster, so the wrap cannot happen mid-cluster. A compound emoji too wide for the remaining line length is routed to the next line as one piece; it is never, under any width, split.</p>
+      <p>This is the same mechanism that keeps Thai above-line marks attached to their base consonants and Devanagari conjuncts intact — grapheme clusters all the way down. Emoji are just the most visible case.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Anywhere your UI displays user-written text, grapheme-atomic wrapping is the difference between a message that renders and a message that disfigures:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A chat app whose message bubbles never show half a flag at the right edge.</li>
+        <li>A social feed whose post previews truncate on cluster boundaries — so the emoji at the cut is a whole emoji, not a floating joiner.</li>
+        <li>A notifications layer that measures the truncated line width correctly — because every emoji contributes its real atomic width, not its codepoint count.</li>
+        <li>Search snippets and link previews where a skin-toned 👋🏽 stays attached to its modifier and doesn't reduce to a neutral wave.</li>
+      </ul>
+      <p>The rule the engine enforces is simple. Never display half a person.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I celebrate myself, and sing myself, / And what I assume you shall assume, / For every atom belonging to me as good belongs to you."</p>
+      <cite>Walt Whitman, <em>Leaves of Grass</em> (1855)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"never split a human"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">grapheme-atomic wrapping — default behavior of <code>prepare()</code></span>
+
+        <span class="phrase">"flags stay flags at the boundary"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">regional-indicator pairs are one grapheme; <code>layout()</code> never breaks inside</span>
+
+        <span class="phrase">"chat bubbles that round-trip emoji"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">measure with <code>prepare()</code>; the cached width is the true atomic width</span>
+
+        <span class="phrase">"truncate snippets without disfiguring"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">cut at Pretext line boundaries, not at <code>string.length</code></span>
+      </div>
+      <div class="meta">Arc 4 closes here. Arc 5 picks up with the same "atomic unit" idea — but now the units are chips, mentions, and pills inside ordinary prose.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">the message prepared once, laid out at any width</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// One message with ZWJ families, flags, skin-tone modifiers,
+// and a variation-selector heart. Seven-codepoint clusters count as one.
+const message =
+  "my family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466} " +
+  "is well, Tokyo \u{1F1EF}\u{1F1F5} is mild, " +
+  "and I am waving \u{1F44B}\u{1F3FD} toward home \u{1F1FA}\u{1F1F8} \u2764\uFE0F";
+
+const handle = prepare(message, "400 22px 'EB Garamond', serif");
+
+// Narrow widths push emoji to the next line — never split one.
+widthSlider.addEventListener('input', (e) => {
+  const width = parseFloat(e.target.value);
+  const { height } = layout(handle, width, 22 * 1.6);
+  textRegion.style.width = width + 'px';
+  textRegion.style.minHeight = height + 'px';
+});</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    const textRegion  = document.getElementById('textRegion');
+    const heightBadge = document.getElementById('heightBadge');
+    const caliper     = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(420);
+
+    // Modern contemplative message-register. Emoji clusters are chosen to
+    // showcase: ZWJ family, flag (regional-indicator pair), skin-tone modifier,
+    // variation-selector (❤️ = U+2764 U+FE0F).
+    const MESSAGE_TEXT =
+      "A small note, sent on a small screen: my family " +
+      "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466} " +
+      "is well, the weather in Tokyo \u{1F1EF}\u{1F1F5} is mild, " +
+      "and I am waving \u{1F44B}\u{1F3FD} toward home \u{1F1FA}\u{1F1F8} " +
+      "with the usual wish — that nothing inside a cluster ever breaks " +
+      "\u{2764}\u{FE0F} at the boundary of the line.";
+
+    const FONT = "400 22px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 22 * 1.6;
+
+    let pretextLib = null;
+    let handle = null;
+
+    function applyWidth(width) {
+      textRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib || !handle) return;
+      const { height } = pretextLib.layout(handle, width, LINE_HEIGHT_PX);
+      textRegion.style.minHeight = height + 'px';
+      heightBadge.textContent = `height · ${Math.round(height)}px`;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handle = lib.prepare(MESSAGE_TEXT, FONT);
+      applyWidth(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => applyWidth(val)
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('11-cjk.html', '13-atomic-chips.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>04 · Font as a string — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: two overlay badges — height (top-right) and line count (top-left). */
+    #heightBadge {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--sage);
+      padding: 3px 8px;
+      border: 1px solid rgba(111, 142, 124, 0.3);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    #linesBadge {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Segmented font picker — styled to match the .controls look but
+       laid out as a pill row. Uses only tokens already in style.css. */
+    .font-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 4px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+    .font-picker button {
+      flex: 1;
+      min-width: 140px;
+      padding: 8px 12px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 11.5px;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: all 100ms ease;
+      text-align: left;
+    }
+    .font-picker button:hover {
+      background: var(--clay-faint);
+      border-color: var(--line);
+    }
+    .font-picker button.active {
+      background: var(--clay-dim);
+      border-color: var(--clay);
+      color: var(--clay);
+    }
+    .font-picker .fp-face {
+      display: block;
+      font-family: var(--serif);
+      font-size: 15px;
+      line-height: 1.1;
+      color: inherit;
+      margin-bottom: 2px;
+    }
+    .font-picker .fp-face.mono { font-family: var(--mono); }
+    .font-picker .fp-string {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .font-picker button.active .fp-string { color: var(--clay); }
+
+    #demo .demo-text-region {
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: min-height 160ms ease;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">04</span>Font as a string</span>
+      <nav class="prev-next">
+        <a href="03-height-from-width.html">←</a>
+        <a href="05-reusable-handle.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 2 · Basic Measurement</div>
+    <h1 class="lesson-title">Font as a string</h1>
+    <div id="stamp"></div>
+
+    <p>Pretext uses the browser's own canvas font engine to measure. That means the <strong>font string</strong> you pass to <code>prepare()</code> is the contract between your application and Pretext's idea of width. Weight, style, size, family — if any of those drift from the CSS the browser paints with, the line breaks drift too.</p>
+
+    <p>Pick a face. The specimen restyles in CSS and is re-prepared against an identical font string. The line count and computed height update to match what the browser would produce.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="linesBadge">lines · —</div>
+      <div id="heightBadge">height · —px</div>
+      <div class="demo-text-region" id="textRegion" style="width: 520px;">
+        <p id="specimen">A foolish consistency is the hobgoblin of little minds, adored by little statesmen and philosophers and divines. With consistency a great soul has simply nothing to do. Speak what you think now in hard words, and to-morrow speak what to-morrow thinks in hard words again, though it contradict every thing you said to-day.</p>
+      </div>
+      <div id="caliperMount"></div>
+    </div>
+
+    <div class="controls">
+      <div class="font-picker" id="fontPicker" role="group" aria-label="Font choice">
+        <button type="button" data-idx="0" class="active">
+          <span class="fp-face" style="font-weight:400;">Garamond regular</span>
+          <span class="fp-string">400 20px 'EB Garamond', serif</span>
+        </button>
+        <button type="button" data-idx="1">
+          <span class="fp-face" style="font-weight:600;">Garamond semibold</span>
+          <span class="fp-string">600 20px 'EB Garamond', serif</span>
+        </button>
+        <button type="button" data-idx="2">
+          <span class="fp-face" style="font-style:italic;">Garamond italic</span>
+          <span class="fp-string">400 italic 20px 'EB Garamond', serif</span>
+        </button>
+        <button type="button" data-idx="3">
+          <span class="fp-face mono" style="font-weight:500;">JetBrains Mono</span>
+          <span class="fp-string">500 17px 'JetBrains Mono', monospace</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>The font string is exactly what you'd assign to <code>canvasCtx.font</code>: an optional weight (<code>400</code>, <code>600</code>, &hellip;), an optional style (<code>italic</code>, <code>oblique</code>), a size (<code>20px</code>), and a family stack (<code>'EB Garamond', serif</code>). Pretext feeds that string to its measurement canvas. Every segment's width is whatever that configured canvas reports — which is also what the browser will render with.</p>
+      <p>When the font changes, the cached measurements are stale. You call <code>prepare(text, newFont)</code> again, get a fresh handle, and <code>layout()</code> it at your current width. The rule is plain: <strong>measure what you'll render</strong>. The font string on the page and the font string passed to <code>prepare()</code> must match in weight, style, size, and family — or the line breaks won't.</p>
+      <p>Pretext's README flags one quirk: <code>system-ui</code> is unsafe on macOS, because canvas and DOM can resolve to different faces. Use a named family you've loaded yourself.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>The unlock here is subtle but constant: you can honor the author's type choice inside a measured pipeline without losing the pipeline. Swap a display face, re-prepare, keep your layout math.</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A reading app where the reader picks a face — heights stay exact through every swap.</li>
+        <li>A design system where body text lives in several weights; each weight is its own handle, reused across all widths.</li>
+        <li>A pull-quote that goes italic on hover without a reflow flash — italic is just a different handle on the same text.</li>
+        <li>A developer-time check: "this button label fits at <code>600 14px Inter</code>, and only fits because of that" — testable, browser-free.</li>
+      </ul>
+    </div>
+
+    <div class="block block--content">
+      <p>"A foolish consistency is the hobgoblin of little minds&hellip; Speak what you think now in hard words, and to-morrow speak what to-morrow thinks in hard words again."</p>
+      <cite>Ralph Waldo Emerson, <em>Self-Reliance</em> (1841)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"match the author's face"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">include family, weight, and style in the <code>font</code> string passed to <code>prepare()</code></span>
+
+        <span class="phrase">"measure what you'll render"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">use the same font string on the element's CSS <em>and</em> in <code>prepare()</code></span>
+
+        <span class="phrase">"swap the face without re-measuring the world"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">re-<code>prepare()</code> only the affected text; keep the layout pipeline</span>
+
+        <span class="phrase">"italic on hover, no flash"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">hold a second handle prepared with <code>'italic'</code>; <code>layout()</code> it, then swap class</span>
+      </div>
+      <div class="meta">Next: one analyze, many fits — reuse a single handle across every width you'll ever show.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">the font string is the contract</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// One font string. Used for the CSS and for prepare() — in lock-step.
+function setFont(fontStr, lineHeightRatio) {
+  specimen.style.font = fontStr;
+
+  // New face → stale measurements. Re-prepare.
+  const handle = prepare(TEXT, fontStr);
+
+  // Extract size from the font string so lineHeight stays in sync.
+  const sizePx = parseFloat(fontStr.match(/(\d+(?:\.\d+)?)px/)[1]);
+  const { height, lineCount } = layout(
+    handle, textRegion.clientWidth, sizePx * lineHeightRatio
+  );
+
+  textRegion.style.minHeight = height + 'px';
+  return { handle, height, lineCount };
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, createStamp, createWidthCaliper,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    const textRegion = document.getElementById('textRegion');
+    const specimen = document.getElementById('specimen');
+    const heightBadge = document.getElementById('heightBadge');
+    const linesBadge = document.getElementById('linesBadge');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(520);
+
+    // Emerson, Self-Reliance (1841). Public domain.
+    const TEXT = "A foolish consistency is the hobgoblin of little minds, adored by little statesmen and philosophers and divines. With consistency a great soul has simply nothing to do. Speak what you think now in hard words, and to-morrow speak what to-morrow thinks in hard words again, though it contradict every thing you said to-day.";
+
+    // Each option pairs a font string (identical on CSS and in prepare()) with a CSS
+    // declaration for the specimen element, so the browser and Pretext see the same face.
+    const FONTS = [
+      {
+        pretext: "400 20px 'EB Garamond', serif",
+        css:     "400 20px/1.55 'EB Garamond', serif",
+        sizePx: 20, ratio: 1.55,
+      },
+      {
+        pretext: "600 20px 'EB Garamond', serif",
+        css:     "600 20px/1.55 'EB Garamond', serif",
+        sizePx: 20, ratio: 1.55,
+      },
+      {
+        pretext: "400 italic 20px 'EB Garamond', serif",
+        css:     "italic 400 20px/1.55 'EB Garamond', serif",
+        sizePx: 20, ratio: 1.55,
+      },
+      {
+        pretext: "500 17px 'JetBrains Mono', monospace",
+        css:     "500 17px/1.6 'JetBrains Mono', monospace",
+        sizePx: 17, ratio: 1.6,
+      },
+    ];
+
+    let pretextLib = null;
+    let currentIdx = 0;
+
+    function applyFont(idx) {
+      currentIdx = idx;
+      const f = FONTS[idx];
+      specimen.style.font = f.css;
+
+      // Mark the active button.
+      document.querySelectorAll('#fontPicker button').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.idx, 10) === idx);
+      });
+
+      if (!pretextLib) return;
+      // Re-prepare with the new font string. Handle is cheap to toss.
+      const handle = pretextLib.prepare(TEXT, f.pretext);
+      const width = textRegion.clientWidth;
+      const lineHeightPx = f.sizePx * f.ratio;
+      const { height, lineCount } = pretextLib.layout(handle, width, lineHeightPx);
+
+      textRegion.style.minHeight = height + 'px';
+      heightBadge.textContent = `height · ${Math.round(height)}px`;
+      linesBadge.textContent = `lines · ${lineCount}`;
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      applyFont(0);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    document.getElementById('fontPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-idx]');
+      if (!btn) return;
+      applyFont(parseInt(btn.dataset.idx, 10));
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('03-height-from-width.html', '05-reusable-handle.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>22 · Virtual scroll — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local. A virtual-scroll viewport behaves differently from the stock
+       demo-text-region: it is a fixed-height window with a tall inner spacer,
+       and the paragraphs float over that spacer at absolute offsets. */
+    #scrollViewport {
+      position: relative;
+      height: 360px;
+      width: 560px;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: #fcfaf4;
+      border: 1px solid var(--paper-edge);
+      border-radius: 6px;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink-2);
+      scrollbar-width: thin;
+      scrollbar-color: var(--paper-edge) transparent;
+    }
+    #scrollViewport::-webkit-scrollbar { width: 8px; }
+    #scrollViewport::-webkit-scrollbar-track { background: transparent; }
+    #scrollViewport::-webkit-scrollbar-thumb { background: var(--paper-edge); border-radius: 4px; }
+    #scrollSpacer {
+      position: relative;
+      width: 100%;
+    }
+    .vs-item {
+      position: absolute;
+      left: 0;
+      right: 0;
+      padding: 6px 22px 10px 22px;
+    }
+    .vs-item .src {
+      display: block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted-soft);
+      margin-bottom: 3px;
+      font-style: normal;
+    }
+    .vs-item p {
+      margin: 0;
+      hyphens: manual;
+    }
+    /* Two readouts on the demo stage: total height (like .workload-badge, left) and
+       rendered item count (like .fps-readout, right). Plus a mount-time line below. */
+    #totalHeightBadge {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    #renderedBadge {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--sage);
+      padding: 3px 8px;
+      border: 1px solid rgba(111, 142, 124, 0.3);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    #mountStatus {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 16px;
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+      min-height: 14px;
+    }
+    .vs-fps {
+      position: absolute;
+      top: 44px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(250, 247, 242, 0.8);
+      font-variant-numeric: tabular-nums;
+    }
+    .vs-fps.warn { color: var(--clay); border-color: var(--clay-dim); }
+    .vs-fps.ok { color: var(--sage); border-color: rgba(111, 142, 124, 0.3); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">22</span>Virtual scroll</span>
+      <nav class="prev-next">
+        <a href="21-svg-target.html">&larr;</a>
+        <a href="23-chat-bubble.html">&rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 8 &middot; Production Patterns</div>
+    <h1 class="lesson-title">Virtual scroll</h1>
+    <div id="stamp"></div>
+
+    <p>Ten thousand paragraphs, each a different length, arranged like an anthology you can scroll through. The browser only ever keeps a dozen of them in the DOM. The scroll is smooth because the height of every paragraph was decided before you arrived.</p>
+
+    <p>Crank the <strong>item count</strong> slider to watch mount time scale. Scroll the window; only the visible paragraphs (plus a screen of buffer on each side) are rendered. The height in the corner is the sum of every paragraph's pre-computed height &mdash; the inner spacer is set to exactly that tall.</p>
+
+    <div class="demo-stage" id="demo">
+      <div id="totalHeightBadge">total &middot; &mdash;</div>
+      <div id="renderedBadge">rendered &middot; &mdash;</div>
+      <div class="vs-fps" id="fps">&mdash; fps</div>
+      <div id="scrollViewport">
+        <div id="scrollSpacer"></div>
+      </div>
+      <div id="mountStatus">preparing&hellip;</div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="countSlider">item count</label>
+        <input type="range" id="countSlider" min="100" max="10000" value="10000" step="100">
+        <span class="value" id="countValue">10000</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>At mount, we call <code>prepare(text, font)</code> on every item once, then <code>layout(handle, width, lineHeight)</code> at the viewport's inner width. We store two parallel arrays: <code>heights[i]</code> for each item and <code>offsets[i]</code> for the cumulative sum. The last offset is the total content height, which becomes the inner spacer's fixed <code>height</code>. The viewport itself is a plain overflow-auto box; the browser's native scrollbar does the navigation.</p>
+      <p>On every scroll event &mdash; and this is the whole point &mdash; we do no measurement. We binary-search <code>offsets[]</code> for the first index whose offset is &ge; <code>scrollTop</code>, then walk forward until we cover the viewport plus one screen of buffer on each side. Items outside that window are not in the DOM at all. Items inside are placed with <code>position: absolute; top: offsets[i]</code>.</p>
+      <p>Because the heights came from Pretext and the CSS renders at the same font and line-height, every paragraph lands exactly where the offsets said it would. No sibling jitter, no post-mount correction, no wobble on fast scroll.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Every list that currently feels slow at the high end is blocked by the same missing primitive: <em>I do not know how tall this row is until I render it.</em> With that gone:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>Chat histories with tens of thousands of messages, each variable height, scrolling as smoothly as a feed of fixed-height cards.</li>
+        <li>Documents of arbitrary length where the scrollbar thumb size is honest &mdash; it reflects actual content, not a per-row estimate.</li>
+        <li>Endless feeds where jump-to-index is constant-time: <code>scrollTop = offsets[i]</code>.</li>
+        <li>Per-row anchoring and deep-linking that survives viewport resize: recompute heights once on width change, then the offsets are truth again.</li>
+      </ul>
+    </div>
+
+    <div class="block block--content">
+      <p>"Our life is frittered away by detail. An honest man has hardly need to count more than his ten fingers, or in extreme cases he may add his ten toes, and lump the rest."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"virtual scroll with exact heights"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">Pretext pre-compute at mount; store <code>heights[]</code> and <code>offsets[]</code></span>
+
+        <span class="phrase">"no measurement during scroll"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">scroll handler does binary search + arithmetic only; no DOM reads</span>
+
+        <span class="phrase">"scrollbar should reflect real content length"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">inner spacer height = sum of pretext-reported heights</span>
+
+        <span class="phrase">"jump to message N should be instant"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping"><code>scrollTop = offsets[n]</code> &mdash; no layout needed</span>
+      </div>
+      <div class="meta">Next: the same primitive, applied mid-token &mdash; chat bubbles that size themselves before they mount.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">pre-compute once; scroll handler is arithmetic</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// Mount: one prepare + one layout per item. Build offsets[] cumulatively.
+const FONT = "400 18px 'EB Garamond', serif";
+const LINE_H = 18 * 1.55;
+const W = viewport.clientWidth - 44;  // minus padding
+
+const heights = new Float32Array(items.length);
+const offsets = new Float32Array(items.length + 1);  // +1 for total
+let total = 0;
+for (let i = 0; i < items.length; i++) {
+  const handle = prepare(items[i].text, FONT);
+  heights[i] = layout(handle, W, LINE_H).height;
+  offsets[i] = total;
+  total += heights[i] + ITEM_PADDING_Y;
+}
+offsets[items.length] = total;
+spacer.style.height = total + 'px';
+
+// Scroll: binary search + a windowed walk. No measurement.
+function onScroll() {
+  const top = viewport.scrollTop - BUFFER;
+  const bottom = top + viewport.clientHeight + 2 * BUFFER;
+  const first = binarySearchLE(offsets, top);
+  const last  = binarySearchLE(offsets, bottom);
+  renderRange(first, last);  // create/reuse DOM, position each at offsets[i]
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp, fpsCounter,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    const viewport = document.getElementById('scrollViewport');
+    const spacer   = document.getElementById('scrollSpacer');
+    const totalBadge    = document.getElementById('totalHeightBadge');
+    const renderedBadge = document.getElementById('renderedBadge');
+    const status   = document.getElementById('mountStatus');
+    const fps = fpsCounter(document.getElementById('fps'));
+
+    // ───────────────────────────────────────────────────────────────
+    // Public-domain anthology — cycled to build however many paragraphs
+    // the slider asks for. Each fragment carries its source so the
+    // scroll reads like an anthology (Thoreau, Emerson, James, Aurelius,
+    // Whitman, Dickinson).
+    // ───────────────────────────────────────────────────────────────
+    const POOL = [
+      { src: 'Thoreau · Walden', text: "I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived." },
+      { src: 'Thoreau · Walden', text: "Simplify, simplify. Instead of three meals a day, if it be necessary eat but one; instead of a hundred dishes, five; and reduce other things in proportion." },
+      { src: 'Thoreau · Walden', text: "Time is but the stream I go a-fishing in. I drink at it; but while I drink I see the sandy bottom and detect how shallow it is. Its thin current slides away, but eternity remains." },
+      { src: 'Thoreau · Walden', text: "However mean your life is, meet it and live it; do not shun it and call it hard names. It is not so bad as you are." },
+      { src: 'Thoreau · Walden', text: "The mass of men lead lives of quiet desperation. What is called resignation is confirmed desperation." },
+      { src: 'Emerson · Self-Reliance', text: "Trust thyself: every heart vibrates to that iron string. Accept the place the divine providence has found for you, the society of your contemporaries, the connection of events." },
+      { src: 'Emerson · Self-Reliance', text: "A foolish consistency is the hobgoblin of little minds, adored by little statesmen and philosophers and divines. With consistency a great soul has simply nothing to do." },
+      { src: 'Emerson · Self-Reliance', text: "To be great is to be misunderstood. Pythagoras was misunderstood, and Socrates, and Jesus, and Luther, and Copernicus, and Galileo, and Newton, and every pure and wise spirit that ever took flesh." },
+      { src: 'Emerson · Nature', text: "The sun illuminates only the eye of the man, but shines into the eye and the heart of the child. The lover of nature is he whose inward and outward senses are still truly adjusted to each other." },
+      { src: 'Emerson · Compensation', text: "Every excess causes a defect; every defect an excess. Every sweet hath its sour; every evil its good. Every faculty which is a receiver of pleasure has an equal penalty put on its abuse." },
+      { src: 'James · Psychology', text: "My experience is what I agree to attend to. Only those items which I notice shape my mind — without selective interest, experience is an utter chaos." },
+      { src: 'James · Psychology', text: "The great thing, then, in all education, is to make our nervous system our ally instead of our enemy. It is to fund and capitalize our acquisitions, and live at ease upon the interest of the fund." },
+      { src: 'James · Varieties', text: "The sway of alcohol over mankind is unquestionably due to its power to stimulate the mystical faculties of human nature, usually crushed to earth by the cold facts and dry criticisms of the sober hour." },
+      { src: 'James · Varieties', text: "Religion, whatever it is, is a man's total reaction upon life. To get at it you must go behind the foreground of existence and reach down to that curious sense of the whole residual cosmos as an everlasting presence." },
+      { src: 'Aurelius · Meditations', text: "You have power over your mind — not outside events. Realize this, and you will find strength. The happiness of your life depends upon the quality of your thoughts." },
+      { src: 'Aurelius · Meditations', text: "Waste no more time arguing what a good man should be. Be one. When you arise in the morning, think of what a precious privilege it is to be alive — to breathe, to think, to enjoy, to love." },
+      { src: 'Aurelius · Meditations', text: "The soul becomes dyed with the color of its thoughts. A man's life is what his thoughts make of it. Dwell on the beauty of life. Watch the stars, and see yourself running with them." },
+      { src: 'Aurelius · Meditations', text: "Confine yourself to the present. Accept the things to which fate binds you, and love the people with whom fate brings you together, but do so with all your heart." },
+      { src: 'Whitman · Song of Myself', text: "I celebrate myself, and sing myself, and what I assume you shall assume, for every atom belonging to me as good belongs to you. I loafe and invite my soul, I lean and loafe at my ease observing a spear of summer grass." },
+      { src: 'Whitman · Song of Myself', text: "Do I contradict myself? Very well then I contradict myself. I am large, I contain multitudes. I concentrate toward them that are nigh, I wait on the door-slab." },
+      { src: 'Dickinson · Poems', text: "Tell all the truth but tell it slant — success in circuit lies. Too bright for our infirm delight the truth's superb surprise." },
+      { src: 'Dickinson · Poems', text: "The soul selects her own society, then shuts the door; on her divine majority obtrude no more." },
+      { src: 'Thoreau · Journal', text: "The question is not what you look at, but what you see. It is only necessary to behold the least fact or phenomenon, however familiar, from a point a hair's breadth aside from our habitual path or routine." },
+      { src: 'Thoreau · Walking', text: "In wildness is the preservation of the world. Every tree sends its fibres forth in search of the wild. The cities import it at any price." },
+      { src: 'Emerson · The Over-Soul', text: "The simplest person, who in his integrity worships God, becomes God; yet for ever and ever the influx of this better and universal self is new and unsearchable." },
+    ];
+
+    const FONT = "400 18px 'EB Garamond', serif";
+    const LINE_H = 18 * 1.55;
+    // Each rendered item is: padding-top (6) + source label (~14) + label margin (3)
+    //                      + paragraph (from Pretext) + padding-bottom (10).
+    // We fold the non-paragraph parts into a single constant so the offsets math
+    // matches what the browser will paint.
+    const ITEM_CHROME_Y = 33;    // 6 + 14 + 3 + 10
+    const BUFFER_PX = 360;       // one screen of buffer each side
+
+    let pretextLib = null;
+    let items = [];        // { src, text }
+    let heights = null;    // Float32Array
+    let offsets = null;    // Float32Array, length items.length+1; last = total height
+    let domPool = new Map();  // index -> element; we recycle nodes
+
+    // Continuous rAF so the FPS readout updates every frame.
+    function rafLoop() { fps.tick(); requestAnimationFrame(rafLoop); }
+    rafLoop();
+
+    function buildItems(count) {
+      const arr = new Array(count);
+      for (let i = 0; i < count; i++) arr[i] = POOL[i % POOL.length];
+      return arr;
+    }
+
+    function innerWidth() {
+      // viewport padding is on .vs-item (22px each side); viewport itself has no padding
+      return viewport.clientWidth - 44;
+    }
+
+    function clearDom() {
+      for (const el of domPool.values()) el.remove();
+      domPool.clear();
+    }
+
+    function renderVisible() {
+      if (!offsets) return;
+      const top = Math.max(0, viewport.scrollTop - BUFFER_PX);
+      const bottom = viewport.scrollTop + viewport.clientHeight + BUFFER_PX;
+      const n = items.length;
+
+      // Binary search for the largest index where offsets[i] <= top.
+      // That index is the first item we want to render (it straddles `top`).
+      let lo = 0, hi = n - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (offsets[mid] <= top) lo = mid; else hi = mid - 1;
+      }
+      const first = lo;
+
+      // Linear walk for the last item whose top offset is still inside the window.
+      let last = first;
+      while (last < n - 1 && offsets[last + 1] < bottom) last++;
+
+      // Evict any pooled nodes outside [first, last].
+      for (const [idx, el] of domPool) {
+        if (idx < first || idx > last) { el.remove(); domPool.delete(idx); }
+      }
+      // Mount/reposition nodes in [first, last].
+      for (let i = first; i <= last; i++) {
+        let el = domPool.get(i);
+        if (!el) {
+          el = document.createElement('div');
+          el.className = 'vs-item';
+          const srcSpan = document.createElement('span');
+          srcSpan.className = 'src';
+          srcSpan.textContent = items[i].src;
+          const p = document.createElement('p');
+          p.textContent = items[i].text;
+          el.appendChild(srcSpan);
+          el.appendChild(p);
+          spacer.appendChild(el);
+          domPool.set(i, el);
+        }
+        el.style.top = offsets[i] + 'px';
+      }
+      renderedBadge.textContent = `rendered · ${domPool.size} / ${n}`;
+    }
+
+    // Chunked prepare+layout so a 10k mount doesn't freeze the thread.
+    // We yield every CHUNK items; the slider stays responsive in-between.
+    const CHUNK = 500;
+    let mountGeneration = 0;
+
+    async function remount(count) {
+      const gen = ++mountGeneration;
+      clearDom();
+      items = buildItems(count);
+      heights = new Float32Array(count);
+      offsets = new Float32Array(count + 1);
+      const W = innerWidth();
+      status.textContent = `preparing 0 / ${count}…`;
+      totalBadge.textContent = `total · —`;
+      renderedBadge.textContent = `rendered · —`;
+
+      if (!pretextLib) return;
+      const { prepare, layout } = pretextLib;
+
+      const t0 = performance.now();
+      let total = 0;
+
+      for (let start = 0; start < count; start += CHUNK) {
+        const end = Math.min(count, start + CHUNK);
+        for (let i = start; i < end; i++) {
+          const handle = prepare(items[i].text, FONT);
+          const { height } = layout(handle, W, LINE_H);
+          const itemH = height + ITEM_CHROME_Y;
+          heights[i] = itemH;
+          offsets[i] = total;
+          total += itemH;
+        }
+        if (gen !== mountGeneration) return;  // slider moved again
+        status.textContent = `preparing ${end} / ${count}…`;
+        // Yield to paint so the status text actually updates.
+        await new Promise(requestAnimationFrame);
+      }
+      offsets[count] = total;
+
+      const t1 = performance.now();
+      const ms = Math.round(t1 - t0);
+      spacer.style.height = total + 'px';
+      viewport.scrollTop = 0;
+      totalBadge.textContent = `total · ${Math.round(total).toLocaleString()}px`;
+      status.textContent = `${count.toLocaleString()} items prepared in ${ms} ms  ·  ${(count / (ms / 1000)).toFixed(0)} items/sec`;
+      renderVisible();
+    }
+
+    viewport.addEventListener('scroll', renderVisible, { passive: true });
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      remount(parseInt(document.getElementById('countSlider').value, 10));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('countSlider'),
+      document.getElementById('countValue'),
+      (val) => { if (pretextLib) remount(Math.round(val)); }
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('21-svg-target.html', '23-chat-bubble.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

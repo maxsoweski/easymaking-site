@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>08 · Soft hyphens — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* A "river" is a column of whitespace running through several consecutive
+       lines of justified text. The passage below is deliberately long-worded
+       so hyphens-off will produce obvious rivers at narrow widths. */
+    .demo-text-region p {
+      text-align: justify;
+      hyphens: manual;
+    }
+    .toggle-row-stage {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .toggle-row-stage button {
+      padding: 6px 14px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--mono);
+      letter-spacing: 0.04em;
+      transition: all 100ms ease;
+    }
+    .toggle-row-stage button[data-active="true"] {
+      background: var(--clay);
+      color: white;
+      border-color: var(--clay);
+    }
+    .toggle-row-stage button:hover:not([data-active="true"]) {
+      background: var(--clay-dim);
+      border-color: var(--clay);
+    }
+    .toggle-row-stage .state-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted-soft);
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">08</span>Soft hyphens</span>
+      <nav class="prev-next">
+        <a href="07-word-break.html">←</a>
+        <a href="09-tabs.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 3 · Whitespace &amp; Breaks</div>
+    <h1 class="lesson-title">Soft hyphens</h1>
+    <div id="stamp"></div>
+
+    <p>Justified text at narrow widths is a graveyard of <em>rivers</em> — vertical columns of white space that run through consecutive lines because a long word refused to break. The soft hyphen, <code>&amp;shy;</code> (U+00AD), is the typesetter's one-character answer. It marks a place <em>in</em> a word where the engine is allowed to break, and a trailing hyphen appears only if it does.</p>
+
+    <p>Below is the same Thoreau passage, justified, at a narrow column. Toggle hyphens off and on.</p>
+
+    <div class="demo-stage" id="demo">
+      <div class="demo-text-region" id="textRegion" style="width: 300px; margin: 0 auto;"></div>
+      <div id="caliperMount"></div>
+      <div class="toggle-row-stage">
+        <button id="hyphenToggle" data-active="true">hyphens on</button>
+        <span class="state-meta" id="stateMeta">height — · lines —</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">width</label>
+        <input type="range" id="widthSlider" min="200" max="520" value="300" step="1">
+        <span class="value" id="widthValue">300</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Pretext treats U+00AD as a <em>soft-hyphen</em> segment during <code>prepare()</code> — neither visible nor a word boundary on its own. When <code>layout()</code> walks the prepared segments and a word would otherwise overflow the line, the engine consults the most recent soft-hyphen position inside that word and checks whether breaking there, <em>plus</em> a hyphen glyph, still fits.</p>
+      <p>If it fits, the line ends with a visible <code>-</code> and the next line starts with the remainder of the word. If no soft-hyphen position fits, the break falls wherever the engine would have fallen without it. Either way, <code>&amp;shy;</code> characters not chosen as a break leave no visible trace.</p>
+      <p>The only decision you make is <em>where</em> to annotate — at natural syllable boundaries (<code>tran&amp;shy;scen&amp;shy;den&amp;shy;tal</code>) — and the engine decides <em>whether</em> to use each one, per line, per width.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Print-quality justification on the web becomes ordinary. Specifically:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>A narrow editorial column that justifies cleanly with no rivers, even at 280 pixels.</li>
+        <li>A magazine layout with full-justified body text and no orphaned long words.</li>
+        <li>A multi-column article that wraps technical vocabulary (<code>phenomenology</code>, <code>transcendental</code>) where an editor would have chosen the break, not the browser's word-break fallback.</li>
+        <li>Headlines that respect their intended line count because you annotated <code>pre&amp;shy;dict&amp;shy;a&amp;shy;bility</code> rather than letting a resize shove it to three lines.</li>
+      </ul>
+      <p>The pre-measured height still matches the rendered height — rivers go away without any pipeline changes downstream.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"no more rivers in this column"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">annotate long words with <code>&amp;shy;</code> at syllable breaks</span>
+
+        <span class="phrase">"tight column without ugliness"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">soft hyphens + Pretext fit, justify the result</span>
+
+        <span class="phrase">"break where an editor would"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">pick your own <code>&amp;shy;</code> positions, not <code>overflow-wrap</code></span>
+
+        <span class="phrase">"print-quality justification on the web"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">Pretext honors U+00AD during <code>prepare()</code></span>
+      </div>
+      <div class="meta">Next: tabs — the other character that browsers usually swallow, which Pretext preserves under pre-wrap.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">annotate once, engine decides per width</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// Soft hyphens (\u00AD or &shy; in HTML) mark *permission* to break.
+// Annotate once, at natural syllable boundaries, in the source text.
+const text =
+  "I went to the woods because I wished to live delib\u00ADer\u00ADate\u00ADly, " +
+  "to front only the essen\u00ADtial facts of life...";
+
+const handle = prepare(text, "400 20px 'EB Garamond', serif");
+
+// layout() walks the prepared segments and, per line, decides whether to
+// break at any soft hyphen it passed through. A visible '-' appears only
+// when a soft hyphen is actually used as the break.
+const { height, lineCount } = layout(handle, 300, 20 * 1.55);</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             createWidthCaliper, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit']);
+
+    // Two versions of the same passage. The "on" version has soft hyphens
+    // (U+00AD) inserted at natural syllable boundaries in long words;
+    // "off" is the plain text Pretext cannot break inside of.
+    const SHY = '\u00AD';
+    const s = SHY; // short alias for readability below
+
+    const TEXT_OFF =
+      "I went to the woods because I wished to live deliberately, to front " +
+      "only the essential facts of life, and see if I could not learn what " +
+      "it had to teach, and not, when I came to die, discover that I had " +
+      "not lived. I did not wish to live what was not life, living is so " +
+      "dear; nor did I wish to practise resignation, unless it was quite " +
+      "necessary. I wanted to live deep and suck out all the marrow of " +
+      "life, to live so sturdily and Spartan-like as to put to rout all " +
+      "that was not life.";
+
+    // Same text, with &shy; inserted at syllable breaks of the longer words.
+    const TEXT_ON =
+      `I went to the woods because I wished to live de${s}lib${s}er${s}ate${s}ly, to front ` +
+      `only the es${s}sen${s}tial facts of life, and see if I could not learn what ` +
+      `it had to teach, and not, when I came to die, dis${s}cov${s}er that I had ` +
+      `not lived. I did not wish to live what was not life, liv${s}ing is so ` +
+      `dear; nor did I wish to prac${s}tise res${s}ig${s}na${s}tion, un${s}less it was quite ` +
+      `nec${s}es${s}sary. I wanted to live deep and suck out all the mar${s}row of ` +
+      `life, to live so stur${s}di${s}ly and Spar${s}tan-like as to put to rout all ` +
+      `that was not life.`;
+
+    const FONT = "400 20px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 20 * 1.55;
+
+    const textRegion = document.getElementById('textRegion');
+    const stateMeta = document.getElementById('stateMeta');
+    const toggle = document.getElementById('hyphenToggle');
+    const caliper = createWidthCaliper(document.getElementById('caliperMount'));
+    caliper.setWidth(300);
+
+    let pretextLib = null;
+    let handleOff = null;
+    let handleOn = null;
+    let hyphensOn = true;
+
+    function paintText() {
+      // Render the text with &shy; expanded (browser will pick its own breaks
+      // if we let it — but since Pretext is the authority on line heights,
+      // we rely on the browser to honor the same soft hyphens via hyphens: manual.
+      const t = hyphensOn ? TEXT_ON : TEXT_OFF;
+      textRegion.innerHTML = `<p>${escapeHtml(t)}</p>`;
+    }
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handleOff = lib.prepare(TEXT_OFF, FONT);
+      handleOn  = lib.prepare(TEXT_ON,  FONT);
+      paintText();
+      refresh(parseFloat(document.getElementById('widthSlider').value));
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    function refresh(width) {
+      textRegion.style.width = width + 'px';
+      caliper.setWidth(width);
+      if (!pretextLib) return;
+      const handle = hyphensOn ? handleOn : handleOff;
+      if (!handle) return;
+      const { height, lineCount } = pretextLib.layout(handle, width, LINE_HEIGHT_PX);
+      stateMeta.textContent =
+        `height ${Math.round(height)}px · ${lineCount} line${lineCount === 1 ? '' : 's'}`;
+    }
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => { refresh(val); }
+    );
+
+    toggle.addEventListener('click', () => {
+      hyphensOn = !hyphensOn;
+      toggle.textContent = hyphensOn ? 'hyphens on' : 'hyphens off';
+      toggle.setAttribute('data-active', String(hyphensOn));
+      paintText();
+      refresh(parseFloat(document.getElementById('widthSlider').value));
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('07-word-break.html', '09-tabs.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

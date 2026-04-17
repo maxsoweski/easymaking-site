@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>24 · Perf bench — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Lesson-local: two-pane bench. Each pane runs the same job, different engine. */
+    #benchStage { padding: 0; }
+    #benchStage .pane {
+      padding: 28px 30px 24px;
+      position: relative;
+      min-height: 260px;
+    }
+    #benchStage .pane.dom   { background: rgba(184, 101, 61, 0.04); }
+    #benchStage .pane.pretext { background: rgba(111, 142, 124, 0.06); }
+    @media (min-width: 720px) {
+      #benchStage.split { display: grid; grid-template-columns: 1fr 1fr; }
+      #benchStage.split > .pane { border-right: 1px solid var(--paper-edge); }
+      #benchStage.split > .pane:last-child { border-right: none; }
+    }
+    @media (max-width: 720px) {
+      #benchStage.split > .pane { border-bottom: 1px solid var(--paper-edge); }
+      #benchStage.split > .pane:last-child { border-bottom: none; }
+    }
+    .pane-engine {
+      font-family: var(--display);
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+    .pane.dom     .pane-engine { color: var(--clay); }
+    .pane.pretext .pane-engine { color: var(--sage); }
+    .stats {
+      display: grid;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .stat-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .stat-label { color: var(--muted); letter-spacing: 0.04em; }
+    .stat-value {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .pane.dom     .stat-value.primary { color: var(--clay); }
+    .pane.pretext .stat-value.primary { color: var(--sage); }
+    .run-btn {
+      padding: 8px 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 100ms ease;
+    }
+    .run-btn:hover:not(:disabled) { background: var(--clay-dim); border-color: var(--clay); }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pane-note {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted-soft);
+      letter-spacing: 0.03em;
+    }
+    .ratio-readout {
+      padding: 16px 22px;
+      background: var(--paper-warm);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      text-align: center;
+      margin-top: 14px;
+      margin-bottom: 22px;
+      font-variant-numeric: tabular-nums;
+    }
+    .ratio-readout .big {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--sage);
+      margin: 0 4px;
+    }
+    .ratio-readout.empty .big { color: var(--muted-soft); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">24</span>Perf bench</span>
+      <nav class="prev-next">
+        <a href="23-chat-bubble.html">&larr;</a>
+        <span>&rarr;</span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 8 &middot; Production Patterns</div>
+    <h1 class="lesson-title">Perf bench</h1>
+    <div id="stamp"></div>
+
+    <p>The last lesson is a tool. Two panels, same job: measure <em>workload</em> items of public-domain prose against a 400-pixel column. The left panel reads heights off the DOM. The right panel asks Pretext. Each panel times itself.</p>
+
+    <p>Crank the workload. Run one pane, then the other. At workload 500 both finish in a blink. At workload 5000 the numbers separate. Use this to answer a single decision: for your use case, does Pretext earn its seat?</p>
+
+    <div class="demo-stage split" id="benchStage">
+      <div class="pane dom">
+        <div class="pane-engine">DOM measurement</div>
+        <div class="stats">
+          <div class="stat-row"><span class="stat-label">measurements/sec</span><span class="stat-value primary" id="domRate">&mdash;</span></div>
+          <div class="stat-row"><span class="stat-label">last pass</span><span class="stat-value" id="domTime">&mdash;</span></div>
+          <div class="stat-row"><span class="stat-label">items</span><span class="stat-value" id="domCount">&mdash;</span></div>
+        </div>
+        <button class="run-btn" id="runDom">run 1 pass</button>
+        <div class="pane-note">probe &rarr; <code>getBoundingClientRect()</code> per item &middot; forces layout flush</div>
+      </div>
+
+      <div class="pane pretext">
+        <div class="pane-engine">Pretext engine</div>
+        <div class="stats">
+          <div class="stat-row"><span class="stat-label">measurements/sec</span><span class="stat-value primary" id="preRate">&mdash;</span></div>
+          <div class="stat-row"><span class="stat-label">last pass</span><span class="stat-value" id="preTime">&mdash;</span></div>
+          <div class="stat-row"><span class="stat-label">items</span><span class="stat-value" id="preCount">&mdash;</span></div>
+        </div>
+        <button class="run-btn" id="runPre">run 1 pass</button>
+        <div class="pane-note">handles prepared once at mount &middot; <code>layout()</code> is pure arithmetic</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="workloadSlider">workload</label>
+        <input type="range" id="workloadSlider" min="10" max="5000" value="1000" step="10">
+        <span class="value" id="workloadValue">1000</span>
+      </div>
+    </div>
+
+    <div class="ratio-readout empty" id="ratioReadout">
+      run both panes to compare &mdash; ratio <span class="big">&mdash;</span>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>Both panels walk the same pool of 1,000 public-domain paragraphs and measure the rendered height of each at a fixed column width. The inputs are identical; only the engine differs.</p>
+      <p><strong>DOM panel:</strong> for each item we push text into an off-screen probe, set the probe's width, and read <code>getBoundingClientRect().height</code>. That read forces the browser to flush any pending style/layout work. Doing it N times gives us a measured height N times &mdash; and N forced flushes.</p>
+      <p><strong>Pretext panel:</strong> at mount we call <code>prepare()</code> once on each item and cache the handle. Each run iterates the cached handles and calls <code>layout(handle, 400, lineHeight)</code>. No DOM touch, no flush, no canvas call. The work is word-wrap arithmetic over cached segment widths.</p>
+      <p>At low workload both engines are fast enough that the difference doesn't matter. At high workload the DOM panel's time scales with N layout flushes; the Pretext panel's time stays a handful of milliseconds. Your user's slider handler is a high-workload environment in disguise.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>This bench is the decision moment. If your component's measurement budget per frame is 16ms and you need to measure 500 items during a drag &mdash; is the DOM panel's rate enough, or do you need the Pretext panel's? Run it.</p>
+      <p>Use it before you adopt the library: confirm the gap is real on your machine. Use it after you adopt: sanity-check a regression by running the Pretext pane and watching the rate stay where it was. Use it when a teammate asks whether it's worth the dependency: run both, show the number.</p>
+      <p>The shape of the answer does not depend on marketing. It depends on your browser, your machine, your text, and the engine you picked.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I learned this, at least, by my experiment: that if one advances confidently in the direction of his dreams, and endeavors to live the life which he has imagined, he will meet with a success unexpected in common hours."</p>
+      <cite>Henry David Thoreau, <em>Walden</em> (1854, conclusion)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <p>The course ends here. The primitives are small; the applications are not.</p>
+      <div class="verb-map">
+        <span class="phrase">"confirm it's faster before adopting"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">run the bench on your machine, your text, your browser</span>
+
+        <span class="phrase">"500&times; isn't marketing"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">side-by-side at high workload; both engines measuring the same text</span>
+
+        <span class="phrase">"does this component need Pretext"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">compare rate to the measurement budget per frame you actually have</span>
+
+        <span class="phrase">"make sure a regression didn't land"</span>
+        <span class="arrow">&rarr;</span>
+        <span class="mapping">run the Pretext pane &mdash; the rate should be stable across refactors</span>
+      </div>
+      <div class="meta">The lab is over. You have the mental model (Arc 1), the primitives (2&ndash;4), the rich-inline and manual paths (5&ndash;6), the rendering targets (7), and the production patterns (8). What will you build?</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">two engines, same job, side-by-side timings</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// Mount: prepare once per item. The handles are shared across runs.
+const handles = items.map(t => prepare(t, FONT));
+
+// Pretext pane: N layout() calls. Pure arithmetic.
+function runPretext(n) {
+  const t0 = performance.now();
+  for (let i = 0; i < n; i++) {
+    void layout(handles[i % handles.length], 400, LINE_H).height;
+  }
+  const ms = performance.now() - t0;
+  return { ms, rate: n / (ms / 1000) };
+}
+
+// DOM pane: N probe reads. Each read flushes layout.
+function runDOM(n) {
+  const t0 = performance.now();
+  for (let i = 0; i < n; i++) {
+    probe.textContent = items[i % items.length];
+    probe.style.width = '400px';
+    void probe.getBoundingClientRect().height;  // forces layout
+  }
+  const ms = performance.now() - t0;
+  return { ms, rate: n / (ms / 1000) };
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    // ───────────────────────────────────────────────────────────────
+    // Shared corpus: 1,000 items cycled from a pool of PD paragraphs.
+    // Both engines measure the exact same strings at the exact same
+    // column width so their numbers are directly comparable.
+    // ───────────────────────────────────────────────────────────────
+    const POOL = [
+      "I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach.",
+      "Simplify, simplify. Instead of three meals a day, if it be necessary eat but one; instead of a hundred dishes, five.",
+      "Time is but the stream I go a-fishing in. I drink at it; but while I drink I see the sandy bottom and detect how shallow it is.",
+      "Trust thyself: every heart vibrates to that iron string. Accept the place the divine providence has found for you.",
+      "A foolish consistency is the hobgoblin of little minds, adored by little statesmen and philosophers and divines.",
+      "My experience is what I agree to attend to. Only those items which I notice shape my mind — without selective interest, experience is an utter chaos.",
+      "You have power over your mind — not outside events. Realize this, and you will find strength.",
+      "Waste no more time arguing what a good man should be. Be one.",
+      "The soul becomes dyed with the color of its thoughts. A man's life is what his thoughts make of it.",
+      "I celebrate myself, and sing myself, and what I assume you shall assume, for every atom belonging to me as good belongs to you.",
+      "Tell all the truth but tell it slant — success in circuit lies. Too bright for our infirm delight the truth's superb surprise.",
+      "The question is not what you look at, but what you see.",
+      "In wildness is the preservation of the world. Every tree sends its fibres forth in search of the wild.",
+      "The sway of alcohol over mankind is unquestionably due to its power to stimulate the mystical faculties of human nature.",
+      "Confine yourself to the present. Accept the things to which fate binds you, and love the people with whom fate brings you together.",
+      "The great thing, then, in all education, is to make our nervous system our ally instead of our enemy.",
+      "However mean your life is, meet it and live it; do not shun it and call it hard names.",
+      "The sun illuminates only the eye of the man, but shines into the eye and the heart of the child.",
+      "Do I contradict myself? Very well then I contradict myself. I am large, I contain multitudes.",
+      "The soul selects her own society, then shuts the door; on her divine majority obtrude no more.",
+    ];
+
+    const CORPUS_SIZE = 1000;
+    const ITEMS = new Array(CORPUS_SIZE);
+    for (let i = 0; i < CORPUS_SIZE; i++) ITEMS[i] = POOL[i % POOL.length];
+
+    const FONT_CSS = "400 20px 'EB Garamond', serif";
+    const LINE_H = 20 * 1.55;
+    const COL_WIDTH = 400;
+
+    // ───────────────────────────────────────────────────────────────
+    // DOM probe — off-screen absolute element. Every bench iteration
+    // writes text, sets width, and reads the rect. The read is the
+    // cost we're measuring.
+    // ───────────────────────────────────────────────────────────────
+    const probe = document.createElement('div');
+    probe.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      top: -9999px;
+      left: -9999px;
+      font: ${FONT_CSS};
+      line-height: ${LINE_H}px;
+      white-space: normal;
+      word-wrap: break-word;
+    `;
+    document.body.appendChild(probe);
+
+    // ───────────────────────────────────────────────────────────────
+    // State.
+    // ───────────────────────────────────────────────────────────────
+    let pretextLib = null;
+    let handles = null;       // prepared once at mount, shared across runs
+    let workload = 1000;
+    let lastDomRate = null;
+    let lastPreRate = null;
+
+    const elDomRate  = document.getElementById('domRate');
+    const elDomTime  = document.getElementById('domTime');
+    const elDomCount = document.getElementById('domCount');
+    const elPreRate  = document.getElementById('preRate');
+    const elPreTime  = document.getElementById('preTime');
+    const elPreCount = document.getElementById('preCount');
+    const runDomBtn  = document.getElementById('runDom');
+    const runPreBtn  = document.getElementById('runPre');
+    const ratioEl    = document.getElementById('ratioReadout');
+
+    // Pretext pane is gated on library load; DOM pane is always ready.
+    runPreBtn.disabled = true;
+
+    function formatTime(ms) {
+      if (ms < 1) return ms.toFixed(2) + ' ms';
+      if (ms < 1000) return Math.round(ms) + ' ms';
+      return (ms / 1000).toFixed(2) + ' s';
+    }
+    function formatRate(r) {
+      if (r >= 1e6) return (r / 1e6).toFixed(2) + 'M/s';
+      if (r >= 1000) return Math.round(r / 1000) + 'K/s';
+      return Math.round(r) + '/s';
+    }
+
+    function updateRatio() {
+      if (lastDomRate != null && lastPreRate != null && lastDomRate > 0) {
+        const ratio = lastPreRate / lastDomRate;
+        ratioEl.classList.remove('empty');
+        ratioEl.innerHTML = `Pretext is <span class="big">${ratio < 2 ? ratio.toFixed(1) : Math.round(ratio)}&times;</span> faster than DOM measurement at this workload`;
+      }
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // DOM pass: N probe reads. Each forces a style/layout flush.
+    // ───────────────────────────────────────────────────────────────
+    function runDomPass(n) {
+      const t0 = performance.now();
+      let total = 0;
+      for (let i = 0; i < n; i++) {
+        probe.textContent = ITEMS[i % CORPUS_SIZE];
+        probe.style.width = COL_WIDTH + 'px';
+        total += probe.getBoundingClientRect().height;
+      }
+      const ms = performance.now() - t0;
+      // Defeat DCE of the accumulator without leaking to the UI.
+      if (total < 0) console.log(total);
+      return { ms, rate: n / (ms / 1000) };
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Pretext pass: N layout() calls on pre-prepared handles.
+    // ───────────────────────────────────────────────────────────────
+    function runPretextPass(n) {
+      if (!pretextLib || !handles) return { ms: 0, rate: 0 };
+      const { layout } = pretextLib;
+      const t0 = performance.now();
+      let total = 0;
+      for (let i = 0; i < n; i++) {
+        total += layout(handles[i % handles.length], COL_WIDTH, LINE_H).height;
+      }
+      const ms = performance.now() - t0;
+      if (total < 0) console.log(total);
+      return { ms, rate: n / (ms / 1000) };
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Button handlers — yield to RAF before and after so the button's
+    // "..." label paints and the bench number is measured cleanly.
+    // ───────────────────────────────────────────────────────────────
+    async function runDom() {
+      runDomBtn.disabled = true;
+      runDomBtn.textContent = 'running…';
+      await new Promise(requestAnimationFrame);
+      const { ms, rate } = runDomPass(workload);
+      lastDomRate = rate;
+      elDomRate.textContent = formatRate(rate);
+      elDomTime.textContent = formatTime(ms);
+      elDomCount.textContent = workload.toLocaleString();
+      runDomBtn.disabled = false;
+      runDomBtn.textContent = 'run 1 pass';
+      updateRatio();
+    }
+
+    async function runPre() {
+      if (!pretextLib) return;
+      runPreBtn.disabled = true;
+      runPreBtn.textContent = 'running…';
+      await new Promise(requestAnimationFrame);
+      const { ms, rate } = runPretextPass(workload);
+      lastPreRate = rate;
+      elPreRate.textContent = formatRate(rate);
+      elPreTime.textContent = formatTime(ms);
+      elPreCount.textContent = workload.toLocaleString();
+      runPreBtn.disabled = false;
+      runPreBtn.textContent = 'run 1 pass';
+      updateRatio();
+    }
+
+    runDomBtn.addEventListener('click', runDom);
+    runPreBtn.addEventListener('click', runPre);
+
+    bindSlider(
+      document.getElementById('workloadSlider'),
+      document.getElementById('workloadValue'),
+      (val) => {
+        workload = Math.round(val);
+        // A new workload invalidates prior rates for fair comparison.
+        lastDomRate = null;
+        lastPreRate = null;
+        ratioEl.classList.add('empty');
+        ratioEl.innerHTML = `run both panes to compare — ratio <span class="big">—</span>`;
+      }
+    );
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      // Prepare once: handles are reused on every Pretext run.
+      handles = ITEMS.map(t => lib.prepare(t, FONT_CSS));
+      runPreBtn.disabled = false;
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      runPreBtn.disabled = true;
+      document.getElementById('benchStage').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('23-chat-bubble.html', null);
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

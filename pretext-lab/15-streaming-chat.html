@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>15 · Streaming chat — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    /* Stage: a split panel, one side "DOM measurement" (jumpy), one "Pretext pre-sized" (smooth). */
+    .demo-stage.split.chat { padding: 0; }
+    .demo-stage.split.chat > .pane { padding: 34px 34px 30px; }
+
+    .chat-scroll {
+      height: 300px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 10px 4px 10px 4px;
+      border: 1px dashed var(--paper-edge);
+      border-radius: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--paper-edge) transparent;
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      /* anchor at the bottom so streaming reveals feel like a chat tail */
+      justify-content: flex-end;
+    }
+
+    .chat-bubble {
+      align-self: flex-start;
+      max-width: 90%;
+      padding: 12px 16px;
+      border-radius: 14px 14px 14px 4px;
+      background: var(--paper-warm);
+      border: 1px solid var(--paper-edge);
+      font-family: var(--serif);
+      font-size: 17px;
+      line-height: 1.5;
+      color: var(--ink-2);
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    /* DOM pane: a visible height transition makes the "catch up after text
+       arrives" feel palpable — the bubble chases the content. */
+    #bubbleDom { transition: height 120ms ease-out; }
+    /* Pretext pane: no transition — the height change is committed in the same
+       frame as the text, so there's nothing to animate. */
+    #bubblePretext { transition: none; }
+
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: white;
+      border-radius: 14px 14px 4px 14px;
+      color: var(--ink-2);
+    }
+
+    .chat-bubble .body { display: block; }
+
+    .pane-stats {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      margin-top: 10px;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      gap: 14px;
+    }
+    .pane-stats .verdict { color: var(--clay); }
+    .pane-stats .verdict.ok { color: var(--sage); }
+
+    .controls.chat {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .controls.chat button {
+      padding: 8px 18px;
+      border: 1px solid var(--clay);
+      border-radius: 3px;
+      background: var(--clay);
+      color: white;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 120ms ease;
+      letter-spacing: 0.04em;
+    }
+    .controls.chat button:hover { background: #a25530; }
+    .controls.chat button[disabled] { opacity: 0.55; cursor: default; background: var(--muted); border-color: var(--muted); }
+    .controls.chat .hint {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .controls.chat .rate {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">15</span>Streaming chat</span>
+      <nav class="prev-next">
+        <a href="14-mixed-fonts.html">←</a>
+        <a href="16-variable-width.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 5 · Rich Inline</div>
+    <h1 class="lesson-title">Streaming chat</h1>
+    <div id="stamp"></div>
+
+    <p>Every LLM chat interface faces the same problem: tokens arrive one at a time, and the assistant's bubble has to grow without jostling everything above it. The naive version reads the bubble's DOM height after each token insertion; the browser obliges, and the scroll pins wobble, the typing indicator jumps, the sibling messages nudge. Pretext lets you <em>know the height</em> before the token is on the page.</p>
+
+    <p>Press <strong>start stream</strong>. On the left, the bubble's height comes from the DOM after each token — watch it jitter. On the right, Pretext sizes the bubble <em>before</em> the token renders. The text arrives inside a box that already knows how tall it is.</p>
+
+    <div class="demo-stage split chat" id="demo">
+      <div class="pane pane--dom">
+        <div class="pane-label">DOM measurement — height after insert</div>
+        <div class="chat-scroll" id="scrollDom">
+          <div class="chat-bubble user"><span class="body">recite a Dickinson</span></div>
+          <div class="chat-bubble" id="bubbleDom"><span class="body" id="bodyDom"></span></div>
+        </div>
+        <div class="pane-stats">
+          <span id="statDomHeight">height · —px</span>
+          <span class="verdict" id="statDomVerdict">bubble chases text</span>
+        </div>
+      </div>
+      <div class="pane pane--pretext">
+        <div class="pane-label">Pretext pre-sized — height before insert</div>
+        <div class="chat-scroll" id="scrollPretext">
+          <div class="chat-bubble user"><span class="body">recite a Dickinson</span></div>
+          <div class="chat-bubble" id="bubblePretext"><span class="body" id="bodyPretext"></span></div>
+        </div>
+        <div class="pane-stats">
+          <span id="statPretextHeight">height · —px</span>
+          <span class="verdict ok" id="statPretextVerdict">bubble already tall enough</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls chat">
+      <button id="streamBtn">start stream</button>
+      <span class="hint">words appear on both sides at the same cadence</span>
+      <span class="rate" id="rateReadout">rate · 80ms</span>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>On the right pane, the token loop looks like this: take the message so far (including the new token), call <code>prepare(message, font)</code>, call <code>layout(handle, bubbleMaxWidth, lineHeight)</code>, assign the returned <code>height</code> to the bubble <em>before</em> inserting the new token into the DOM. The bubble is already tall enough. When the token appears, nothing above it moves.</p>
+      <p>The cost profile stays honest. <code>prepare()</code> is the expensive one, and we run it every token — but the text is short and the handle is small, so per-token preparation is well under a frame on any modern machine. In production you'd also cache by a prefix: if the previous call's text is a prefix of this one, you can often skip re-preparing. For the lesson, we re-prepare, and it still stays buttery.</p>
+      <p>On the left pane, we insert the token first, then read the bubble's <code>offsetHeight</code>. Each read flushes pending layout — and this is the cost Lesson 1 warned about, made visible in an interface everyone recognizes.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Streaming UIs that feel still are a palpable unlock:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>An LLM chat whose scroll stays pinned while tokens arrive — the reader's eye does not have to chase a moving target.</li>
+        <li>A live transcription overlay where the caption box grows to fit without rattling the video beneath it.</li>
+        <li>A real-time collaborative document where other users' typing inserts pre-sized runs without shifting your cursor context.</li>
+        <li>A voice-note playback bubble whose waveform and transcript grow in lockstep, because both are arithmetic.</li>
+      </ul>
+      <p>The effect is difficult to describe but impossible to unsee. Users feel the difference even when they can't name it.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"I'm Nobody! Who are you?<br>Are you — Nobody — too?<br>Then there's a pair of us!<br>Don't tell! they'd advertise — you know!"</p>
+      <cite>Emily Dickinson, poem 288 (posthumously published 1891)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"chat that stays still during streaming"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">measure-before-insert with <code>prepare()</code> + <code>layout()</code> in the token loop</span>
+
+        <span class="phrase">"bubble pre-sized per token"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">re-prepare + layout each token; set <code>bubble.style.height</code> before rendering</span>
+
+        <span class="phrase">"no scroll jitter on token arrival"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">assign the <code>height</code> returned by <code>layout()</code> ahead of the DOM write</span>
+
+        <span class="phrase">"growing message box, nothing above it moves"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">avoid any <code>offsetHeight</code> read inside the stream handler</span>
+      </div>
+      <div class="meta">Arc 5 closes here; Arc 6 starts with a different kind of non-static layout: the width itself varies per line.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">the token loop — pre-size before insert</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+const FONT = "400 17px 'EB Garamond', serif";
+const LINE_HEIGHT = 17 * 1.5;
+
+let assembled = '';
+for await (const token of stream) {
+  assembled += token;
+
+  // 1. Pretext: measure in JS, before touching the DOM.
+  const handle = prepare(assembled, FONT);
+  const { height } = layout(handle, bubbleMaxWidth, LINE_HEIGHT);
+
+  // 2. Size the bubble — so it's already the right height when the token lands.
+  bubble.style.height = (height + BUBBLE_PADDING_Y) + 'px';
+
+  // 3. Now, and only now, write the token into the DOM.
+  body.textContent = assembled;
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, createStamp, setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze', 'fit', 'render']);
+
+    // Dickinson, poem 288 (public domain; first published 1891).
+    // Streaming by words so each token arrival is readable; one hard \n between lines
+    // so the bubble visibly grows on line boundaries.
+    const POEM =
+      "I'm Nobody! Who are you?\n" +
+      "Are you — Nobody — too?\n" +
+      "Then there's a pair of us!\n" +
+      "Don't tell! they'd advertise — you know!";
+
+    // Token stream: split the poem into words/punct runs that each include one trailing
+    // space or newline, so reassembly is trivial.
+    function tokenizePoem(text) {
+      const tokens = [];
+      const re = /\S+\s*/g;
+      let m;
+      while ((m = re.exec(text)) !== null) tokens.push(m[0]);
+      return tokens;
+    }
+    const TOKENS = tokenizePoem(POEM);
+
+    // Typography / bubble geometry. Must match the .chat-bubble CSS.
+    const FONT = "400 17px 'EB Garamond', serif";
+    const LINE_HEIGHT_PX = 17 * 1.5;        // 25.5 — pretext uses the exact value.
+    const BUBBLE_PAD_X = 16;                 // left + right padding is 16 each, matches CSS
+    const BUBBLE_PAD_Y_TOTAL = 12 * 2;       // top + bottom padding — 12 each
+    const BUBBLE_BORDER_Y = 2;               // 1px top + 1px bottom border
+    const TOKEN_MS = 80;                     // inter-token interval
+    const BUBBLE_MAX_WIDTH_FRACTION = 0.9;   // matches .chat-bubble max-width: 90%
+
+    const bodyDom = document.getElementById('bodyDom');
+    const bubbleDom = document.getElementById('bubbleDom');
+    const scrollDom = document.getElementById('scrollDom');
+    const bodyPretext = document.getElementById('bodyPretext');
+    const bubblePretext = document.getElementById('bubblePretext');
+    const scrollPretext = document.getElementById('scrollPretext');
+    const streamBtn = document.getElementById('streamBtn');
+    const statDomHeight = document.getElementById('statDomHeight');
+    const statDomVerdict = document.getElementById('statDomVerdict');
+    const statPretextHeight = document.getElementById('statPretextHeight');
+    const statPretextVerdict = document.getElementById('statPretextVerdict');
+    const rateReadout = document.getElementById('rateReadout');
+    rateReadout.textContent = `rate · ${TOKEN_MS}ms`;
+
+    // Pretext lib handle, resolved once.
+    let pretextLib = null;
+
+    function bubbleMaxWidth(pane) {
+      // match CSS: .chat-bubble { max-width: 90% } inside .chat-scroll.
+      // We read the scroll's inner width once at stream start; since the user
+      // doesn't resize during a stream, this is not a layout-thrashing read.
+      const scrollWidth = pane.clientWidth - 8; // 4px L/R padding on .chat-scroll
+      return scrollWidth * BUBBLE_MAX_WIDTH_FRACTION;
+    }
+
+    let streaming = false;
+    let tokenIndex = 0;
+    let assembled = '';
+
+    function resetPanes() {
+      assembled = '';
+      tokenIndex = 0;
+      bodyDom.textContent = '';
+      bodyPretext.textContent = '';
+      bubbleDom.style.height = 'auto';
+      bubblePretext.style.height = 'auto';
+      statDomHeight.textContent = 'height · —px';
+      statDomVerdict.textContent = 'bubble chases text';
+      statPretextHeight.textContent = 'height · —px';
+      statPretextVerdict.textContent = 'bubble already tall enough';
+    }
+
+    // Add a sibling bubble above each chat's assistant bubble so the scroll
+    // actually has something to push against. We also scroll into view whenever
+    // the bubble grows, which is what real chats do.
+    function scrollToBottom(scrollEl) {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+
+    function streamStep() {
+      if (!streaming) return;
+      if (tokenIndex >= TOKENS.length) {
+        streaming = false;
+        streamBtn.textContent = 'restart stream';
+        streamBtn.disabled = false;
+        return;
+      }
+
+      const token = TOKENS[tokenIndex];
+      tokenIndex++;
+      assembled += token;
+
+      // ── DOM pane (bad pattern) ───────────────────────────────
+      // Insert the token first. Let the browser reflow. Read offsetHeight.
+      // Assign it back as explicit height so the CSS transition animates from
+      // the previous height to the new one — that lag is what users feel.
+      {
+        bodyDom.textContent = assembled;
+        // Force a layout flush by reading offsetHeight after the write.
+        const domH = bubbleDom.offsetHeight;
+        // Snap height to the DOM-measured height. With transition: 120ms on
+        // this element, each token "chases" — the box is briefly shorter than
+        // the text it contains, and the reader sees it catching up.
+        bubbleDom.style.height = domH + 'px';
+        statDomHeight.textContent = `height · ${domH}px`;
+        scrollToBottom(scrollDom);
+      }
+
+      // ── Pretext pane (good pattern) ──────────────────────────
+      // Size the bubble from layout() BEFORE writing the token. No transition
+      // on this element; the new height and the new text commit together, so
+      // there is nothing to animate and nothing to catch up to.
+      if (pretextLib) {
+        const width = bubbleMaxWidth(scrollPretext) - BUBBLE_PAD_X * 2;
+        const handle = pretextLib.prepare(assembled, FONT);
+        const { height } = pretextLib.layout(handle, width, LINE_HEIGHT_PX);
+        const total = Math.ceil(height) + BUBBLE_PAD_Y_TOTAL + BUBBLE_BORDER_Y;
+        bubblePretext.style.height = total + 'px';
+        // Now write the text. The bubble is already the correct height.
+        bodyPretext.textContent = assembled;
+        statPretextHeight.textContent = `height · ${total}px`;
+        scrollToBottom(scrollPretext);
+      }
+    }
+
+    let streamInterval = null;
+    function startStream() {
+      resetPanes();
+      streaming = true;
+      streamBtn.textContent = 'streaming…';
+      streamBtn.disabled = true;
+      streamInterval = setInterval(() => {
+        if (!streaming) {
+          clearInterval(streamInterval);
+          streamInterval = null;
+          return;
+        }
+        streamStep();
+        if (!streaming) {
+          clearInterval(streamInterval);
+          streamInterval = null;
+        }
+      }, TOKEN_MS);
+    }
+
+    streamBtn.addEventListener('click', () => {
+      if (streaming) return;
+      startStream();
+    });
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      streamBtn.disabled = false;
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('14-mixed-fonts.html', '16-variable-width.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>

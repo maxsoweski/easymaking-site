@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>11 · CJK keep-all — Pretext Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="shared/style.css?v=3">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&display=swap');
+
+    .demo-text-region.cjk {
+      font-family: "Noto Serif SC", "EB Garamond", "Songti SC", serif;
+      font-size: 21px;
+      line-height: 1.75;
+      letter-spacing: 0.01em;
+      color: var(--ink-2);
+      height: auto;
+      min-height: 0;
+      max-height: 340px;
+      overflow-y: auto;
+      transition: width 120ms ease, min-height 140ms ease;
+    }
+    /* The visible difference between the two panes is driven by CSS. */
+    .demo-text-region.cjk.keep-all {
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    /* Lay the two panes out side-by-side inside the shared split stage. */
+    .demo-stage.split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .demo-stage.split > .pane {
+      padding: 28px 30px 32px;
+      min-width: 0;
+    }
+    .pane-stats {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px dotted var(--line);
+      font-variant-numeric: tabular-nums;
+    }
+    .pane-stats .value { color: var(--ink); font-weight: 500; }
+    .mode-tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      padding: 1px 6px;
+      border-radius: 2px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+    .mode-tag.normal   { color: var(--muted); border: 1px solid var(--line); }
+    .mode-tag.keep-all { color: var(--sage); background: rgba(111, 142, 124, 0.1); border: 1px solid rgba(111, 142, 124, 0.3); }
+  </style>
+</head>
+<body>
+  <header class="lab-header">
+    <div class="brand"><a href="index.html">Pretext Lab</a></div>
+    <div class="crumbs">
+      <span class="crumb-lesson"><span class="num">11</span>CJK keep-all</span>
+      <nav class="prev-next">
+        <a href="10-rtl.html">←</a>
+        <a href="12-emoji-graphemes.html">→</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lesson">
+    <div class="lesson-subtitle">Arc 4 · Multilingual</div>
+    <h1 class="lesson-title">CJK keep-all</h1>
+    <div id="stamp"></div>
+
+    <p>CSS gives you a single switch for "don't split a word mid-compound" in CJK scripts: <code>word-break: keep-all</code>. Browsers implement it; native readers feel it. The paragraph stops fracturing at every character and breaks only where punctuation gives it permission.</p>
+
+    <p>Two panes, one passage — the opening of the Dao De Jing. Same width, same font, same line-height. Left pane uses the browser default. Right pane sets <code>word-break: keep-all</code>. Drag the slider to feel the difference at the right-hand edge.</p>
+
+    <div class="demo-stage split" id="demo">
+      <div class="pane">
+        <div class="pane-label">Default <span class="mode-tag normal">word-break · normal</span></div>
+        <div class="demo-text-region cjk" id="regionNormal" lang="zh-Hans" style="width: 100%;">
+          <p>道可道，非常道。名可名，非常名。无名，天地之始；有名，万物之母。故常无欲，以观其妙；常有欲，以观其徼。此两者同出而异名，同谓之玄。玄之又玄，众妙之门。</p>
+        </div>
+        <div class="pane-stats">
+          <span>lines <span class="value" id="linesNormal">—</span></span>
+          <span>height <span class="value" id="heightNormal">—</span>px</span>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="pane-label">Native <span class="mode-tag keep-all">word-break · keep-all</span></div>
+        <div class="demo-text-region cjk keep-all" id="regionKeepAll" lang="zh-Hans" style="width: 100%;">
+          <p>道可道，非常道。名可名，非常名。无名，天地之始；有名，万物之母。故常无欲，以观其妙；常有欲，以观其徼。此两者同出而异名，同谓之玄。玄之又玄，众妙之门。</p>
+        </div>
+        <div class="pane-stats">
+          <span>lines <span class="value" id="linesKeepAll">—</span></span>
+          <span>height <span class="value" id="heightKeepAll">—</span>px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="widthSlider">pane width</label>
+        <input type="range" id="widthSlider" min="220" max="420" value="320" step="1">
+        <span class="value" id="widthValue">320</span>
+      </div>
+    </div>
+
+    <div class="block block--mechanism">
+      <h3>Mechanism</h3>
+      <p>In default CJK, Pretext's segmenter treats each Han character as its own unit and every character boundary as a legal break opportunity — the same thing the browser does under <code>word-break: normal</code>. That lets lines pack tightly. It also means a two- or three-character compound like <em>万物</em> can land with half of itself on one line and the other half on the next. For ordinary Western prose that reads as "tight wrap"; for classical Chinese it reads as a typesetting bug.</p>
+      <p>Under CSS <code>word-break: keep-all</code>, the browser refuses those mid-word opportunities. Break points collapse to the punctuation marks that are semantically allowed to end a phrase — 。 、 ， ； — plus explicit spaces. The line fills less tightly on the right, but every line starts on a phrase boundary the author would recognize.</p>
+      <p>Both panes below run through the same <code>prepare()</code>/<code>layout()</code> call — the displayed difference is CSS-driven at render time. Whether Pretext exposes <code>keep-all</code> at the library level is an open item on the engine's roadmap; for now the pragmatic pattern is: let CSS do the visual break, use Pretext for the measurement you already trust.</p>
+    </div>
+
+    <div class="block block--application">
+      <h3>Application</h3>
+      <p>Typography that feels native, not machine-translated:</p>
+      <ul style="margin-left: 24px; margin-top: 6px;">
+        <li>Editorial prose in Chinese, Japanese, or Korean where the line breaks land on phrase boundaries — the way a print editor would set them.</li>
+        <li>A bilingual reader app that renders the English side with <code>normal</code> and the Chinese side with <code>keep-all</code>, from a single shared component.</li>
+        <li>Pull-quotes and chapter epigraphs in CJK scripts that look deliberate, not fractured.</li>
+        <li>Pre-computed heights for virtualized feeds of Chinese articles, correct on the first render because Pretext and the browser agree on break points.</li>
+      </ul>
+      <p>The application is small and specific: serve an East Asian reader a page whose line endings don't advertise, in every paragraph, that a Western developer built it.</p>
+    </div>
+
+    <div class="block block--content">
+      <p>"The Tao that can be trodden is not the enduring and unchanging Tao. The name that can be named is not the enduring and unchanging name. (Conceived of as) having no name, it is the Originator of heaven and earth; (conceived of as) having a name, it is the Mother of all things."</p>
+      <cite>Laozi, <em>Dao De Jing</em>, opening of Ch. 1 (6th c. BCE); trans. James Legge (1891)</cite>
+    </div>
+
+    <div class="block block--direct">
+      <h3>Direct Claude</h3>
+      <div class="verb-map">
+        <span class="phrase">"CJK that reads natively"</span>
+        <span class="arrow">→</span>
+        <span class="mapping"><code>word-break: keep-all</code> on the CJK container</span>
+
+        <span class="phrase">"don't fracture compounds"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">CSS <code>word-break: keep-all</code>; break only on punctuation</span>
+
+        <span class="phrase">"one component, two languages"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">swap the CSS rule per paragraph; one <code>prepare()</code>/<code>layout()</code> path</span>
+
+        <span class="phrase">"classical Chinese, proper line endings"</span>
+        <span class="arrow">→</span>
+        <span class="mapping">set <code>lang="zh"</code> and <code>word-break: keep-all</code>; measure with Pretext</span>
+      </div>
+      <div class="meta">Next: the grapheme floor that even CJK sits on top of — families, flags, and skin-toned hands that must never break mid-cluster.</div>
+    </div>
+
+    <div class="code-block">
+      <div class="toggle-row">
+        <button class="code-toggle">show code</button>
+        <span class="code-label">one prepare(); CSS swaps the break policy on render</span>
+      </div>
+      <pre><code>import { prepare, layout } from '@chenglou/pretext';
+
+// 道德经 · opening of Chapter 1. Public domain (6th c. BCE).
+const TEXT = "道可道，非常道。名可名，非常名。无名，天地之始；有名，万物之母。";
+const FONT = "400 21px 'Noto Serif SC', serif";
+const LINE_HEIGHT = 21 * 1.75;
+
+// One prepare() covers measurement for both modes — Pretext's cached widths
+// are width-independent and the measurement is the same regardless of which
+// break policy the browser applies at render time.
+const handle = prepare(TEXT, FONT);
+
+// Apply the break policy in CSS. Right pane toggles:
+//   .cjk.keep-all { word-break: keep-all; }
+// and the line endings line up on phrase punctuation instead of every glyph.
+function relayout(width) {
+  const { height, lineCount } = layout(handle, width, LINE_HEIGHT);
+  // height is tight to the browser's default behavior.
+  // Under CSS word-break: keep-all, the browser returns fewer but taller
+  // runs to the container; Pretext stays the source of truth for the
+  // default-mode measurement, which is the one your virtualizer caches.
+}</code></pre>
+    </div>
+  </main>
+
+  <script type="module">
+    import { importPretext, bindSlider, createStamp,
+             setupCodeToggle, highlightJS, setupArrowNav }
+      from './shared/pretext-helper.js?v=1';
+
+    createStamp(document.getElementById('stamp'), ['analyze']);
+
+    const regionNormal   = document.getElementById('regionNormal');
+    const regionKeepAll  = document.getElementById('regionKeepAll');
+    const linesNormal    = document.getElementById('linesNormal');
+    const linesKeepAll   = document.getElementById('linesKeepAll');
+    const heightNormal   = document.getElementById('heightNormal');
+    const heightKeepAll  = document.getElementById('heightKeepAll');
+
+    // Laozi, Dao De Jing, Chapter 1 opening (6th c. BCE). Public domain.
+    const TEXT = "道可道，非常道。名可名，非常名。无名，天地之始；有名，万物之母。故常无欲，以观其妙；常有欲，以观其徼。此两者同出而异名，同谓之玄。玄之又玄，众妙之门。";
+
+    const FONT = "400 21px 'Noto Serif SC', 'EB Garamond', serif";
+    const LINE_HEIGHT = 21 * 1.75;
+
+    // Measure the right pane (word-break: keep-all) from the DOM, since
+    // keep-all as a prepare() option is on the engine's roadmap but not
+    // yet shipping. The left pane's stats come from Pretext directly.
+    function measureKeepAll(width) {
+      regionKeepAll.style.width = width + 'px';
+      // Force a synchronous layout read — this is the deliberately-slow path
+      // the rest of the course works to avoid. Here it's a one-off fallback.
+      const p = regionKeepAll.querySelector('p');
+      const h = p.getBoundingClientRect().height;
+      const lc = Math.max(1, Math.round(h / LINE_HEIGHT));
+      return { height: h, lineCount: lc };
+    }
+
+    function applyWidth(width, handle, lib) {
+      regionNormal.style.width  = width + 'px';
+      regionKeepAll.style.width = width + 'px';
+      if (!handle || !lib) return;
+      const a = lib.layout(handle, width, LINE_HEIGHT);
+      const b = measureKeepAll(width);
+      regionNormal.style.minHeight  = a.height + 'px';
+      regionKeepAll.style.minHeight = b.height + 'px';
+      linesNormal.textContent   = a.lineCount;
+      linesKeepAll.textContent  = b.lineCount;
+      heightNormal.textContent  = Math.round(a.height);
+      heightKeepAll.textContent = Math.round(b.height);
+    }
+
+    let pretextLib = null;
+    let handle = null;
+
+    importPretext().then(lib => {
+      pretextLib = lib;
+      handle = lib.prepare(TEXT, FONT);
+      applyWidth(parseFloat(document.getElementById('widthSlider').value), handle, lib);
+    }).catch(err => {
+      console.error('Pretext failed to load:', err);
+      document.getElementById('demo').insertAdjacentHTML(
+        'beforeend',
+        '<div style="position:absolute;inset:0;background:rgba(250,247,242,0.95);display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;color:#b8653d;font-family:var(--mono);font-size:13px;">@chenglou/pretext failed to load from CDN.<br>Check your network.</div>'
+      );
+    });
+
+    bindSlider(
+      document.getElementById('widthSlider'),
+      document.getElementById('widthValue'),
+      (val) => applyWidth(val, handle, pretextLib)
+    );
+
+    const codeToggle = document.querySelector('.code-toggle');
+    const codePre = document.querySelector('.code-block pre');
+    if (codeToggle && codePre) {
+      setupCodeToggle(codeToggle, codePre);
+      highlightJS(codePre.querySelector('code'));
+    }
+
+    setupArrowNav('10-rtl.html', '12-emoji-graphemes.html');
+  </script>
+
+  <script src="shared/nav.js?v=1"></script>
+</body>
+</html>
