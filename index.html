@@ -280,11 +280,18 @@
     // Link-hover font change (only source of font changes)
     // ═══════════════════════════════════════════════════════════════════
     function wireLinkHover() {
+      // Hovering a course link sets the title font to that link's face and
+      // holds it — no reset on mouseleave. Another link's hover replaces it.
+      // Hovering the tagline (the definition of easymaking) returns to the
+      // default Bricolage face.
       document.querySelectorAll('.course-link[data-font]').forEach(link => {
         const idx = Number(link.dataset.font);
         link.addEventListener('mouseenter', () => applyFont(idx));
-        link.addEventListener('mouseleave', () => applyFont(0));
       });
+      const tagline = document.querySelector('.tagline');
+      if (tagline) {
+        tagline.addEventListener('mouseenter', () => applyFont(0));
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════
