@@ -10,6 +10,7 @@
 <style>
   :root {
     --bg: #F7F3EC;
+    --bg-dark: #DCD4C2;       /* slightly darker version of --bg — Gray-Scott's pigment */
     --ink: #1C1A17;
     --muted: #6B655C;
     --accent: #D94F30;
@@ -34,21 +35,41 @@
     padding: 3rem 3rem 5rem 3rem;
     gap: 3rem;
   }
-  .title-col { flex: 1 1 60%; min-width: 0; }
+  .title-col {
+    flex: 1 1 60%;
+    min-width: 0;
+    position: relative;
+  }
   .side-col  { flex: 1 1 40%; max-width: 520px; }
 
+  /* Reaction-diffusion canvas sits behind the title */
+  #rd-canvas {
+    position: absolute;
+    inset: -3rem;
+    width: calc(100% + 6rem);
+    height: calc(100% + 6rem);
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.95;
+  }
+
   h1.title {
-    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
-    font-weight: 800;
-    font-size: clamp(3.5rem, 9.5vw, 9rem);
-    line-height: 1.1;
-    letter-spacing: -0.035em;
+    position: relative;
+    z-index: 1;
     margin: 0;
-    padding-bottom: 0.15em;
+    display: block;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    line-height: 0.92;
+    letter-spacing: -0.045em;
     color: var(--ink);
-    display: inline-block;
     user-select: none;
+  }
+  h1.title .line {
+    display: block;
     white-space: nowrap;
+    font-weight: 800;
+    padding-bottom: 0.08em;
+    /* font-size set in JS to keep widths matched */
   }
 
   .tagline {
@@ -121,10 +142,8 @@
       max-width: 100%;
       width: 100%;
     }
-    h1.title {
-      font-size: clamp(3rem, 14vw, 5rem);
-      line-height: 0.95;
-    }
+    #rd-canvas { inset: -1.5rem; width: calc(100% + 3rem); height: calc(100% + 3rem); }
+    .course-link { white-space: normal; }
     footer {
       position: static;
       margin-top: 2.5rem;
@@ -135,13 +154,18 @@
 
   @media (prefers-reduced-motion: reduce) {
     .course-link .ch { transition: none; }
+    #rd-canvas { display: none; }
   }
 </style>
 </head>
 <body>
   <div class="stage">
     <div class="title-col">
-      <h1 class="title" id="title">easymaking</h1>
+      <canvas id="rd-canvas"></canvas>
+      <h1 class="title" id="title">
+        <span class="line" id="line-easy">easy</span>
+        <span class="line" id="line-making">making</span>
+      </h1>
     </div>
     <div class="side-col">
       <p class="tagline">Facilitation at its etymological root &mdash; <em>making easy</em>. A practice that works across complexity frameworks without collapsing into any one of them.</p>
@@ -150,27 +174,27 @@
         <p class="courses-label">Now available</p>
 
         <div class="course-item">
-          <a class="course-link" href="/honest-assistant/" data-animchar>A More Honest Assistant &rarr;</a>
+          <a class="course-link" href="/honest-assistant/" data-animchar data-font="5">A More Honest Assistant &rarr;</a>
           <p class="course-desc">An interactive course on building an AI assistant that is both productive and refuses to flatter you. Files, not magic.</p>
         </div>
 
         <div class="course-item">
-          <a class="course-link" href="/av/" data-animchar>Approaching Vividness &rarr;</a>
+          <a class="course-link" href="/av/" data-animchar data-font="1">Approaching Vividness &rarr;</a>
           <p class="course-desc">A five-part invitation into the aliveness of ordinary moments &mdash; through perception, space, form, energy, and play. Adapted from an Evolving Ground seminar series; 22 self-paced lessons.</p>
         </div>
 
         <div class="course-item">
-          <a class="course-link" href="/shader-lab/" data-animchar>Shader Lab &rarr;</a>
+          <a class="course-link" href="/shader-lab/" data-animchar data-font="2">Shader Lab &rarr;</a>
           <p class="course-desc">Thirty-five lessons across seven arcs, with live canvases you can experiment in. The art-direction vocabulary for briefing shader work precisely &mdash; not about writing code.</p>
         </div>
 
         <div class="course-item">
-          <a class="course-link" href="/pretext-lab/" data-animchar>Pretext Lab &rarr;</a>
+          <a class="course-link" href="/pretext-lab/" data-animchar data-font="3">Pretext Lab &rarr;</a>
           <p class="course-desc">A course in typographic fluency &mdash; thirty-one lessons across ten arcs, plus a community gallery. What becomes possible when you can measure and lay out multiline text without the DOM. Built on Cheng Lou&rsquo;s @chenglou/pretext.</p>
         </div>
 
         <div class="course-item">
-          <a class="course-link" href="/globe/" data-animchar>Walking with Desire &rarr;</a>
+          <a class="course-link" href="/globe/" data-animchar data-font="4">Walking with Desire &rarr;</a>
           <p class="course-desc">An interactive scene.</p>
         </div>
       </section>
@@ -179,97 +203,93 @@
   <footer>easymaking.io</footer>
 
   <script type="module">
-    // ─── Title font morph ──────────────────────────────────────────────
-    // Six candidate faces. On desktop, mouse position picks the face.
-    // We measure each at the current rendered size (canvas, same engine
-    // @chenglou/pretext uses) and lock the container to the widest,
-    // so swapping fonts never shifts layout.
-
+    // ═══════════════════════════════════════════════════════════════════
+    // Fonts + per-link pairing
+    // ═══════════════════════════════════════════════════════════════════
     const TITLE_FONTS = [
-      { family: "'Bricolage Grotesque', system-ui, sans-serif", weight: 800, style: 'normal' },
-      { family: "'Playfair Display', serif",                    weight: 700, style: 'italic' },
-      { family: "'Fraunces', serif",                            weight: 900, style: 'normal' },
-      { family: "'DM Serif Display', serif",                    weight: 400, style: 'normal' },
-      { family: "'Abril Fatface', serif",                       weight: 400, style: 'normal' },
-      { family: "'Space Grotesk', sans-serif",                  weight: 700, style: 'normal' },
+      { family: "'Bricolage Grotesque', system-ui, sans-serif", weight: 800, style: 'normal' }, // 0 · default
+      { family: "'Playfair Display', serif",                    weight: 700, style: 'italic' }, // 1 · Approaching Vividness
+      { family: "'Fraunces', serif",                            weight: 900, style: 'normal' }, // 2 · Shader Lab
+      { family: "'DM Serif Display', serif",                    weight: 400, style: 'normal' }, // 3 · Pretext Lab
+      { family: "'Abril Fatface', serif",                       weight: 400, style: 'normal' }, // 4 · Walking with Desire
+      { family: "'Space Grotesk', sans-serif",                  weight: 700, style: 'normal' }, // 5 · Honest Assistant
     ];
-
-    const titleEl = document.getElementById('title');
-    const TITLE_TEXT = titleEl.textContent;
 
     const fontString = (f, sizePx) =>
       `${f.style} ${f.weight} ${sizePx}px ${f.family}`;
 
-    function measureWidths(sizePx) {
-      const c = document.createElement('canvas').getContext('2d');
-      return TITLE_FONTS.map(f => {
-        c.font = fontString(f, sizePx);
-        return c.measureText(TITLE_TEXT).width;
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    function measureText(text, f, sizePx) {
+      measureCtx.font = fontString(f, sizePx);
+      return measureCtx.measureText(text).width;
+    }
+
+    const BASE_MEASURE = 200;
+    const lineEasyEl   = document.getElementById('line-easy');
+    const lineMakingEl = document.getElementById('line-making');
+    const titleColEl   = document.querySelector('.title-col');
+
+    let currentFontIdx = 0;
+    let targetWidth = 0;
+
+    // Pick target width so the widest face's "making" still fits the column.
+    function computeTargetWidth() {
+      const col = titleColEl.clientWidth;
+      // Probe each font at the base size, find the max "making" width, scale so
+      // every face yields a line width of (col * 0.95).
+      let maxW = 0;
+      for (const f of TITLE_FONTS) {
+        maxW = Math.max(maxW, measureText('making', f, BASE_MEASURE));
+      }
+      const want = col * 0.95;
+      // maxW at BASE_MEASURE → we want that to equal `want` after scaling.
+      // So target line width is `want`, and each font's size is derived below.
+      return want;
+    }
+
+    function applyFont(idx) {
+      if (idx === currentFontIdx) return;
+      currentFontIdx = idx;
+      const f = TITLE_FONTS[idx];
+      const wE = measureText('easy',   f, BASE_MEASURE);
+      const wM = measureText('making', f, BASE_MEASURE);
+      const sizeEasy   = (targetWidth / wE) * BASE_MEASURE;
+      const sizeMaking = (targetWidth / wM) * BASE_MEASURE;
+
+      for (const el of [lineEasyEl, lineMakingEl]) {
+        el.style.fontFamily = f.family;
+        el.style.fontWeight = f.weight;
+        el.style.fontStyle  = f.style;
+      }
+      lineEasyEl.style.fontSize   = sizeEasy   + 'px';
+      lineMakingEl.style.fontSize = sizeMaking + 'px';
+
+      scheduleSeed();
+    }
+
+    async function loadAllFonts() {
+      await Promise.all(
+        TITLE_FONTS.map(f =>
+          document.fonts.load(fontString(f, 200)).catch(() => null)
+        )
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Link-hover font change (only source of font changes)
+    // ═══════════════════════════════════════════════════════════════════
+    function wireLinkHover() {
+      document.querySelectorAll('.course-link[data-font]').forEach(link => {
+        const idx = Number(link.dataset.font);
+        link.addEventListener('mouseenter', () => applyFont(idx));
+        link.addEventListener('mouseleave', () => applyFont(0));
       });
     }
 
-    // Load @chenglou/pretext alongside — same spirit, also used in Pretext Lab.
-    let pretextLib = null;
-    import('https://esm.sh/@chenglou/pretext')
-      .catch(() => import('https://cdn.jsdelivr.net/npm/@chenglou/pretext/+esm'))
-      .then(lib => { pretextLib = lib; })
-      .catch(() => { /* offline, no-op */ });
-
-    async function lockTitleWidth() {
-      try { await document.fonts.ready; } catch {}
-      titleEl.style.fontSize = '';
-      const size = parseFloat(getComputedStyle(titleEl).fontSize);
-      await Promise.all(
-        TITLE_FONTS.map(f =>
-          document.fonts.load(fontString(f, size)).catch(() => null)
-        )
-      );
-      const widths = measureWidths(size);
-      const maxW = Math.max(...widths);
-
-      // If the widest face overflows its column, scale the font-size down
-      // proportionally so every face fits.
-      const col = titleEl.parentElement;
-      const available = col.clientWidth;
-      let finalSize = size;
-      let finalMax = maxW;
-      if (maxW > available) {
-        finalSize = Math.floor(size * (available / maxW));
-        const scaled = measureWidths(finalSize);
-        finalMax = Math.max(...scaled);
-        titleEl.style.fontSize = finalSize + 'px';
-      }
-      titleEl.style.minWidth = Math.ceil(finalMax) + 'px';
-    }
-    lockTitleWidth();
-
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        titleEl.style.minWidth = '';
-        lockTitleWidth();
-        refreshCharBoxes();
-      }, 160);
-    });
-
-    // Mouse-position → font index (desktop only).
-    const isDesktop = () => window.matchMedia('(min-width: 900px)').matches;
-    const hasPointer = () => window.matchMedia('(hover: hover)').matches;
-    let currentIdx = 0;
-    function setTitleFont(idx) {
-      if (idx === currentIdx) return;
-      currentIdx = idx;
-      const f = TITLE_FONTS[idx];
-      titleEl.style.fontFamily = f.family;
-      titleEl.style.fontWeight = f.weight;
-      titleEl.style.fontStyle  = f.style;
-    }
-
-    // ─── Char-level link animation ─────────────────────────────────────
-    // Split each link into per-char spans; scale + lift chars within a
-    // radius of the pointer.
-
+    // ═══════════════════════════════════════════════════════════════════
+    // Char-level link animation (unchanged — pointer proximity → lift/scale)
+    // ═══════════════════════════════════════════════════════════════════
     function splitLinks() {
       document.querySelectorAll('[data-animchar]').forEach(el => {
         if (el.dataset.split) return;
@@ -286,46 +306,29 @@
     }
     splitLinks();
 
-    const RADIUS = 110;
-    const MAX_LIFT = 8;
-    const MAX_SCALE = 0.22;
+    const RADIUS = 110, MAX_LIFT = 8, MAX_SCALE = 0.22;
     let charBoxes = [];
-
     function refreshCharBoxes() {
       charBoxes = [];
       document.querySelectorAll('[data-animchar] .ch').forEach(span => {
         const r = span.getBoundingClientRect();
-        charBoxes.push({
-          el: span,
-          cx: r.left + r.width / 2,
-          cy: r.top + r.height / 2,
-        });
+        charBoxes.push({ el: span, cx: r.left + r.width / 2, cy: r.top + r.height / 2 });
       });
     }
-    // Recompute boxes once layout settles.
-    setTimeout(refreshCharBoxes, 120);
-    window.addEventListener('scroll', () => refreshCharBoxes(), { passive: true });
+    setTimeout(refreshCharBoxes, 200);
+    window.addEventListener('scroll', refreshCharBoxes, { passive: true });
 
-    let rafPending = false;
     let lastMouse = { x: -9999, y: -9999 };
+    let rafPending = false;
+    const hasPointer = () => window.matchMedia('(hover: hover)').matches;
 
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener('mousemove', e => {
       lastMouse = { x: e.clientX, y: e.clientY };
-
-      if (isDesktop() && hasPointer()) {
-        const xf = e.clientX / window.innerWidth;
-        const yf = e.clientY / window.innerHeight;
-        const raw = Math.floor((xf * 0.7 + yf * 0.3) * TITLE_FONTS.length);
-        const idx = Math.max(0, Math.min(TITLE_FONTS.length - 1, raw));
-        setTitleFont(idx);
-      }
-
       if (!rafPending) {
         rafPending = true;
         requestAnimationFrame(tickChars);
       }
     });
-
     document.addEventListener('mouseleave', () => {
       for (const b of charBoxes) b.el.style.transform = '';
     });
@@ -335,19 +338,311 @@
       if (!hasPointer()) return;
       const { x, y } = lastMouse;
       for (const b of charBoxes) {
-        const dx = b.cx - x;
-        const dy = b.cy - y;
+        const dx = b.cx - x, dy = b.cy - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > RADIUS) {
           if (b.el.style.transform) b.el.style.transform = '';
           continue;
         }
         const f = 1 - dist / RADIUS;
-        const lift  = f * MAX_LIFT;
-        const scale = 1 + f * MAX_SCALE;
-        b.el.style.transform = `translateY(${-lift}px) scale(${scale})`;
+        b.el.style.transform = `translateY(${-(f * MAX_LIFT)}px) scale(${1 + f * MAX_SCALE})`;
       }
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Gray-Scott reaction-diffusion
+    // ═══════════════════════════════════════════════════════════════════
+    const rdCanvas = document.getElementById('rd-canvas');
+    const gl = rdCanvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: false });
+    let rdReady = false;
+    let pendingSeed = false;
+
+    const SIM_W = 512;
+    const SIM_H = 256;
+
+    function scheduleSeed() {
+      pendingSeed = true;
+    }
+
+    function initRD() {
+      if (!gl) { console.warn('WebGL2 unavailable; RD disabled'); return; }
+      if (!gl.getExtension('EXT_color_buffer_float')) {
+        console.warn('EXT_color_buffer_float unavailable; RD disabled');
+        return;
+      }
+
+      const quad = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,  1, -1, -1,  1,
+         1, -1,  1,  1, -1,  1,
+      ]), gl.STATIC_DRAW);
+
+      const VERT = `#version 300 es
+        in vec2 aPos;
+        out vec2 vUv;
+        void main(){
+          vUv = aPos * 0.5 + 0.5;
+          gl_Position = vec4(aPos, 0.0, 1.0);
+        }`;
+
+      const RD_FRAG = `#version 300 es
+        precision highp float;
+        uniform sampler2D uState;
+        uniform vec2 uRes;
+        uniform float uFeed, uKill, uDu, uDv, uDt;
+        in vec2 vUv;
+        out vec4 outColor;
+        void main(){
+          vec2 texel = 1.0 / uRes;
+          vec2 c = texture(uState, vUv).xy;
+          vec2 l = texture(uState, vUv - vec2(texel.x, 0.0)).xy;
+          vec2 r = texture(uState, vUv + vec2(texel.x, 0.0)).xy;
+          vec2 t = texture(uState, vUv + vec2(0.0, texel.y)).xy;
+          vec2 b = texture(uState, vUv - vec2(0.0, texel.y)).xy;
+          vec2 lap = l + r + t + b - 4.0 * c;
+          float U = c.x;
+          float V = c.y;
+          float uvv = U * V * V;
+          float nU = U + (uDu * lap.x - uvv + uFeed * (1.0 - U)) * uDt;
+          float nV = V + (uDv * lap.y + uvv - (uFeed + uKill) * V) * uDt;
+          outColor = vec4(clamp(nU, 0.0, 1.0), clamp(nV, 0.0, 1.0), 0.0, 1.0);
+        }`;
+
+      const DISP_FRAG = `#version 300 es
+        precision highp float;
+        uniform sampler2D uState;
+        uniform vec3 uBg;
+        uniform vec3 uDark;
+        in vec2 vUv;
+        out vec4 outColor;
+        void main(){
+          float V = texture(uState, vUv).y;
+          // Gentle threshold so the pattern reads without crushing the page.
+          float t = smoothstep(0.08, 0.38, V);
+          vec3 col = mix(uBg, uDark, t);
+          outColor = vec4(col, 1.0);
+        }`;
+
+      function compile(type, src){
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          console.error('Shader compile error:', gl.getShaderInfoLog(s), src);
+          return null;
+        }
+        return s;
+      }
+      function program(vs, fs){
+        const v = compile(gl.VERTEX_SHADER, vs);
+        const f = compile(gl.FRAGMENT_SHADER, fs);
+        if (!v || !f) return null;
+        const p = gl.createProgram();
+        gl.attachShader(p, v); gl.attachShader(p, f);
+        gl.linkProgram(p);
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+          console.error('Link error:', gl.getProgramInfoLog(p));
+          return null;
+        }
+        return p;
+      }
+
+      const rdProg   = program(VERT, RD_FRAG);
+      const dispProg = program(VERT, DISP_FRAG);
+      if (!rdProg || !dispProg) return;
+
+      const rdLoc = {
+        pos: gl.getAttribLocation(rdProg, 'aPos'),
+        state: gl.getUniformLocation(rdProg, 'uState'),
+        res:  gl.getUniformLocation(rdProg, 'uRes'),
+        feed: gl.getUniformLocation(rdProg, 'uFeed'),
+        kill: gl.getUniformLocation(rdProg, 'uKill'),
+        du:   gl.getUniformLocation(rdProg, 'uDu'),
+        dv:   gl.getUniformLocation(rdProg, 'uDv'),
+        dt:   gl.getUniformLocation(rdProg, 'uDt'),
+      };
+      const dispLoc = {
+        pos: gl.getAttribLocation(dispProg, 'aPos'),
+        state: gl.getUniformLocation(dispProg, 'uState'),
+        bg:    gl.getUniformLocation(dispProg, 'uBg'),
+        dark:  gl.getUniformLocation(dispProg, 'uDark'),
+      };
+
+      function makeTex() {
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, SIM_W, SIM_H, 0, gl.RG, gl.FLOAT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return tex;
+      }
+
+      const texA = makeTex();
+      const texB = makeTex();
+      const fboA = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboA);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texA, 0);
+      const fboB = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboB);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texB, 0);
+
+      let current = 0; // 0 → texA is current; render into fboB (texB); swap
+
+      function bindQuad(progPos) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.enableVertexAttribArray(progPos);
+        gl.vertexAttribPointer(progPos, 2, gl.FLOAT, false, 0, 0);
+      }
+
+      // Darker paper target
+      const BG   = [0xF7 / 255, 0xF3 / 255, 0xEC / 255];
+      const DARK = [0xDC / 255, 0xD4 / 255, 0xC2 / 255];
+
+      function seed() {
+        // Rasterize the title text at sim aspect, white = text = V high
+        const c2 = document.createElement('canvas');
+        c2.width = SIM_W; c2.height = SIM_H;
+        const ctx = c2.getContext('2d');
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, SIM_W, SIM_H);
+        ctx.fillStyle = '#fff';
+        ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'center';
+
+        const f = TITLE_FONTS[currentFontIdx];
+        // Same width-matched sizing, scaled to sim.
+        const wE = measureText('easy',   f, BASE_MEASURE);
+        const wM = measureText('making', f, BASE_MEASURE);
+        const simTarget = SIM_W * 0.7;
+        const sE = (simTarget / wE) * BASE_MEASURE;
+        const sM = (simTarget / wM) * BASE_MEASURE;
+
+        // Approximate cap-height as 0.72 × font-size (good enough for a rough seed).
+        const capE = sE * 0.72;
+        const capM = sM * 0.72;
+        const totalH = capE + capM;
+        const yTop = (SIM_H - totalH) / 2;
+
+        ctx.font = fontString(f, sE);
+        ctx.fillText('easy', SIM_W / 2, yTop + capE);
+
+        ctx.font = fontString(f, sM);
+        ctx.fillText('making', SIM_W / 2, yTop + capE + capM);
+
+        const img = ctx.getImageData(0, 0, SIM_W, SIM_H);
+        const uv = new Float32Array(SIM_W * SIM_H * 2);
+        for (let i = 0; i < SIM_W * SIM_H; i++) {
+          const mask = img.data[i * 4] / 255;
+          // U = 1 in background, slightly depleted inside text
+          // V = text silhouette + tiny noise to break symmetry
+          const noise = (Math.random() - 0.5) * 0.02;
+          uv[i * 2]     = 1.0 - 0.5 * mask + noise;
+          uv[i * 2 + 1] = 0.25 * mask + Math.max(0, noise);
+        }
+
+        const seedTex = current === 0 ? texA : texB;
+        gl.bindTexture(gl.TEXTURE_2D, seedTex);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SIM_W, SIM_H, gl.RG, gl.FLOAT, uv);
+      }
+
+      function resizeDisplay() {
+        const rect = rdCanvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        rdCanvas.width  = Math.max(1, Math.floor(rect.width * dpr));
+        rdCanvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      }
+      resizeDisplay();
+      window.addEventListener('resize', resizeDisplay);
+
+      // Gray-Scott parameters — tuned for slow labyrinthine growth
+      const FEED = 0.034;
+      const KILL = 0.061;
+      const DU   = 0.16;
+      const DV   = 0.08;
+      const DT   = 1.0;
+      const ITERS_PER_FRAME = 24;
+
+      function render() {
+        if (pendingSeed) {
+          pendingSeed = false;
+          seed();
+        }
+
+        // Iterate
+        gl.useProgram(rdProg);
+        gl.uniform2f(rdLoc.res,  SIM_W, SIM_H);
+        gl.uniform1f(rdLoc.feed, FEED);
+        gl.uniform1f(rdLoc.kill, KILL);
+        gl.uniform1f(rdLoc.du,   DU);
+        gl.uniform1f(rdLoc.dv,   DV);
+        gl.uniform1f(rdLoc.dt,   DT);
+        gl.uniform1i(rdLoc.state, 0);
+        gl.viewport(0, 0, SIM_W, SIM_H);
+        bindQuad(rdLoc.pos);
+
+        for (let i = 0; i < ITERS_PER_FRAME; i++) {
+          const srcTex = current === 0 ? texA : texB;
+          const dstFBO = current === 0 ? fboB : fboA;
+          gl.bindFramebuffer(gl.FRAMEBUFFER, dstFBO);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, srcTex);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          current = 1 - current;
+        }
+
+        // Display
+        const displayTex = current === 0 ? texA : texB;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, rdCanvas.width, rdCanvas.height);
+        gl.useProgram(dispProg);
+        bindQuad(dispLoc.pos);
+        gl.uniform1i(dispLoc.state, 0);
+        gl.uniform3f(dispLoc.bg, BG[0], BG[1], BG[2]);
+        gl.uniform3f(dispLoc.dark, DARK[0], DARK[1], DARK[2]);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, displayTex);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        requestAnimationFrame(render);
+      }
+
+      rdReady = true;
+      pendingSeed = true; // seed on first frame after DOM is sized
+      render();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Bootstrap
+    // ═══════════════════════════════════════════════════════════════════
+    (async function boot() {
+      try { await document.fonts.ready; } catch {}
+      await loadAllFonts();
+      targetWidth = computeTargetWidth();
+      // Apply default font (idx 0). Bypass the "same idx" short-circuit on init.
+      currentFontIdx = -1;
+      applyFont(0);
+      refreshCharBoxes();
+      wireLinkHover();
+      // Init RD after title is sized so the seed matches visual layout.
+      requestAnimationFrame(() => {
+        initRD();
+      });
+    })();
+
+    // Resize handler for title width + char boxes
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        targetWidth = computeTargetWidth();
+        const idx = currentFontIdx;
+        currentFontIdx = -1;
+        applyFont(idx);
+        refreshCharBoxes();
+      }, 160);
+    });
   </script>
 </body>
 </html>
