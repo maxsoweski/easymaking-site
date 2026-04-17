@@ -42,15 +42,30 @@
   }
   .side-col  { flex: 1 1 40%; max-width: 520px; }
 
-  /* Reaction-diffusion canvas sits behind the title */
+  /* Circular stage — holds the title and the RD pattern inside it.
+     Darker-paper ground; ink-black pattern grows out of the letters. */
+  .title-ball {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--bg-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+
+  /* Reaction-diffusion canvas fills the ball */
   #rd-canvas {
     position: absolute;
-    inset: -3rem;
-    width: calc(100% + 6rem);
-    height: calc(100% + 6rem);
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.95;
   }
 
   h1.title {
@@ -142,7 +157,7 @@
       max-width: 100%;
       width: 100%;
     }
-    #rd-canvas { inset: -1.5rem; width: calc(100% + 3rem); height: calc(100% + 3rem); }
+    .title-ball { max-width: 100%; }
     .course-link { white-space: normal; }
     footer {
       position: static;
@@ -161,11 +176,13 @@
 <body>
   <div class="stage">
     <div class="title-col">
-      <canvas id="rd-canvas"></canvas>
-      <h1 class="title" id="title">
-        <span class="line" id="line-easy">easy</span>
-        <span class="line" id="line-making">making</span>
-      </h1>
+      <div class="title-ball" id="title-ball">
+        <canvas id="rd-canvas"></canvas>
+        <h1 class="title" id="title">
+          <span class="line" id="line-easy">easy</span>
+          <span class="line" id="line-making">making</span>
+        </h1>
+      </div>
     </div>
     <div class="side-col">
       <p class="tagline">Facilitation at its etymological root &mdash; <em>making easy</em>. A practice that works across complexity frameworks without collapsing into any one of them.</p>
@@ -228,24 +245,18 @@
     const BASE_MEASURE = 200;
     const lineEasyEl   = document.getElementById('line-easy');
     const lineMakingEl = document.getElementById('line-making');
-    const titleColEl   = document.querySelector('.title-col');
+    const ballEl       = document.getElementById('title-ball');
 
     let currentFontIdx = 0;
     let targetWidth = 0;
 
-    // Pick target width so the widest face's "making" still fits the column.
+    // The title sits inside a circle. Text block must fit within the circle
+    // (both width AND the stacked two-line height). Using 0.60 × diameter
+    // for the line width keeps every face — including the wide Space Grotesk
+    // and tall Fraunces — inside the circle with visible margin.
     function computeTargetWidth() {
-      const col = titleColEl.clientWidth;
-      // Probe each font at the base size, find the max "making" width, scale so
-      // every face yields a line width of (col * 0.95).
-      let maxW = 0;
-      for (const f of TITLE_FONTS) {
-        maxW = Math.max(maxW, measureText('making', f, BASE_MEASURE));
-      }
-      const want = col * 0.95;
-      // maxW at BASE_MEASURE → we want that to equal `want` after scaling.
-      // So target line width is `want`, and each font's size is derived below.
-      return want;
+      const ballSize = ballEl.clientWidth;
+      return ballSize * 0.60;
     }
 
     function applyFont(idx) {
@@ -365,7 +376,7 @@
     let pendingSeed = false;
 
     const SIM_W = 512;
-    const SIM_H = 256;
+    const SIM_H = 512;  // square sim matches the circular ball cleanly
 
     function scheduleSeed() {
       pendingSeed = true;
@@ -512,9 +523,12 @@
         gl.vertexAttribPointer(progPos, 2, gl.FLOAT, false, 0, 0);
       }
 
-      // Darker paper target
-      const BG   = [0xF7 / 255, 0xF3 / 255, 0xEC / 255];
-      const DARK = [0xDC / 255, 0xD4 / 255, 0xC2 / 255];
+      // Inside the circular ball:
+      //   ground  (V≈0) = darker paper  #DCD4C2
+      //   pattern (V>0) = ink           #1C1A17  (matches title text)
+      // The lines visually read as extending out from the letters.
+      const BG   = [0xDC / 255, 0xD4 / 255, 0xC2 / 255];
+      const DARK = [0x1C / 255, 0x1A / 255, 0x17 / 255];
 
       function seed() {
         // Rasterize the title text at sim aspect, white = text = V high
