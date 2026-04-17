@@ -301,28 +301,46 @@ class AVReflect extends HTMLElement {
   }
 }
 
-// ─── <av-video id start end caption sensitive> ─────────────────────────
-// If `sensitive` is set, the iframe is replaced with a click-to-load overlay
-// so the YouTube thumbnail (which may itself be the trigger) doesn't appear
-// until the user opts in.
+// ─── <av-video> — three modes ──────────────────────────────────────────
+// Self-hosted:    <av-video src="media/foo.mp4" caption="..." muted sensitive>
+// Drive-embedded: <av-video drive-id="..." caption="...">
+// YouTube:        <av-video id="YT_ID" start="N" end="N" caption="..." muted>
+// `sensitive` → click-to-load overlay (avoids showing trigger thumbnails)
 class AVVideo extends HTMLElement {
   connectedCallback() {
+    const src = this.getAttribute('src');
+    const driveId = this.getAttribute('drive-id');
     const id = this.getAttribute('id');
     const start = this.getAttribute('start') || '0';
     const end = this.getAttribute('end');
     const caption = this.getAttribute('caption') || '';
     const sensitive = this.hasAttribute('sensitive');
     const muted = this.hasAttribute('muted');
-    const params = new URLSearchParams({ start, rel: '0', modestbranding: '1' });
-    if (end) params.set('end', end);
-    if (muted) params.set('mute', '1');
-    const iframeHtml = `
-      <iframe
+
+    let mediaHtml;
+    if (src) {
+      // Self-hosted HTML5 video
+      const attrs = ['controls', 'preload="metadata"', `src="${src}"`];
+      if (muted) attrs.push('muted');
+      mediaHtml = `<video ${attrs.join(' ')}></video>`;
+    } else if (driveId) {
+      // Google Drive embedded preview iframe
+      mediaHtml = `<iframe
+        src="https://drive.google.com/file/d/${driveId}/preview"
+        allow="autoplay"
+        allowfullscreen
+        loading="lazy"></iframe>`;
+    } else {
+      // YouTube embed (legacy)
+      const params = new URLSearchParams({ start, rel: '0', modestbranding: '1' });
+      if (end) params.set('end', end);
+      if (muted) params.set('mute', '1');
+      mediaHtml = `<iframe
         src="https://www.youtube-nocookie.com/embed/${id}?${params}"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen
-        loading="lazy"
-      ></iframe>`;
+        loading="lazy"></iframe>`;
+    }
 
     if (sensitive) {
       this.innerHTML = `
@@ -339,14 +357,28 @@ class AVVideo extends HTMLElement {
       const wrap = this.querySelector('.av-video');
       btn.addEventListener('click', () => {
         wrap.classList.remove('sensitive');
-        wrap.innerHTML = iframeHtml;
+        wrap.innerHTML = mediaHtml;
       });
     } else {
       this.innerHTML = `
-        <div class="av-video">${iframeHtml}</div>
+        <div class="av-video">${mediaHtml}</div>
         ${caption ? `<div class="av-video-caption">${caption}</div>` : ''}
       `;
     }
+  }
+}
+
+// ─── <av-audio src caption> — self-hosted audio ────────────────────────
+class AVAudio extends HTMLElement {
+  connectedCallback() {
+    const src = this.getAttribute('src');
+    const caption = this.getAttribute('caption') || '';
+    this.innerHTML = `
+      <div class="widget av-audio-widget">
+        <audio controls preload="metadata" src="${src}"></audio>
+        ${caption ? `<div class="av-audio-caption">${caption}</div>` : ''}
+      </div>
+    `;
   }
 }
 
@@ -472,6 +504,8 @@ class AVCardShuffle extends HTMLElement {
 class AVGuidedVideo extends HTMLElement {
   connectedCallback() {
     const id = this.getAttribute('video-id');
+    const src = this.getAttribute('src');
+    const driveId = this.getAttribute('drive-id');
     const start = this.getAttribute('video-start') || '0';
     const end = this.getAttribute('video-end');
     const caption = this.getAttribute('caption') || '';
@@ -482,24 +516,31 @@ class AVGuidedVideo extends HTMLElement {
       text: el.textContent.trim(),
     }));
 
-    // YouTube loop trick: ?loop=1&playlist=ID makes the embed loop the segment.
-    // mute=1 + autoplay=1 enables autoplay; controls=0 hides chrome.
-    // cc_load_policy=1 forces captions on (load-bearing for the Muir Woods exercise).
-    const params = new URLSearchParams({
-      autoplay: '1', mute: '1', loop: '1', playlist: id,
-      controls: '0', rel: '0', modestbranding: '1', start,
-      cc_load_policy: '1', cc_lang_pref: 'en',
-    });
-    if (end) params.set('end', end);
+    let frameHtml;
+    if (src) {
+      // Self-hosted: HTML5 native autoplay+loop+muted (no chrome)
+      frameHtml = `<video src="${src}" autoplay muted loop playsinline></video>`;
+    } else if (driveId) {
+      frameHtml = `<iframe
+        src="https://drive.google.com/file/d/${driveId}/preview"
+        allow="autoplay" allowfullscreen></iframe>`;
+    } else {
+      // YouTube loop trick
+      const params = new URLSearchParams({
+        autoplay: '1', mute: '1', loop: '1', playlist: id,
+        controls: '0', rel: '0', modestbranding: '1', start,
+        cc_load_policy: '1', cc_lang_pref: 'en',
+      });
+      if (end) params.set('end', end);
+      frameHtml = `<iframe
+        src="https://www.youtube-nocookie.com/embed/${id}?${params}"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowfullscreen></iframe>`;
+    }
 
     this.innerHTML = `
       <div class="widget av-guided-video">
-        <div class="gv-frame">
-          <iframe
-            src="https://www.youtube-nocookie.com/embed/${id}?${params}"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowfullscreen></iframe>
-        </div>
+        <div class="gv-frame">${frameHtml}</div>
         ${caption ? `<div class="av-video-caption">${caption}</div>` : ''}
         <div class="gv-control">
           <button class="btn primary gv-begin">Begin guided sequence</button>
@@ -642,6 +683,7 @@ customElements.define('av-video', AVVideo);
 customElements.define('av-dial', AVDial);
 customElements.define('av-guided-video', AVGuidedVideo);
 customElements.define('av-card-shuffle', AVCardShuffle);
+customElements.define('av-audio', AVAudio);
 
 // Update nav badge once everything is ready
 document.addEventListener('DOMContentLoaded', updateJournalBadge);
