@@ -34,19 +34,20 @@
     padding: 3rem 3rem 5rem 3rem;
     gap: 3rem;
   }
-  .title-col { flex: 1 1 55%; min-width: 0; }
-  .side-col  { flex: 1 1 45%; max-width: 520px; }
+  .title-col { flex: 1 1 60%; min-width: 0; overflow: hidden; }
+  .side-col  { flex: 1 1 40%; max-width: 520px; }
 
   h1.title {
     font-family: 'Bricolage Grotesque', system-ui, sans-serif;
     font-weight: 800;
-    font-size: clamp(4rem, 12vw, 11rem);
-    line-height: 0.88;
-    letter-spacing: -0.03em;
+    font-size: clamp(3.5rem, 9.5vw, 9rem);
+    line-height: 0.9;
+    letter-spacing: -0.035em;
     margin: 0;
     color: var(--ink);
     display: inline-block;
     user-select: none;
+    white-space: nowrap;
   }
 
   .tagline {
@@ -215,6 +216,7 @@
 
     async function lockTitleWidth() {
       try { await document.fonts.ready; } catch {}
+      titleEl.style.fontSize = '';
       const size = parseFloat(getComputedStyle(titleEl).fontSize);
       await Promise.all(
         TITLE_FONTS.map(f =>
@@ -223,7 +225,20 @@
       );
       const widths = measureWidths(size);
       const maxW = Math.max(...widths);
-      titleEl.style.minWidth = Math.ceil(maxW) + 'px';
+
+      // If the widest face overflows its column, scale the font-size down
+      // proportionally so every face fits.
+      const col = titleEl.parentElement;
+      const available = col.clientWidth;
+      let finalSize = size;
+      let finalMax = maxW;
+      if (maxW > available) {
+        finalSize = Math.floor(size * (available / maxW));
+        const scaled = measureWidths(finalSize);
+        finalMax = Math.max(...scaled);
+        titleEl.style.fontSize = finalSize + 'px';
+      }
+      titleEl.style.minWidth = Math.ceil(finalMax) + 'px';
     }
     lockTitleWidth();
 
