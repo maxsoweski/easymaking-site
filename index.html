@@ -534,17 +534,40 @@
         const uv = new Float32Array(SIM_W * SIM_H * 2);
         for (let i = 0; i < SIM_W * SIM_H; i++) {
           const mask = img.data[i * 4] / 255;
-          // Full-strength Gray-Scott seed: background = (U=1, V=0),
-          // text   = (U=0, V=1). Pattern grows from the text/background
-          // boundary into both sides.
-          const noise = (Math.random() - 0.5) * 0.015;
-          uv[i * 2]     = (1.0 - mask) + noise;
-          uv[i * 2 + 1] = mask + Math.max(0, noise);
+          // Canonical Gray-Scott seed: U=1 everywhere (always the substrate),
+          // V=0.5 at text pixels (seed regions). The reaction U·V² needs
+          // both chemicals present to ignite, so U must NOT drop to 0.
+          const noise = (Math.random() - 0.5) * 0.01;
+          uv[i * 2]     = 1.0 + noise;
+          uv[i * 2 + 1] = 0.5 * mask + Math.max(0, noise);
         }
 
         const seedTex = current === 0 ? texA : texB;
         gl.bindTexture(gl.TEXTURE_2D, seedTex);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SIM_W, SIM_H, gl.RG, gl.FLOAT, uv);
+      }
+
+      // Run many iterations quickly to skip the dormant early phase.
+      function warmup(iters) {
+        gl.useProgram(rdProg);
+        gl.uniform2f(rdLoc.res,  SIM_W, SIM_H);
+        gl.uniform1f(rdLoc.feed, FEED);
+        gl.uniform1f(rdLoc.kill, KILL);
+        gl.uniform1f(rdLoc.du,   DU);
+        gl.uniform1f(rdLoc.dv,   DV);
+        gl.uniform1f(rdLoc.dt,   DT);
+        gl.uniform1i(rdLoc.state, 0);
+        gl.viewport(0, 0, SIM_W, SIM_H);
+        bindQuad(rdLoc.pos);
+        for (let i = 0; i < iters; i++) {
+          const srcTex = current === 0 ? texA : texB;
+          const dstFBO = current === 0 ? fboB : fboA;
+          gl.bindFramebuffer(gl.FRAMEBUFFER, dstFBO);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, srcTex);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          current = 1 - current;
+        }
       }
 
       function resizeDisplay() {
@@ -568,6 +591,9 @@
         if (pendingSeed) {
           pendingSeed = false;
           seed();
+          // Skip the dormant early phase so the first visible frame
+          // already shows evolving labyrinthine patterns.
+          warmup(800);
         }
 
         // Iterate
