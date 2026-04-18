@@ -435,9 +435,14 @@
           //   inside filled letter shapes      → clamp to substrate
           // Pattern cannot sustain in either region, so it visibly terminates
           // at both the circle circumference AND every letter edge.
+          //
+          // Letter suppression is a hard step() on the bilinearly-filtered mask
+          // texture, so there is no partial-V halo at antialiased letter edges.
+          // (A soft mix-suppression would gray the V value at edge pixels,
+          // which the display shader would render as a gray stroke.)
           float rad = length(vUv - 0.5);
           float outside = smoothstep(0.495, 0.500, rad);
-          float letterInside = texture(uMask, vUv).r;
+          float letterInside = step(0.5, texture(uMask, vUv).r);
           float suppress = max(outside, letterInside);
           nU = mix(nU, 1.0, suppress);
           nV = mix(nV, 0.0, suppress);
@@ -448,6 +453,7 @@
       const DISP_FRAG = `#version 300 es
         precision highp float;
         uniform sampler2D uState;
+        uniform sampler2D uMask;
         uniform vec3 uBg;
         uniform vec3 uDark;
         in vec2 vUv;
@@ -459,6 +465,12 @@
           // same family as the paper ground, just lightly pigmented.
           float t = smoothstep(0.03, 0.28, V);
           vec3 col = mix(uBg, uDark, t);
+          // Hard-force paper inside letter mask — the V texture is linearly
+          // filtered, so without this the V gradient at letter boundaries
+          // renders as a dark halo. Using step() on the bilinearly-filtered
+          // mask gives a sub-pixel-accurate clean edge.
+          float letter = step(0.5, texture(uMask, vUv).r);
+          col = mix(col, uBg, letter);
           outColor = vec4(col, 1.0);
         }`;
 
@@ -504,6 +516,7 @@
       const dispLoc = {
         pos: gl.getAttribLocation(dispProg, 'aPos'),
         state: gl.getUniformLocation(dispProg, 'uState'),
+        mask:  gl.getUniformLocation(dispProg, 'uMask'),
         bg:    gl.getUniformLocation(dispProg, 'uBg'),
         dark:  gl.getUniformLocation(dispProg, 'uDark'),
       };
@@ -560,17 +573,15 @@
       const DARK = [0x1C / 255, 0x1A / 255, 0x17 / 255];
 
       function seed() {
-        // Two canvases at sim resolution:
-        //   edgeCanvas — strokeText outlines → V seed (pattern originates here)
-        //   maskCanvas — fillText interiors → mask (pattern suppressed here)
-        // Stroke is wide (12px) so the outside half survives the mask clamp,
-        // leaving a thick seed band just outside each letter edge.
+        // Rasterize filled letter interiors as the mask texture. The V seed
+        // is pure random noise throughout the allowed region (inside circle,
+        // outside letters). This avoids the pattern clinging to letter edges
+        // — any edge-aligned seed creates a dense labyrinth line right at the
+        // letter boundary, which reads as a dark stroke. Random seed gives a
+        // uniform labyrinth that terminates cleanly at letter edges.
         const f = TITLE_FONTS[currentFontIdx];
         const wE = measureText('easy',   f, BASE_MEASURE);
         const wM = measureText('making', f, BASE_MEASURE);
-        // Match the DOM title's 60% target so mask aligns visually with where
-        // the hidden DOM text sits (and the pattern-defined letters read at
-        // the same size as the stroked fallback if the shader ever fails).
         const simTarget = SIM_W * 0.60;
         const sE = (simTarget / wE) * BASE_MEASURE;
         const sM = (simTarget / wM) * BASE_MEASURE;
@@ -580,56 +591,52 @@
         const totalH = capE + capM;
         const yTop = (SIM_H - totalH) / 2;
 
-        function drawText(ctx, useStroke) {
-          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, SIM_W, SIM_H);
-          ctx.textBaseline = 'alphabetic';
-          ctx.textAlign = 'center';
-          if (useStroke) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 12;
-            ctx.lineJoin = 'round';
-          } else {
-            ctx.fillStyle = '#fff';
-          }
-          ctx.font = fontString(f, sE);
-          if (useStroke) ctx.strokeText('easy', SIM_W / 2, yTop + capE);
-          else           ctx.fillText  ('easy', SIM_W / 2, yTop + capE);
-          ctx.font = fontString(f, sM);
-          if (useStroke) ctx.strokeText('making', SIM_W / 2, yTop + capE + capM);
-          else           ctx.fillText  ('making', SIM_W / 2, yTop + capE + capM);
-        }
-
-        // Edge canvas → V seed
-        const edgeCanvas = document.createElement('canvas');
-        edgeCanvas.width = SIM_W; edgeCanvas.height = SIM_H;
-        drawText(edgeCanvas.getContext('2d'), true);
-        const edgeImg = edgeCanvas.getContext('2d').getImageData(0, 0, SIM_W, SIM_H);
-
-        // Mask canvas → letter-interior mask
         const maskCanvas = document.createElement('canvas');
         maskCanvas.width = SIM_W; maskCanvas.height = SIM_H;
-        drawText(maskCanvas.getContext('2d'), false);
-        const maskImg = maskCanvas.getContext('2d').getImageData(0, 0, SIM_W, SIM_H);
+        const mctx = maskCanvas.getContext('2d');
+        mctx.fillStyle = '#000'; mctx.fillRect(0, 0, SIM_W, SIM_H);
+        mctx.fillStyle = '#fff';
+        mctx.strokeStyle = '#fff';
+        // Small dilation (~2px each side of the glyph path). Creates a thin
+        // paper breathing ring around letters so the labyrinth terminates
+        // a hair before touching letter edges — kills stray "stroke" flecks
+        // without closing letter counters.
+        mctx.lineWidth = 4;
+        mctx.lineJoin = 'round';
+        mctx.textBaseline = 'alphabetic';
+        mctx.textAlign = 'center';
+        mctx.font = fontString(f, sE);
+        mctx.fillText  ('easy', SIM_W / 2, yTop + capE);
+        mctx.strokeText('easy', SIM_W / 2, yTop + capE);
+        mctx.font = fontString(f, sM);
+        mctx.fillText  ('making', SIM_W / 2, yTop + capE + capM);
+        mctx.strokeText('making', SIM_W / 2, yTop + capE + capM);
+        const maskImg = mctx.getImageData(0, 0, SIM_W, SIM_H);
 
         const uv = new Float32Array(SIM_W * SIM_H * 2);
         const maskData = new Uint8Array(SIM_W * SIM_H);
-        // WebGL textures use bottom-origin, canvas 2D uses top-origin.
-        // We upload raw bytes (UNPACK_FLIP_Y_WEBGL doesn't help for ArrayBufferView
-        // sources), so flip Y manually by reading from the canvas row mirrored.
+        const cx = SIM_W / 2;
+        const cy = SIM_H / 2;
+        const circleR2 = (SIM_W * 0.49) * (SIM_W * 0.49);
+        // Flip Y when reading mask (WebGL texture is bottom-origin, canvas
+        // is top-origin, and UNPACK_FLIP_Y_WEBGL doesn't apply to ArrayBufferView).
         for (let y = 0; y < SIM_H; y++) {
           const srcY = SIM_H - 1 - y;
           for (let x = 0; x < SIM_W; x++) {
             const srcIdx = (srcY * SIM_W + x) * 4;
             const dstIdx = y * SIM_W + x;
-            const edge   = edgeImg.data[srcIdx] / 255;
             const inside = maskImg.data[srcIdx];
-            // Canonical Gray-Scott seed: U=1 everywhere, V=0.5 at edge pixels.
-            // (The mask clamp in the shader zeros V inside the letter fill,
-            // leaving only the outside half of the stroke ring as seed.)
+            maskData[dstIdx] = inside;
+
+            const dx = x - cx;
+            const dy = y - cy;
+            const insideCircle = (dx * dx + dy * dy) < circleR2;
+            const insideLetter = inside > 128;
+            const canSeed = insideCircle && !insideLetter;
+
             const noise = (Math.random() - 0.5) * 0.01;
             uv[dstIdx * 2]     = 1.0 + noise;
-            uv[dstIdx * 2 + 1] = 0.5 * edge + Math.max(0, noise);
-            maskData[dstIdx]   = inside;
+            uv[dstIdx * 2 + 1] = canSeed ? Math.random() * 0.5 : 0.0;
           }
         }
 
@@ -725,10 +732,13 @@
         gl.useProgram(dispProg);
         bindQuad(dispLoc.pos);
         gl.uniform1i(dispLoc.state, 0);
+        gl.uniform1i(dispLoc.mask, 1);
         gl.uniform3f(dispLoc.bg, BG[0], BG[1], BG[2]);
         gl.uniform3f(dispLoc.dark, DARK[0], DARK[1], DARK[2]);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, displayTex);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, maskTex);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
         requestAnimationFrame(render);
